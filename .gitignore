@@ -1,0 +1,4 @@
+
+# App Store Connect API credentials
+.env.local
+build/
