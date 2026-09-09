@@ -143,7 +143,11 @@ struct StopCardView: View {
                         .tracking(0.5)
                         .foregroundStyle(Theme.mutedForeground)
                     Spacer()
-                    LiveTag(live: next.live)
+                    if model.isOffline {
+                        OfflineTag(compact: true)
+                    } else {
+                        LiveTag(live: next.live)
+                    }
                 }
 
                 HStack(alignment: .top, spacing: 12) {

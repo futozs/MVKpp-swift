@@ -192,15 +192,13 @@ struct MapScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 HStack(alignment: .bottom) {
-                    Button {
+                    GlassCircleButton {
                         isCodeSearchOpen = true
                     } label: {
                         Image(systemName: "number")
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(.white)
                     }
-                    .buttonStyle(.plain)
-                    .glassCircle()
                     .accessibilityLabel("Ugrás megállókód alapján")
 
                     Spacer()
@@ -217,14 +215,15 @@ struct MapScreen: View {
                                 .frame(maxWidth: 220)
                         }
 
-                        Button(action: handleLocate) {
+                        GlassCircleButton(
+                            tint: location.isActive ? Theme.primary.opacity(0.3) : nil,
+                            action: handleLocate
+                        ) {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(location.isActive ? Theme.primary : .white)
                                 .symbolEffect(.pulse, isActive: location.status == .requesting)
                         }
-                        .buttonStyle(.plain)
-                        .glassCircle(tint: location.isActive ? Theme.primary.opacity(0.3) : nil)
                         .disabled(location.status == .requesting)
                         .accessibilityLabel(location.position == nil ? "Helymeghatározás bekapcsolása" : "Ugrás a helyzetemre")
                     }

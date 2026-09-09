@@ -19,6 +19,9 @@ final class TransitStore: ObservableObject {
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isRefreshing = false
     @Published private(set) var staticError: String?
+    /// The catalog on screen came from the device, not the gateway. Screens
+    /// read this to say so instead of quietly showing yesterday as today.
+    @Published private(set) var isUsingOfflineCatalog = false
 
     /// The upstream feed publishes roughly every three seconds; polling
     /// slightly faster than that keeps the map from visibly stepping.
@@ -45,21 +48,58 @@ final class TransitStore: ObservableObject {
 
     func loadStatic() async {
         do {
-            async let stopsTask = APIClient.shared.stops()
-            async let routesTask = APIClient.shared.routes()
-            async let metaTask = APIClient.shared.gtfsMeta()
+            let catalog = try await APIClient.shared.staticCatalog()
 
-            let (loadedStops, loadedRoutes, meta) = try await (stopsTask, routesTask, metaTask)
-
-            stops = loadedStops
-            stopIndex = Dictionary(loadedStops.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            routes = Dictionary(loadedRoutes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            gtfsMeta = meta
+            apply(stops: catalog.stops, routes: catalog.routes, meta: catalog.meta, offline: false)
             hasLoadedStatic = true
             staticError = nil
+
+            // The widget's stop picker and its "which stop is this" lookup
+            // both read this copy; a widget extension has no time for a cold
+            // network call and no business making one. The offline catalog on
+            // the next launch without signal is the same mirror.
+            SharedStopCache.save(catalog.stops)
+            SharedCatalogCache.saveRoutes(catalog.routesData)
+            SharedCatalogCache.saveMeta(catalog.metaData)
         } catch {
-            staticError = error.localizedDescription
+            // No signal is the normal case this app has to survive, not an
+            // error state. If the catalog was ever downloaded it is still on
+            // the device, and every screen that only needs stop names, route
+            // colours and the timetable keeps working from it.
+            if loadOfflineCatalog() {
+                staticError = nil
+            } else {
+                staticError = error.localizedDescription
+            }
         }
+    }
+
+    /// Rehydrates from the App Group mirror. Returns false when there is
+    /// nothing stored — a first launch that never reached the network.
+    @discardableResult
+    private func loadOfflineCatalog() -> Bool {
+        let cachedStops = SharedStopCache.loadStops()
+        guard !cachedStops.isEmpty else { return false }
+
+        apply(
+            stops: cachedStops,
+            routes: SharedCatalogCache.routes(),
+            meta: SharedCatalogCache.meta(),
+            offline: true
+        )
+        // Deliberately not `hasLoadedStatic`: the next chance at the network
+        // should still be taken.
+        return true
+    }
+
+    private func apply(stops loadedStops: [Stop], routes loadedRoutes: [Route], meta: GtfsMeta?, offline: Bool) {
+        stops = loadedStops
+        stopIndex = Dictionary(loadedStops.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        if !loadedRoutes.isEmpty {
+            routes = Dictionary(loadedRoutes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        if let meta { gtfsMeta = meta }
+        isUsingOfflineCatalog = offline
     }
 
     // MARK: - Live positions

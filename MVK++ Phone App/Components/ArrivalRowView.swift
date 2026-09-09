@@ -87,11 +87,12 @@ struct ArrivalRowView: View {
                 .font(Theme.mono(14))
                 .foregroundStyle(Theme.live)
         } else {
+            let parts = Countdown.parts(minutes: arrival.etaMin)
             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text("\(arrival.etaMin)")
+                Text(parts.value)
                     .font(Theme.mono(16))
                     .foregroundStyle(Theme.foreground)
-                Text("p")
+                Text(parts.unit)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.mutedForeground)
             }
@@ -99,7 +100,7 @@ struct ArrivalRowView: View {
     }
 
     private var accessibilityText: String {
-        let eta = arrival.etaMin <= 0 ? "most érkezik" : "\(arrival.etaMin) perc múlva"
+        let eta = arrival.etaMin <= 0 ? "most érkezik" : Countdown.spoken(minutes: arrival.etaMin)
         let source = arrival.live ? "valós idejű" : "menetrendi"
         return "\(HungarianText.withSuffix(arrival.route)), \(arrival.headsign), \(eta), \(source)"
     }

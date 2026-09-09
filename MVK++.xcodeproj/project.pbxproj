@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		52AA9998CC3B46009ABF8723 /* MVK++ Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CDF7646FF75B43B69EDDEFA7 /* MVK++ Widget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		79834E45304B1A08001C7728 /* MVK++ Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 79834E44304B1A08001C7728 /* MVK++ Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1B2C30008CC3B46009ABF87 /* MVK++ Phone Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C30002F75B43B69EDDEF /* MVK++ Phone Widget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,6 +27,13 @@
 			remoteGlobalIDString = 79834E43304B1A08001C7728;
 			remoteInfo = "MVK++ Watch App";
 		};
+		A1B2C30009F0F94F638E3846 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 79834E38304B1A08001C7728 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C30003AEC41849ED6432;
+			remoteInfo = "MVK++ Phone Widget";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -38,6 +46,17 @@
 				79834E45304B1A08001C7728 /* MVK++ Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C30007BCE421EBBA87C5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1B2C30008CC3B46009ABF87 /* MVK++ Phone Widget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		DFA1F377EBCE421EBBA87C55 /* Embed Foundation Extensions */ = {
@@ -56,6 +75,7 @@
 /* Begin PBXFileReference section */
 		79834E3E304B1A08001C7728 /* MVK++.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "MVK++.app"; path = MVKPlus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79834E44304B1A08001C7728 /* MVK++ Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "MVK++ Watch App.app"; path = "MVKPlus Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C30002F75B43B69EDDEF /* MVK++ Phone Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; name = "MVK++ Phone Widget.appex"; path = "MVKPlus Phone Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CDF7646FF75B43B69EDDEFA7 /* MVK++ Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; name = "MVK++ Widget.appex"; path = "MVKPlus Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -80,6 +100,16 @@
 			path = "MVK++ Watch App";
 			sourceTree = "<group>";
 		};
+		A1B2C30001E64F1D93711B73 /* MVK++ Phone Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MVK++ Phone Widget";
+			sourceTree = "<group>";
+		};
+		A1B2C3000E64F1D93711B740 /* MVK++ Phone Intents */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MVK++ Phone Intents";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +121,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		79834E41304B1A08001C7728 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C30005CC0B4415848C25 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -114,6 +151,8 @@
 				79834E48304B1A08001C7728 /* MVK++ Watch App */,
 				147E357412E74F1D93711B73 /* MVK++ Widget */,
 				24CF705E306E48FA9C29283B /* MVK++ Phone App */,
+				A1B2C30001E64F1D93711B73 /* MVK++ Phone Widget */,
+				A1B2C3000E64F1D93711B740 /* MVK++ Phone Intents */,
 				79834E3F304B1A08001C7728 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,6 +163,7 @@
 				79834E3E304B1A08001C7728 /* MVK++.app */,
 				79834E44304B1A08001C7728 /* MVK++ Watch App.app */,
 				CDF7646FF75B43B69EDDEFA7 /* MVK++ Widget.appex */,
+				A1B2C30002F75B43B69EDDEF /* MVK++ Phone Widget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -162,15 +202,18 @@
 				1193A7599F21429D941EE732 /* Frameworks */,
 				79834E3C304B1A08001C7728 /* Resources */,
 				79834E54304B1A09001C7728 /* Embed Watch Content */,
+				A1B2C30007BCE421EBBA87C5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				79834E47304B1A08001C7728 /* PBXTargetDependency */,
+				A1B2C3000A3807464D99D750 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				24CF705E306E48FA9C29283B /* MVK++ Phone App */,
 				4817D7A7FE464FC3A788E2E7 /* Shared */,
+				A1B2C3000E64F1D93711B740 /* MVK++ Phone Intents */,
 			);
 			name = "MVK++";
 			packageProductDependencies = (
@@ -204,6 +247,30 @@
 			productReference = 79834E44304B1A08001C7728 /* MVK++ Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1B2C30003AEC41849ED6432 /* MVK++ Phone Widget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3000B84784DB286BB8D /* Build configuration list for PBXNativeTarget "MVK++ Phone Widget" */;
+			buildPhases = (
+				A1B2C30004062B4FD8A5B503 /* Sources */,
+				A1B2C30005CC0B4415848C25 /* Frameworks */,
+				A1B2C30006F9E0447DACA6D1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4817D7A7FE464FC3A788E2E7 /* Shared */,
+				A1B2C30001E64F1D93711B73 /* MVK++ Phone Widget */,
+				A1B2C3000E64F1D93711B740 /* MVK++ Phone Intents */,
+			);
+			name = "MVK++ Phone Widget";
+			packageProductDependencies = (
+			);
+			productName = "MVK++ Phone Widget";
+			productReference = A1B2C30002F75B43B69EDDEF /* MVK++ Phone Widget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -221,6 +288,9 @@
 						CreatedOnToolsVersion = 26.6;
 					};
 					79834E43304B1A08001C7728 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					A1B2C30003AEC41849ED6432 = {
 						CreatedOnToolsVersion = 26.6;
 					};
 				};
@@ -242,6 +312,7 @@
 				79834E3D304B1A08001C7728 /* MVK++ */,
 				79834E43304B1A08001C7728 /* MVK++ Watch App */,
 				63AB411FDAEC41849ED6432D /* MVK++ Widget */,
+				A1B2C30003AEC41849ED6432 /* MVK++ Phone Widget */,
 			);
 		};
 /* End PBXProject section */
@@ -268,6 +339,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1B2C30006F9E0447DACA6D1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -279,6 +357,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		79834E40304B1A08001C7728 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C30004062B4FD8A5B503 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -299,6 +384,11 @@
 			isa = PBXTargetDependency;
 			target = 79834E43304B1A08001C7728 /* MVK++ Watch App */;
 			targetProxy = 79834E46304B1A08001C7728 /* PBXContainerItemProxy */;
+		};
+		A1B2C3000A3807464D99D750 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C30003AEC41849ED6432 /* MVK++ Phone Widget */;
+			targetProxy = A1B2C30009F0F94F638E3846 /* PBXContainerItemProxy */;
 		};
 		F8BD5FE13807464D99D7508B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -559,6 +649,7 @@
 				DEVELOPMENT_TEAM = 894MKLY88M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MVK++ Phone App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, és megmondja, mikor ér oda hozzád a busz.";
@@ -594,6 +685,7 @@
 				DEVELOPMENT_TEAM = 894MKLY88M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MVK++ Phone App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, és megmondja, mikor ér oda hozzád a busz.";
@@ -613,6 +705,65 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A1B2C3000CCA844DE1A0A241 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MVK++ Phone Widget/MVKPhoneWidget.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 894MKLY88M;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MVK++ Phone Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.futozs.mvk.widget;
+				PRODUCT_NAME = "MVKPlus Phone Widget";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A1B2C3000D76164EF0AC839A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "MVK++ Phone Widget/MVKPhoneWidget.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 894MKLY88M;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MVK++ Phone Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = hu.futozs.mvk.widget;
+				PRODUCT_NAME = "MVKPlus Phone Widget";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
@@ -654,6 +805,15 @@
 			buildConfigurations = (
 				507396B0CA844DE1A0A24196 /* Debug */,
 				56A3E5F076164EF0AC839A37 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3000B84784DB286BB8D /* Build configuration list for PBXNativeTarget "MVK++ Phone Widget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3000CCA844DE1A0A241 /* Debug */,
+				A1B2C3000D76164EF0AC839A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

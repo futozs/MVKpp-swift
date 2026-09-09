@@ -20,18 +20,17 @@ struct SettingsScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var navigation: AppNavigation
     @ObservedObject private var notifications = NotificationCenterStore.shared
-
-    @State private var isReloadingStops = false
-    @State private var testSentAt: Date?
+    @ObservedObject private var offline = OfflineMapManager.shared
+    @ObservedObject private var offlineSchedule = OfflineScheduleManager.shared
 
     var body: some View {
         NavigationStack {
             Form {
-                mapSection
+                offlineSection
                 watchSection
                 watchlistSection
                 notificationsSection
-                serverSection
+                aboutSection
             }
             .mvkBackground()
             .navigationTitle("Beállítások")
@@ -39,9 +38,11 @@ struct SettingsScreen: View {
         }
     }
 
-    // MARK: - Base map
+    // MARK: - Offline & map
 
-    private var mapSection: some View {
+    /// Base map, offline map pack and offline timetable in one place — all
+    /// three answer the same question ("does this work without signal?").
+    private var offlineSection: some View {
         Section {
             NavigationLink {
                 BaseMapList(selectedLayerId: $navigation.tileLayerId)
@@ -62,10 +63,55 @@ struct SettingsScreen: View {
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
+
+            NavigationLink {
+                OfflineMapSettingsView()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 26, height: 26)
+                    Text("Térkép letöltése")
+                    Spacer(minLength: 8)
+                    Text(offlineSummary)
+                        .foregroundStyle(offline.packs.isEmpty ? Theme.mutedForeground : Theme.primary)
+                }
+            }
+
+            NavigationLink {
+                OfflineScheduleSettingsView()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Theme.primary)
+                        .frame(width: 26, height: 26)
+                    Text("Menetrend letöltése")
+                    Spacer(minLength: 8)
+                    Text(scheduleSummary)
+                        .foregroundStyle(offlineSchedule.manifest.isEmpty ? Theme.mutedForeground : Theme.primary)
+                }
+            }
         } header: {
-            Label("Térkép", systemImage: "map")
+            Label("Offline", systemImage: "wifi.slash")
         }
         .listRowBackground(Theme.card)
+    }
+
+    /// "7 nap" or "nincs" — enough to decide whether to tap in.
+    private var scheduleSummary: String {
+        if offlineSchedule.isDownloading { return "Letöltés…" }
+        let days = offlineSchedule.manifest.days.count
+        return days == 0 ? "Nincs" : "\(days) nap"
+    }
+
+    /// Reads as "nincs letöltve" or "2 terület", which is all this row needs
+    /// to say before the rider taps into the detail screen.
+    private var offlineSummary: String {
+        if offline.isDownloading { return "Letöltés…" }
+        let count = offline.packs.count
+        return count == 0 ? "Nincs" : "\(count) alaptérkép"
     }
 
     // MARK: - Watch and widget
@@ -91,8 +137,6 @@ struct SettingsScreen: View {
                 .tint(Theme.primary)
         } header: {
             Label("Óra és widget", systemImage: "applewatch")
-        } footer: {
-            Text("Ezt számolja vissza az óra Smart Stackje és a telefon widgetje.")
         }
         .listRowBackground(Theme.card)
     }
@@ -148,65 +192,21 @@ struct SettingsScreen: View {
                     .font(Theme.mono(13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
             }
-
-            // Confirms permission and delivery in five seconds, instead of
-            // waiting for a bus to find out whether any of it works.
-            Button {
-                Task {
-                    await notifications.sendTestNotification()
-                    testSentAt = Date()
-                }
-            } label: {
-                Label("Teszt értesítés", systemImage: "bell.badge")
-            }
-
-            if testSentAt != nil {
-                Text("Elküldve — 5 másodpercen belül megérkezik.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.primary)
-            }
         } header: {
             Label("Értesítések", systemImage: "bell")
         }
         .listRowBackground(Theme.card)
     }
 
-    // MARK: - Server
+    // MARK: - About
 
-    private var serverSection: some View {
+    private var aboutSection: some View {
         Section {
-            LabeledContent("Cím") {
-                Text(APIConfig.baseURLString)
-                    .font(Theme.mono(12, weight: .regular))
-                    .foregroundStyle(Theme.mutedForeground)
-            }
-
-            if let meta = store.gtfsMeta {
-                LabeledContent("Menetrendi kiadás") {
-                    Text(meta.feedVersion)
-                        .font(Theme.mono(12, weight: .regular))
-                        .foregroundStyle(Theme.mutedForeground)
-                }
-                LabeledContent("Megállók", value: "\(meta.stops)")
-                LabeledContent("Járatok", value: "\(meta.routes)")
-            }
-
-            Button {
-                Task {
-                    isReloadingStops = true
-                    await store.loadStatic()
-                    isReloadingStops = false
-                }
+            NavigationLink {
+                AboutScreen()
             } label: {
-                if isReloadingStops {
-                    ProgressView().tint(Theme.primary)
-                } else {
-                    Label("Menetrend frissítése", systemImage: "arrow.clockwise")
-                }
+                Label("Névjegy", systemImage: "info.circle")
             }
-            .disabled(isReloadingStops)
-        } header: {
-            Label("Szerver", systemImage: "server.rack")
         }
         .listRowBackground(Theme.card)
     }

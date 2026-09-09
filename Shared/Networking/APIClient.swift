@@ -62,6 +62,17 @@ struct APIClient {
         return try decode(data)
     }
 
+    /// The gateway's bytes, undecoded. The offline pack stores responses
+    /// verbatim so the screens that read them back can use the very same
+    /// `Decodable` types, with no second serialization format to keep in step.
+    private func rawData(path: String, queryItems: [URLQueryItem] = []) async throws -> Data {
+        let (data, response) = try await session.data(from: try url(path: path, queryItems: queryItems))
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw APIError.badStatus(http.statusCode)
+        }
+        return data
+    }
+
     private func post<Body: Encodable, T: Decodable>(path: String, body: Body) async throws -> T {
         var request = URLRequest(url: try url(path: path))
         request.httpMethod = "POST"
@@ -87,6 +98,24 @@ struct APIClient {
 
     func gtfsMeta() async throws -> GtfsMeta {
         try await request(path: "/gtfs/meta.json")
+    }
+
+    /// Stops, routes and metadata in one pass, with the routes and metadata
+    /// bytes handed back so they can be mirrored into the App Group verbatim.
+    /// A cold launch with no signal reads that mirror instead.
+    func staticCatalog() async throws -> (stops: [Stop], routes: [Route], meta: GtfsMeta, routesData: Data, metaData: Data) {
+        async let stopsTask = stops()
+        async let routesTask = rawData(path: "/gtfs/routes.json")
+        async let metaTask = rawData(path: "/gtfs/meta.json")
+
+        let (loadedStops, routesData, metaData) = try await (stopsTask, routesTask, metaTask)
+        return (
+            loadedStops,
+            try decode(routesData) as [Route],
+            try decode(metaData) as GtfsMeta,
+            routesData,
+            metaData
+        )
     }
 
     /// Drawable shapes for the given routes. Returns empty rather than calling
@@ -115,6 +144,25 @@ struct APIClient {
 
     func tripJournal(date: String? = nil) async throws -> TripJournalResponse {
         try await request(path: "/gtfs/trip-journal", queryItems: dateQuery(date))
+    }
+
+    // MARK: - Timetable, undecoded
+    //
+    // What the offline downloader pulls. It needs the bytes to file away, and
+    // the decoded value to build the per-stop index from, so both come out of
+    // one round trip.
+
+    func timetableRoutesData(date: String? = nil) async throws -> Data {
+        try await rawData(path: "/gtfs/timetable/routes", queryItems: dateQuery(date))
+    }
+
+    func timetableData(routeId: String, dir: String, date: String? = nil) async throws -> Data {
+        var items = [
+            URLQueryItem(name: "route", value: routeId),
+            URLQueryItem(name: "dir", value: dir),
+        ]
+        items.append(contentsOf: dateQuery(date))
+        return try await rawData(path: "/gtfs/timetable", queryItems: items)
     }
 
     // MARK: - Live

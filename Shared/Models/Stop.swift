@@ -14,6 +14,14 @@ struct Stop: Decodable, Identifiable, Hashable {
     let lat: Double
     let lon: Double
 
+    init(id: String, code: String, name: String, lat: Double, lon: Double) {
+        self.id = id
+        self.code = code
+        self.name = name
+        self.lat = lat
+        self.lon = lon
+    }
+
     init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         id = try container.decode(String.self)

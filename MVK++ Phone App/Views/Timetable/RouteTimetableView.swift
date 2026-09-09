@@ -18,6 +18,7 @@ struct RouteTimetableView: View {
 
     @State private var dir = ""
     @State private var table: TimetableResponse?
+    @State private var isTableOffline = false
     @State private var isLoading = false
     @State private var selectedTrip: TimetableTrip?
 
@@ -89,6 +90,12 @@ struct RouteTimetableView: View {
                         Text(table.map { "\($0.trips.count) menet" } ?? "betöltés…")
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.mutedForeground)
+
+                        // Live decoration — which run has left, which is
+                        // cancelled — needs the network. Offline the board is
+                        // complete but static, and saying so is the difference
+                        // between "nothing is cancelled" and "we cannot know".
+                        if isTableOffline { OfflineTag(compact: true) }
 
                         if liveTripCount > 0 {
                             HStack(spacing: 5) {
@@ -207,7 +214,7 @@ struct RouteTimetableView: View {
                 onSelectTrip: { trip in selectedTrip = trip }
             )
         } else {
-            Text(table?.note ?? "Ezen az irányon ezen a napon nem közlekedik járat.")
+            Text(emptyMessage)
                 .font(.subheadline)
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
@@ -217,6 +224,18 @@ struct RouteTimetableView: View {
         }
     }
 
+    /// "Nem közlekedik" and "we could not find out" look identical on an empty
+    /// board, so they are never worded the same.
+    private var emptyMessage: String {
+        if let note = table?.note { return note }
+        if table == nil {
+            return OfflineScheduleStore.hasSchedule(for: TimetableModel.isoToYmd(model.date))
+                ? "Ezen az irányon ezen a napon nem közlekedik járat."
+                : "Nincs kapcsolat, és erre a napra nincs letöltött menetrend."
+        }
+        return "Ezen az irányon ezen a napon nem közlekedik járat."
+    }
+
     // MARK: - Data
 
     private func loadTable() async {
@@ -224,14 +243,16 @@ struct RouteTimetableView: View {
         isLoading = true
         selectedTrip = nil
         defer { isLoading = false }
+
+        let ymd = TimetableModel.isoToYmd(model.date)
         do {
-            table = try await APIClient.shared.timetable(
-                routeId: route.id,
-                dir: dir,
-                date: TimetableModel.isoToYmd(model.date)
-            )
+            table = try await APIClient.shared.timetable(routeId: route.id, dir: dir, date: ymd)
+            isTableOffline = false
         } catch {
-            table = nil
+            // Stored verbatim at download time, so this is the same board the
+            // gateway would have sent — decoded by the same type.
+            table = OfflineScheduleStore.timetable(routeId: route.id, dir: dir, ymd: ymd)
+            isTableOffline = table != nil
         }
     }
 

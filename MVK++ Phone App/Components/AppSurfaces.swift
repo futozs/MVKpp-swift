@@ -131,3 +131,31 @@ struct ErrorNotice: View {
             )
     }
 }
+
+/// A round glass button whose tap target is the whole circle.
+///
+/// Applying `.glassCircle()` to a `Button` sizes the *glass* to 44 pt but
+/// leaves the button's hit area at whatever the label draws — for a single SF
+/// Symbol that is about 20 pt in the middle of a 44 pt disc, so four taps out
+/// of five land on nothing and the control reads as broken. Sizing inside the
+/// label, with an explicit `contentShape`, is what makes the visible circle
+/// and the tappable circle the same circle.
+struct GlassCircleButton<Label: View>: View {
+    var tint: Color?
+    var action: () -> Void
+    @ViewBuilder var label: () -> Label
+
+    /// Apple's minimum comfortable target, and the size the glass already
+    /// draws.
+    private static var diameter: CGFloat { 44 }
+
+    var body: some View {
+        Button(action: action) {
+            label()
+                .frame(width: Self.diameter, height: Self.diameter)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .glassCircle(tint: tint)
+    }
+}

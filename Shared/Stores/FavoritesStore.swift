@@ -46,6 +46,15 @@ final class FavoritesStore: NSObject, ObservableObject {
         }
     }
 
+    /// The watchlist as stored, readable without the main actor.
+    ///
+    /// Widget extensions need the list to rank a stop picker, and must not
+    /// instantiate the store to get it — that would activate a `WCSession`
+    /// inside an extension for no reason.
+    nonisolated static var storedStopIds: [String] {
+        (suite.array(forKey: storageKey) as? [String]) ?? []
+    }
+
     private let session: WCSession? = WCSession.isSupported() ? .default : nil
 
     override init() {

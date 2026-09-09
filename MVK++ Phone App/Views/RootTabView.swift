@@ -44,6 +44,11 @@ struct RootTabView: View {
         .task {
             await store.loadStaticIfNeeded()
             location.startIfPermitted()
+            // Once the app has been opened, it has the timetable. This runs
+            // behind the tab bar and only when there is a reason to — nothing
+            // on screen waits for it, and a device that already has the
+            // current release does no work at all.
+            await OfflineScheduleManager.shared.refreshIfNeeded(meta: store.gtfsMeta)
         }
     }
 }

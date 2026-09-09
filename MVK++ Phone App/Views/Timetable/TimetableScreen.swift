@@ -55,9 +55,12 @@ struct TimetableScreen: View {
                     Text(model.dateLabel)
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(Theme.foreground)
-                    Text("\(model.weekdayLabel) · \(model.routes.count) járat")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.mutedForeground)
+                    HStack(spacing: 6) {
+                        Text("\(model.weekdayLabel) · \(model.routes.count) járat")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.mutedForeground)
+                        if model.isOffline { OfflineTag(compact: true) }
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())

@@ -78,7 +78,11 @@ struct StopDetailSheet: View {
                     .font(Theme.mono(10, weight: .regular))
                     .foregroundStyle(Theme.mutedForeground)
                 Text("·").foregroundStyle(Theme.mutedForeground)
-                LiveTag(live: model.hasLiveData)
+                if model.isOffline {
+                    OfflineTag(compact: true)
+                } else {
+                    LiveTag(live: model.hasLiveData)
+                }
             }
         }
     }
@@ -91,9 +95,18 @@ final class StopArrivalsModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var hasLiveData = false
+    /// The list came out of the downloaded timetable because the gateway
+    /// could not be reached. Different from `hasLiveData == false`, which only
+    /// means no vehicle is reporting on an otherwise live board.
+    @Published private(set) var isOffline = false
 
     private let pollInterval: TimeInterval = 4
     private var task: Task<Void, Never>?
+    /// A single dropped poll on a moving phone is normal; the last good list
+    /// is better than an immediate downgrade to schedule times. Past this the
+    /// connection is genuinely gone.
+    private let staleAfter: TimeInterval = 45
+    private var lastSuccessAt: Date?
 
     func start(stopId: String, stopName: String = "", limit: Int = 16) async {
         stop()
@@ -119,7 +132,9 @@ final class StopArrivalsModel: ObservableObject {
             arrivals = response.arrivals
             // `rtError` set means the gateway fell back to the timetable.
             hasLiveData = response.rtError == nil
+            isOffline = false
             errorMessage = nil
+            lastSuccessAt = Date()
 
             // Every refresh also re-aims the stop's alarm at the latest
             // prediction.
@@ -129,10 +144,44 @@ final class StopArrivalsModel: ObservableObject {
                 arrivals: response.arrivals
             )
         } catch {
-            // Keep the last good list rather than blanking the sheet mid-poll.
-            if arrivals.isEmpty { errorMessage = error.localizedDescription }
+            fallBackToSchedule(stopId: stopId, stopName: stopName, limit: limit, error: error)
         }
         isLoading = false
+    }
+
+    /// No gateway. The downloaded timetable knows when the bus is *supposed*
+    /// to come, which is the honest answer and a far better one than a blank
+    /// card — every row is marked schedule-only so nobody reads a prediction
+    /// into it.
+    private func fallBackToSchedule(stopId: String, stopName: String, limit: Int, error: Error) {
+        let isStale = lastSuccessAt.map { Date().timeIntervalSince($0) > staleAfter } ?? true
+        // Keep the last good list rather than blanking the sheet mid-poll.
+        guard isStale || arrivals.isEmpty else { return }
+
+        let scheduled = OfflineDepartures.arrivals(stopId: stopId, limit: limit)
+        guard !scheduled.isEmpty else {
+            if arrivals.isEmpty || isOffline {
+                arrivals = []
+                isOffline = OfflineDepartures.isAvailable
+                errorMessage = isOffline
+                    ? "Nincs kapcsolat, és a letöltött menetrend szerint innen ma már nem indul járat."
+                    : error.localizedDescription
+            }
+            return
+        }
+
+        arrivals = scheduled
+        hasLiveData = false
+        isOffline = true
+        errorMessage = nil
+
+        // The alarm is still worth setting: a menetrend szerinti idő is what
+        // the rider is planning around when there is nothing better.
+        NotificationCenterStore.shared.scheduleAlarm(
+            stopId: stopId,
+            stopName: stopName.isEmpty ? stopId : stopName,
+            arrivals: scheduled
+        )
     }
 
     deinit { task?.cancel() }

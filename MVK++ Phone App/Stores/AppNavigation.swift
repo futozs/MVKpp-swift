@@ -17,6 +17,11 @@ final class AppNavigation: ObservableObject {
     @Published var focusTripId: String?
     @Published var focusVehicleId: String?
 
+    /// Which watchlist card the Megállófigyelő should scroll to. That screen
+    /// consumes it and clears it, so the same stop can be requested again
+    /// later from another widget tap.
+    @Published var watchlistFocusStopId: String?
+
     /// Which base map is drawn. Lives here rather than in the map view
     /// because Settings offers the same choice.
     @Published var tileLayerId: String {
@@ -84,5 +89,26 @@ final class AppNavigation: ObservableObject {
 
     func clearFilters() {
         filters = .default
+    }
+
+    /// Entry point for `mvkpp://` links — today that means a tap on a home
+    /// screen widget row, which should land on exactly the stop the rider was
+    /// looking at.
+    func open(_ link: DeepLink) {
+        switch link {
+        case .stop(let stopId):
+            exitFocus()
+            selectedStopId = stopId
+            tab = .map
+        case .watchlist(let stopId):
+            exitFocus()
+            watchlistFocusStopId = stopId
+            tab = .multistop
+        case .trip(let tripId, let vehicleId):
+            tab = .map
+            focusTrip(tripId, vehicleId: vehicleId)
+        case .home:
+            tab = .map
+        }
     }
 }

@@ -20,6 +20,11 @@ struct MultiStopScreen: View {
     @State private var isPickerOpen = false
     @State private var isReordering = false
     @State private var page = 0
+    /// A deep link has just chosen a card; the next "nearest stop changed"
+    /// nudge must not immediately steal it back. On a cold launch from a
+    /// widget the first location fix arrives seconds later, which is exactly
+    /// when that would happen.
+    @State private var holdsDeepLinkPage = false
 
     /// Junctions worth offering to someone with an empty list — every MVK
     /// route touches at least one of them.
@@ -52,8 +57,17 @@ struct MultiStopScreen: View {
             .onChange(of: nearestId) { _, id in
                 // A newly closest stop is the one to be looking at.
                 guard id != nil, !isReordering else { return }
+                guard !holdsDeepLinkPage else {
+                    holdsDeepLinkPage = false
+                    return
+                }
                 withAnimation(Theme.Motion.normalAnimation) { page = 0 }
             }
+            .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
+            // The stop catalog may still be loading when the link arrives, so
+            // the request is retried as the watchlist fills in.
+            .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
+            .onAppear { applyDeepLinkFocus() }
         }
     }
 
@@ -216,6 +230,17 @@ struct MultiStopScreen: View {
             .dataCard()
             .padding(16)
         }
+    }
+
+    /// Scrolls to the card a `mvkpp://watch/<stop>` link asked for.
+    private func applyDeepLinkFocus() {
+        guard let stopId = navigation.watchlistFocusStopId,
+              let index = watchedStops.firstIndex(where: { $0.id == stopId })
+        else { return }
+
+        holdsDeepLinkPage = true
+        withAnimation(Theme.Motion.normalAnimation) { page = index }
+        navigation.watchlistFocusStopId = nil
     }
 
     // MARK: - Derived data

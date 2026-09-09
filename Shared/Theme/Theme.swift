@@ -52,6 +52,10 @@ enum Theme {
     static let late = hsl(9, 86, 58.8)
     /// Ahead of schedule.
     static let early = hsl(208, 83, 64.7)
+    /// Nothing is reporting: the gateway is unreachable and what is on
+    /// screen was read off the device. Amber, because it is neither an error
+    /// nor good news — the times are real, they are just not being checked.
+    static let offline = hsl(38, 92, 60)
 
     // MARK: - Green scale (`--sg-*`)
 

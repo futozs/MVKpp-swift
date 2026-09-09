@@ -59,3 +59,31 @@ struct LiveTag: View {
         .accessibilityLabel(live ? "Valós idejű adat" : "Menetrendi adat")
     }
 }
+
+/// Shown when the board is coming off the downloaded timetable because the
+/// gateway could not be reached.
+///
+/// "Menetrendi" already means "no vehicle is reporting"; this is the stronger
+/// statement that nothing is reporting at all, so a rider knows a delay would
+/// not be shown even if there were one.
+struct OfflineTag: View {
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                .font(.system(size: compact ? 9 : 10, weight: .semibold))
+            Text(compact ? "Offline" : "Offline · menetrend szerint")
+                .font(.system(size: compact ? 10 : 11, weight: .semibold))
+        }
+        .foregroundStyle(Theme.offline)
+        .padding(.horizontal, compact ? 6 : 8)
+        .padding(.vertical, compact ? 2 : 3)
+        .background(
+            Theme.offline.opacity(0.14),
+            in: Capsule(style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Offline — menetrend szerinti idők")
+    }
+}

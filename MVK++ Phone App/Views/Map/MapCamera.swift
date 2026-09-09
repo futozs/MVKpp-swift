@@ -70,10 +70,11 @@ extension MKMapView {
         log2(360 * (zoomReferenceWidth / 256) / region.span.longitudeDelta)
     }
 
-    func setCenter(_ coordinate: CLLocationCoordinate2D, zoomLevel: Double, animated: Bool) {
-        // 18 is the last zoom every tile source in the catalog covers; the
-        // topographic layer stops at 17 and OSM at 19.
-        let clamped = min(max(zoomLevel, 2), 18)
+    /// `maxZoom` is the active tile source's native maximum. Past it the
+    /// server has no tiles, MapKit draws empty squares, and the map appears to
+    /// vanish — so no camera move is ever allowed to cross it.
+    func setCenter(_ coordinate: CLLocationCoordinate2D, zoomLevel: Double, animated: Bool, maxZoom: Double = 18) {
+        let clamped = min(max(zoomLevel, 2), maxZoom)
         let longitudeDelta = 360 * (zoomReferenceWidth / 256) / pow(2, clamped)
         // Latitude degrees cover less ground away from the equator; without
         // the cosine the vertical span would be too wide this far north.
@@ -93,7 +94,7 @@ extension MKMapView {
         guard !coordinates.isEmpty else { return }
 
         if coordinates.count == 1 {
-            setCenter(coordinates[0], zoomLevel: maxZoom, animated: animated)
+            setCenter(coordinates[0], zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
             return
         }
 
@@ -113,7 +114,19 @@ extension MKMapView {
         // `setVisibleMapRect` happily zooms to street level for two adjacent
         // points; the cap keeps the surroundings in frame.
         if zoomLevel > maxZoom {
-            setCenter(region.center, zoomLevel: maxZoom, animated: animated)
+            setCenter(region.center, zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
         }
+    }
+
+    /// The camera distance at which the map is showing exactly `zoom`.
+    ///
+    /// MapKit's zoom range is expressed as a distance from the ground, not as
+    /// a zoom level, so capping "do not go past the last zoom this tile
+    /// server has" means converting one to the other. The 1.87 factor is
+    /// MapKit's fixed 30° field of view: distance = height / (2·tan 15°).
+    func centerDistance(forZoom zoom: Double, latitude: Double) -> CLLocationDistance {
+        let metersPerPoint = 156_543.03392 * cos(latitude * .pi / 180) / pow(2, zoom)
+        let visibleHeight = metersPerPoint * Double(bounds.height > 1 ? bounds.height : 874)
+        return visibleHeight * 1.87
     }
 }

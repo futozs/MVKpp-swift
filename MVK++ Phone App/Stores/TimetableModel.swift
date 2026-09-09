@@ -17,6 +17,10 @@ final class TimetableModel: ObservableObject {
     @Published private(set) var routes: [TimetableRoute] = []
     @Published private(set) var routesError: String?
     @Published private(set) var isLoadingRoutes = false
+    /// The board on screen was read off the downloaded pack, not the gateway.
+    /// Cancellations and the trip journal are live-only, so they are missing —
+    /// the screen says so rather than showing a clean board that isn't.
+    @Published private(set) var isOffline = false
 
     @Published private(set) var cancelledTripIds: Set<String> = []
     @Published private(set) var cancelledTrips: [CancelledTrip] = []
@@ -146,8 +150,21 @@ final class TimetableModel: ObservableObject {
         do {
             routes = try await APIClient.shared.timetableRoutes(date: ymd).routes
             routesError = nil
+            isOffline = false
         } catch {
-            routesError = error.localizedDescription
+            // The downloaded pack holds the gateway's own answer for this day,
+            // stored verbatim — so the list is the same list, just older.
+            if let stored = OfflineScheduleStore.timetableRoutes(ymd: ymd), !stored.routes.isEmpty {
+                routes = stored.routes
+                routesError = nil
+                isOffline = true
+            } else {
+                routes = []
+                isOffline = false
+                routesError = OfflineScheduleStore.manifest.isEmpty
+                    ? error.localizedDescription
+                    : "Erre a napra nincs letöltött menetrend, és a szerver sem érhető el."
+            }
         }
     }
 

@@ -106,7 +106,14 @@ final class VehicleAnnotation: NSObject, MKAnnotation, Identifiable {
     var routeText: String
     var headsign: String
     var speed: Double?
-    var coordinate: CLLocationCoordinate2D
+    /// KVO-observable on purpose. `MKMapView` watches this key path to move
+    /// the marker; without `@objc dynamic` the setter is invisible to it, so
+    /// a vehicle stays frozen wherever it was first drawn while the feed keeps
+    /// reporting it somewhere else — the "ghost bus" that would not go away.
+    /// Mutating an unobserved coordinate also leaves MapKit's own index
+    /// pointing at the old position, which is why removing one sometimes left
+    /// the marker on screen.
+    @objc dynamic var coordinate: CLLocationCoordinate2D
     /// Pinned by the rider (or matching the typed query) — drawn with a ring
     /// and kept on top.
     var tracked: Bool

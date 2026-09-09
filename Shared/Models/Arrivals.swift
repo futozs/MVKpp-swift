@@ -34,6 +34,39 @@ struct ArrivalItem: Decodable, Hashable, Identifiable {
     let progressDesc: String?
 
     var id: String { "\(tripId)-\(time)" }
+
+    /// Built from the gateway's JSON in normal use. The explicit initializer
+    /// exists so the offline pack can produce the same rows from the stored
+    /// timetable, and every screen keeps rendering one arrival type.
+    init(
+        route: String,
+        color: String,
+        text: String,
+        headsign: String,
+        time: String,
+        etaMin: Int,
+        delaySec: Int? = nil,
+        live: Bool = false,
+        tripId: String,
+        vehicle: ArrivalVehicle? = nil,
+        currentStopName: String? = nil,
+        distanceToStopKm: Double? = nil,
+        progressDesc: String? = nil
+    ) {
+        self.route = route
+        self.color = color
+        self.text = text
+        self.headsign = headsign
+        self.time = time
+        self.etaMin = etaMin
+        self.delaySec = delaySec
+        self.live = live
+        self.tripId = tripId
+        self.vehicle = vehicle
+        self.currentStopName = currentStopName
+        self.distanceToStopKm = distanceToStopKm
+        self.progressDesc = progressDesc
+    }
 }
 
 struct StopSummary: Decodable, Hashable {

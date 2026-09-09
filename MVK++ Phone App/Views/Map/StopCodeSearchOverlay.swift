@@ -8,9 +8,13 @@ import SwiftUI
 
 /// Jump straight to a stop by the number printed on its sign.
 ///
-/// GTFS calls it `SP569`; the sign says `569`. Both are accepted, and if the
-/// loaded catalog does not know the code, the arrivals endpoint is asked —
-/// it sometimes knows stops the static feed has not caught up with.
+/// GTFS calls it `SP569`; the sign says `569`. Both are accepted.
+///
+/// The lookup is resolved on the device wherever it can be — first from the
+/// catalog this session loaded, then from the App Group mirror a previous
+/// session left behind — and only asks the gateway when neither knows the
+/// code. Typing a stop number is the one thing a rider does *because* they are
+/// standing at a stop with no signal, so it must not depend on one.
 struct StopCodeSearchOverlay: View {
     let stops: [Stop]
     var onClose: () -> Void
@@ -107,25 +111,54 @@ struct StopCodeSearchOverlay: View {
             return
         }
 
+        if let mirrored = findInMirror(raw) {
+            onResolved(mirrored.id, CLLocationCoordinate2D(latitude: mirrored.lat, longitude: mirrored.lon))
+            return
+        }
+
         isBusy = true
         defer { isBusy = false }
 
-        let id = "SP\(raw)"
+        // Nothing on the device knows it. The gateway sometimes does — it sees
+        // stops the static feed has not caught up with.
         do {
-            let response = try await APIClient.shared.arrivals(stopId: id, limit: 16)
+            let response = try await APIClient.shared.arrivals(stopId: "SP\(raw)", limit: 16)
             let coordinate = (response.stop.lat).flatMap { lat in
                 (response.stop.lon).map { CLLocationCoordinate2D(latitude: lat, longitude: $0) }
             }
             onResolved(response.stop.id, coordinate)
         } catch {
-            errorText = "Nincs \(raw) kódú megálló."
+            // Two different answers, and the rider needs to know which: the
+            // code is wrong, or the code is unverifiable right now.
+            errorText = hasLocalCatalog
+                ? "Nincs \(raw) kódú megálló."
+                : "Nincs kapcsolat, és nincs letöltött megállólista."
         }
     }
 
+    /// The catalog this session loaded — online or rehydrated from the mirror.
     private func findLocally(_ raw: String) -> Stop? {
-        let needle = raw.lowercased().replacingOccurrences(of: "sp", with: "")
+        let needle = normalized(raw)
         guard !needle.isEmpty else { return nil }
         return stops.first { $0.id.lowercased() == "sp\(needle)" }
             ?? stops.first { $0.id.lowercased() == needle }
+    }
+
+    /// The App Group mirror, for the case where the map opened before the
+    /// catalog finished loading — or never could.
+    private func findInMirror(_ raw: String) -> CachedStop? {
+        let needle = normalized(raw)
+        guard !needle.isEmpty else { return nil }
+        let mirrored = SharedStopCache.load()
+        return mirrored.first { $0.id.lowercased() == "sp\(needle)" }
+            ?? mirrored.first { $0.riderCode == needle }
+    }
+
+    private func normalized(_ raw: String) -> String {
+        raw.lowercased().replacingOccurrences(of: "sp", with: "")
+    }
+
+    private var hasLocalCatalog: Bool {
+        !stops.isEmpty || SharedStopCache.lastUpdated != nil
     }
 }
