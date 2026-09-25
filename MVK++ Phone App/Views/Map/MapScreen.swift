@@ -180,7 +180,7 @@ struct MapScreen: View {
     private var bottomBar: some View {
         VStack(spacing: 10) {
             // Locked on to a vehicle: the card is the only chrome. Everything
-            // else — controls, tab bar, attribution — steps aside.
+            // else — controls, tab bar — steps aside.
             if navigation.isFollowingTrip, let tripId = navigation.focusTripId {
                 VehicleFocusCard(
                     tripId: tripId,
@@ -238,8 +238,6 @@ struct MapScreen: View {
                         onClose: { self.tappedVehicle = nil }
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else {
-                    attribution
                 }
             }
         }
@@ -247,16 +245,6 @@ struct MapScreen: View {
         .animation(Theme.Motion.normalAnimation, value: navigation.focusTripId)
         .animation(Theme.Motion.normalAnimation, value: tappedVehicle?.vehicleId)
         .padding(.bottom, 8)
-    }
-
-    private var attribution: some View {
-        Text(navigation.tileLayer.attribution)
-            .font(.system(size: 9))
-            .foregroundStyle(Theme.mutedForeground.opacity(0.8))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(Theme.background.opacity(0.5), in: Capsule())
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var controlPanel: some View {

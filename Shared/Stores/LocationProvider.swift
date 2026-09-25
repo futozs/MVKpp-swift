@@ -44,7 +44,11 @@ final class LocationProvider: NSObject, ObservableObject {
     var isActive: Bool { status == .watching }
 
     private static let enabledKey = "mvk_geo_enabled"
-    private static let lastFixKey = "mvk_geo_last_fix"
+    nonisolated private static let lastFixKey = "mvk_geo_last_fix"
+    /// The last fix lives in the App Group so the watch widget — which only
+    /// gets a few seconds to find a position of its own — can fall back to
+    /// where the app last saw the rider.
+    nonisolated private static let sharedSuite = UserDefaults(suiteName: FavoritesStore.appGroupID) ?? .standard
     /// A fix older than this is not worth showing even as a placeholder.
     private static let lastFixMaxAge: TimeInterval = 30 * 60
 
@@ -97,22 +101,27 @@ final class LocationProvider: NSObject, ObservableObject {
         position = nil
         isStale = false
         UserDefaults.standard.set("0", forKey: Self.enabledKey)
-        UserDefaults.standard.removeObject(forKey: Self.lastFixKey)
+        Self.sharedSuite.removeObject(forKey: Self.lastFixKey)
     }
 
     // MARK: - Last known fix
 
-    private static func readLastFix() -> GeoPosition? {
-        guard let data = UserDefaults.standard.data(forKey: lastFixKey),
+    /// The last fix any app target stored, readable from an extension.
+    nonisolated static func sharedLastFix(maxAge: TimeInterval) -> GeoPosition? {
+        guard let data = sharedSuite.data(forKey: lastFixKey),
               let fix = try? JSONDecoder().decode(GeoPosition.self, from: data),
-              Date().timeIntervalSince1970 - fix.at <= lastFixMaxAge
+              Date().timeIntervalSince1970 - fix.at <= maxAge
         else { return nil }
         return fix
     }
 
+    private static func readLastFix() -> GeoPosition? {
+        sharedLastFix(maxAge: lastFixMaxAge)
+    }
+
     private static func writeLastFix(_ fix: GeoPosition) {
         guard let data = try? JSONEncoder().encode(fix) else { return }
-        UserDefaults.standard.set(data, forKey: lastFixKey)
+        sharedSuite.set(data, forKey: lastFixKey)
     }
 
     fileprivate func apply(_ location: CLLocation) {
@@ -146,7 +155,7 @@ final class LocationProvider: NSObject, ObservableObject {
         isStale = false
         errorMessage = "A helymeghatározás le van tiltva ehhez az apphoz."
         UserDefaults.standard.set("0", forKey: Self.enabledKey)
-        UserDefaults.standard.removeObject(forKey: Self.lastFixKey)
+        Self.sharedSuite.removeObject(forKey: Self.lastFixKey)
     }
 }
 

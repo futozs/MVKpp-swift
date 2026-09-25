@@ -61,7 +61,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "79834E43304B1A08001C7728"
             BuildableName = "MVKPlus Watch App.app"
-            BlueprintName = "MVK++ Watch App"
             ReferencedContainer = "container:MVK++.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -78,7 +77,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "79834E43304B1A08001C7728"
             BuildableName = "MVKPlus Watch App.app"
-            BlueprintName = "MVK++ Watch App"
             ReferencedContainer = "container:MVK++.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

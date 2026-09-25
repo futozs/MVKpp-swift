@@ -24,10 +24,11 @@ final class FavoritesStore: NSObject, ObservableObject {
     /// anyone puts on a watch.
     static let maxCount = 12
     static let appGroupID = "group.hu.futozs.mvk"
-    static let widgetStopKey = "mvk_widget_stop_id"
-    private static let storageKey = "mvk_monitored_stops"
+    nonisolated static let widgetStopKey = "mvk_widget_stop_id"
+    nonisolated static let widgetNearestKey = "mvk_widget_nearest_favorite"
+    nonisolated private static let storageKey = "mvk_monitored_stops"
     private static let nearestFirstKey = "mvk_watch_nearest_first"
-    private static let suite = UserDefaults(suiteName: appGroupID) ?? .standard
+    nonisolated private static let suite = UserDefaults(suiteName: appGroupID) ?? .standard
 
     @Published private(set) var stopIds: [String]
     @Published var nearestFirstEnabled: Bool {
@@ -45,6 +46,17 @@ final class FavoritesStore: NSObject, ObservableObject {
             pushContext()
         }
     }
+    /// The watch widget follows the rider: it shows whichever watched stop
+    /// is closest to the current GPS fix instead of the fixed `widgetStopId`
+    /// (which stays as the fallback when there is no position).
+    @Published var widgetNearestEnabled: Bool {
+        didSet {
+            guard widgetNearestEnabled != oldValue else { return }
+            Self.suite.set(widgetNearestEnabled, forKey: Self.widgetNearestKey)
+            WidgetCenter.shared.reloadAllTimelines()
+            pushContext()
+        }
+    }
 
     /// The watchlist as stored, readable without the main actor.
     ///
@@ -55,12 +67,21 @@ final class FavoritesStore: NSObject, ObservableObject {
         (suite.array(forKey: storageKey) as? [String]) ?? []
     }
 
+    nonisolated static var storedWidgetStopId: String? {
+        suite.string(forKey: widgetStopKey).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    nonisolated static var storedWidgetNearestEnabled: Bool {
+        suite.bool(forKey: widgetNearestKey)
+    }
+
     private let session: WCSession? = WCSession.isSupported() ? .default : nil
 
     override init() {
         stopIds = (Self.suite.array(forKey: Self.storageKey) as? [String]) ?? ["SP1"]
         nearestFirstEnabled = Self.suite.bool(forKey: Self.nearestFirstKey)
         widgetStopId = Self.suite.string(forKey: Self.widgetStopKey)
+        widgetNearestEnabled = Self.suite.bool(forKey: Self.widgetNearestKey)
         super.init()
         session?.delegate = self
         session?.activate()
@@ -112,6 +133,7 @@ final class FavoritesStore: NSObject, ObservableObject {
         var context: [String: Any] = [
             "stopIds": stopIds,
             "nearestFirstEnabled": nearestFirstEnabled,
+            "widgetNearestEnabled": widgetNearestEnabled,
         ]
         context["widgetStopId"] = widgetStopId
         try? session.updateApplicationContext(context)
@@ -136,6 +158,9 @@ extension FavoritesStore: WCSessionDelegate {
             }
             if let nearestFirst = applicationContext["nearestFirstEnabled"] as? Bool {
                 self.nearestFirstEnabled = nearestFirst
+            }
+            if let widgetNearest = applicationContext["widgetNearestEnabled"] as? Bool {
+                self.widgetNearestEnabled = widgetNearest
             }
             let remoteWidgetStop = applicationContext["widgetStopId"] as? String
             if remoteWidgetStop != self.widgetStopId {

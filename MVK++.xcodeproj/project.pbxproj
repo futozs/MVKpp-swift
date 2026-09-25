@@ -578,7 +578,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A legközelebbi figyelt megálló előre soroláshoz.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A legközelebbi figyelt megálló előre soroláshoz és a widgeten való megjelenítéséhez.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = hu.futozs.mvk;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -614,7 +614,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A legközelebbi figyelt megálló előre soroláshoz.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A legközelebbi figyelt megálló előre soroláshoz és a widgeten való megjelenítéséhez.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = hu.futozs.mvk;
 				LD_RUNPATH_SEARCH_PATHS = (

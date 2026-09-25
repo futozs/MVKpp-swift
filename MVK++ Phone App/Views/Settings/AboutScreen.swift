@@ -7,7 +7,7 @@ import SwiftUI
 
 /// "Névjegy" — everything about the app itself that nobody needs on every
 /// visit to Settings: which server it talks to, which GTFS release is
-/// loaded, the app version, and where the map tiles come from.
+/// loaded, and the app version.
 struct AboutScreen: View {
 
     @EnvironmentObject private var store: TransitStore
@@ -17,7 +17,6 @@ struct AboutScreen: View {
         Form {
             appSection
             serverSection
-            attributionSection
         }
         .mvkBackground()
         .navigationTitle("Névjegy")
@@ -67,27 +66,6 @@ struct AboutScreen: View {
             Label("Szerver", systemImage: "server.rack")
         }
         .listRowBackground(Theme.card)
-    }
-
-    private var attributionSection: some View {
-        Section {
-            ForEach(mapAttributions, id: \.self) { line in
-                Text(line)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.mutedForeground)
-            }
-        } header: {
-            Label("Térképadatok", systemImage: "map")
-        }
-        .listRowBackground(Theme.card)
-    }
-
-    /// Distinct attribution lines across every tile source, in catalog order.
-    private var mapAttributions: [String] {
-        var seen: Set<String> = []
-        return TileLayerCatalog.all
-            .map(\.attribution)
-            .filter { seen.insert($0).inserted }
     }
 
     private var appVersion: String {

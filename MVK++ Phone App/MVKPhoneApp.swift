@@ -24,14 +24,6 @@ struct MVKPhoneApp: App {
                 .tint(Theme.primary)
                 .preferredColorScheme(.dark)
                 .task { await NotificationCenterStore.shared.configure() }
-                .task {
-                    // Keeps the map's own tile cache under its budget. Off the
-                    // main thread and off the launch path — nothing on screen
-                    // waits for it.
-                    await Task.detached(priority: .background) {
-                        TileStore.shared.trimCacheIfNeeded()
-                    }.value
-                }
                 .onOpenURL { url in
                     guard let link = DeepLink(url: url) else { return }
                     // The Megállófigyelő only has a card for a stop it is

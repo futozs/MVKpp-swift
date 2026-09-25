@@ -4,131 +4,54 @@
 //
 
 import Foundation
+import MapKit
 
-/// One selectable base map, ported from the web app's `TILE_LAYERS`.
+/// One selectable base map, backed by MapKit's own native rendering.
 ///
-/// Three of the five are the same OpenStreetMap tiles under different color
-/// treatments — the web app applies a CSS `filter` to the tile layer, and
-/// `TileImageProcessor` reproduces that chain in Core Image so the base maps
-/// look identical on both clients.
+/// This used to be five raster tile sources fetched, colour-treated and
+/// cached by hand — enough machinery (a disk cache, a placeholder pyramid, a
+/// live zoom ceiling) to paper over the fact that a hand-rolled tile pipeline
+/// can never quite match a first-party renderer for smoothness. Apple's own
+/// map has no fetch-and-decode step to stutter on: the vector data is already
+/// on the system, so panning and zooming are as smooth as Apple's own Maps
+/// app. The trade a rider makes for that is losing the offline base-map pack
+/// (`MKMapConfiguration` has no public bulk-download API) and the exact
+/// colour-filtered look of the web app's OSM layers — `style` below picks the
+/// closest native equivalent for each instead.
 struct TileLayerOption: Identifiable, Hashable {
+
+    /// What `TransitMapRepresentable` builds an `MKMapConfiguration` from.
+    enum Style: Hashable {
+        /// "Utcatérkép" — the everyday street map.
+        case standard
+        /// "Sötét" — same street map, forced to dark regardless of the
+        /// system appearance, so the choice is the rider's and not iOS's.
+        case standardDark
+        /// "Halvány" — the muted emphasis style, forced light.
+        case standardMuted
+        /// "Műhold" — satellite imagery with roads and labels over it.
+        case hybrid
+        /// "Domborzat" — standard map with realistic elevation, the closest
+        /// native stand-in for a hillshaded terrain layer.
+        case standardTerrain
+    }
+
     let id: String
     let name: String
     let note: String
-    let url: String
-    /// Where the raw bytes come from, before any colour treatment. Several
-    /// layers share one source, so an offline download of "Utcatérkép" also
-    /// covers "Sötét" and "Halvány".
-    let sourceId: String
-    /// Drawn above the base tiles — only satellite imagery needs place labels.
-    let labelsUrl: String?
-    let labelsSourceId: String?
-    let attribution: String
-    let maxNativeZoom: Int
+    let style: Style
     /// Representative color, shown in the base map picker.
     let swatch: String
-    let filter: TileFilter?
-}
-
-/// The CSS filter chain applied to a tile, expressed as its components.
-struct TileFilter: Hashable {
-    var invert = false
-    /// Degrees.
-    var hueRotate: Double = 0
-    /// Multiplicative, like CSS `brightness()`.
-    var brightness: Double = 1
-    var contrast: Double = 1
-    /// CSS `saturate()`.
-    var saturate: Double = 1
-    /// CSS `grayscale()`, 0…1.
-    var grayscale: Double = 0
-
-    static let dark = TileFilter(
-        invert: true,
-        hueRotate: 180,
-        brightness: 0.86,
-        contrast: 0.92,
-        saturate: 0.65
-    )
-
-    static let faded = TileFilter(
-        brightness: 1.06,
-        contrast: 0.9,
-        grayscale: 0.85
-    )
 }
 
 enum TileLayerCatalog {
 
-    private static let osmURL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-    private static let osmAttribution = "© OpenStreetMap közreműködők"
-
     static let all: [TileLayerOption] = [
-        TileLayerOption(
-            id: "osm",
-            name: "Utcatérkép",
-            note: "OpenStreetMap",
-            url: osmURL,
-            sourceId: "osm",
-            labelsUrl: nil,
-            labelsSourceId: nil,
-            attribution: osmAttribution,
-            maxNativeZoom: 19,
-            swatch: "E8E0D8",
-            filter: nil
-        ),
-        TileLayerOption(
-            id: "dark",
-            name: "Sötét",
-            note: "Sötétített OpenStreetMap",
-            url: osmURL,
-            sourceId: "osm",
-            labelsUrl: nil,
-            labelsSourceId: nil,
-            attribution: osmAttribution,
-            maxNativeZoom: 19,
-            swatch: "20241F",
-            filter: .dark
-        ),
-        TileLayerOption(
-            id: "light",
-            name: "Halvány",
-            note: "Kifakított OpenStreetMap",
-            url: osmURL,
-            sourceId: "osm",
-            labelsUrl: nil,
-            labelsSourceId: nil,
-            attribution: osmAttribution,
-            maxNativeZoom: 19,
-            swatch: "DEDEDC",
-            filter: .faded
-        ),
-        TileLayerOption(
-            id: "satellite",
-            name: "Műhold",
-            note: "Esri World Imagery",
-            url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            sourceId: "esri",
-            labelsUrl: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-            labelsSourceId: "esri-labels",
-            attribution: "© Esri, Maxar, Earthstar Geographics",
-            maxNativeZoom: 19,
-            swatch: "3F5B3C",
-            filter: nil
-        ),
-        TileLayerOption(
-            id: "topo",
-            name: "Domborzat",
-            note: "OpenTopoMap",
-            url: "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
-            sourceId: "topo",
-            labelsUrl: nil,
-            labelsSourceId: nil,
-            attribution: "Csempe: OpenTopoMap (CC-BY-SA), adat: © OpenStreetMap",
-            maxNativeZoom: 17,
-            swatch: "CBD3B0",
-            filter: nil
-        ),
+        TileLayerOption(id: "osm", name: "Utcatérkép", note: "Apple térkép", style: .standard, swatch: "E8E0D8"),
+        TileLayerOption(id: "dark", name: "Sötét", note: "Sötétített Apple térkép", style: .standardDark, swatch: "20241F"),
+        TileLayerOption(id: "light", name: "Halvány", note: "Kifakított Apple térkép", style: .standardMuted, swatch: "DEDEDC"),
+        TileLayerOption(id: "satellite", name: "Műhold", note: "Apple műholdas térkép", style: .hybrid, swatch: "3F5B3C"),
+        TileLayerOption(id: "topo", name: "Domborzat", note: "Domborzati Apple térkép", style: .standardTerrain, swatch: "CBD3B0"),
     ]
 
     static let storageKey = "mvk_map_tile"
@@ -143,17 +66,5 @@ enum TileLayerCatalog {
 
     static func save(_ id: String) {
         UserDefaults.standard.set(id, forKey: storageKey)
-    }
-
-    /// Every base map that a download of `sourceId` makes available offline.
-    static func layers(source sourceId: String) -> [TileLayerOption] {
-        all.filter { $0.sourceId == sourceId }
-    }
-
-    /// The distinct downloadable sources, in catalog order — one row each in
-    /// the offline-map settings.
-    static var downloadableSources: [TileLayerOption] {
-        var seen: Set<String> = []
-        return all.filter { seen.insert($0.sourceId).inserted }
     }
 }

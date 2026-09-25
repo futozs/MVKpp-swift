@@ -39,18 +39,24 @@ struct TripDetailSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    Section {
-                        stopList
-                    } header: {
-                        statusBand
-                    }
-                }
+                stopList
             }
             .background(AppBackground())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .safeAreaInset(edge: .top) { heading }
+            // `heading` and `statusBand` are pinned together as one inset
+            // rather than through `LazyVStack(pinnedViews:)` — a pinned
+            // section header whose height depends on conditional content
+            // (cancelled / run summary / live vs. finished) leaves a stale
+            // gap behind after the sheet has been presented many times, since
+            // its cached header height doesn't always get invalidated. A
+            // plain safeAreaInset re-measures every time, so it can't drift.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    heading
+                    statusBand
+                }
+            }
             .sheet(item: $notifyTarget) { target in
                 TripNotifySheet(
                     stopId: target.stop.id,
@@ -91,6 +97,8 @@ struct TripDetailSheet: View {
             }
 
             Spacer(minLength: 0)
+
+            headingTrailing
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
@@ -98,60 +106,169 @@ struct TripDetailSheet: View {
         .background(.bar)
     }
 
+    /// The one piece of chrome the rider actually reaches for: jump to this
+    /// bus on the map. Live shows a solid button (it can be focused right
+    /// now); a finished or running-but-unmatched run still names the vehicle
+    /// that took it, because "which bus was that?" doesn't stop being useful
+    /// once the run is over.
+    @ViewBuilder
+    private var headingTrailing: some View {
+        if isCancelled {
+            Label("Törölve", systemImage: "nosign")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Theme.destructive)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                        .strokeBorder(Theme.destructive.opacity(0.4), lineWidth: 1)
+                )
+        } else if let vehicle {
+            Button {
+                onFocusTrip(trip.tripId, vehicle.id)
+                dismiss()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "scope").font(.system(size: 11, weight: .semibold))
+                    Text(vehicle.id).font(Theme.mono(12, weight: .bold))
+                }
+                .foregroundStyle(Theme.primaryForeground)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(vehicle.id) a térképen")
+        } else if let shownVehicleId {
+            Button {
+                onFocusTrip(trip.tripId, shownVehicleId)
+                dismiss()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bus.fill").font(.system(size: 11))
+                    Text(shownVehicleId).font(Theme.mono(12, weight: .semibold))
+                }
+                .foregroundStyle(Theme.foreground)
+                .padding(.horizontal, 10)
+                .frame(height: 30)
+                .background(Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                        .strokeBorder(Theme.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(shownVehicleId) \(state == .finished ? "vitte" : "viszi") — megnézem a térképen")
+        }
+    }
+
     // MARK: - Pinned status band
 
+    /// Only the settled facts about this run: its status word and — once the
+    /// gateway has a journal entry for it — what actually happened at
+    /// departure and arrival. This stays pinned because it doesn't change as
+    /// the rider scrolls through stops.
     private var statusBand: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             if isCancelled {
                 Label("Törölve — ez a menet nem indul el", systemImage: "nosign")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.destructive)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
             } else {
-                HStack(spacing: 10) {
-                    if let vehicleId = shownVehicleId {
-                        HStack(spacing: 5) {
-                            Image(systemName: "bus.fill").font(.system(size: 11))
-                            Text(vehicleId).font(Theme.mono(13))
-                        }
-                        .foregroundStyle(Theme.primary)
-                    }
-
-                    if let statusLabel {
-                        Text(statusLabel)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(state == .live ? Theme.live : Theme.mutedForeground)
-                    }
-
-                    Spacer(minLength: 0)
+                if let statusLabel {
+                    Text(statusLabel)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(state == .live ? Theme.live : Theme.mutedForeground)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, showRunSummary ? 6 : 10)
                 }
 
-                HStack(spacing: 8) {
-                    DelayBar(delaySec: deviationSec, showLabel: false)
-                    Text(DelayFormat.sentence(deviationSec))
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(DelayFormat.tone(deviationSec))
-                }
-
-                if let nextStopName = progress.progress?.nextStop?.name {
-                    Text("következő: \(nextStopName)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.mutedForeground)
+                if showRunSummary, let journalEntry {
+                    RunSummaryView(entry: journalEntry)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
         .background(.bar)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Theme.border).frame(height: 1)
         }
     }
 
+    /// The journal is what actually happened; showing it needs neither a
+    /// live vehicle nor the run being over — a run in progress that has
+    /// already logged its start delay is worth surfacing too.
+    private var showRunSummary: Bool {
+        !isCancelled && journalEntry != nil && state != .scheduled
+    }
+
+    // MARK: - Live progress
+
+    /// The moving part: current position, next stop, live schedule
+    /// deviation. Scrolls away with the stop list instead of staying pinned,
+    /// because unlike the status band this keeps changing underneath the
+    /// rider as the bus moves.
+    @ViewBuilder
+    private var liveProgressRow: some View {
+        if !isCancelled, vehicle != nil {
+            VStack(alignment: .leading, spacing: 6) {
+                if let progressData = progress.progress {
+                    HStack(spacing: 8) {
+                        if let vehicleId = shownVehicleId {
+                            Text(vehicleId)
+                                .font(Theme.mono(12, weight: .bold))
+                                .foregroundStyle(Theme.primary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        }
+
+                        Text(progressSubtitle(progressData))
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.mutedForeground)
+                            .lineLimit(1)
+
+                        Spacer(minLength: 0)
+                    }
+
+                    if let dev = progressData.scheduleDeviationSec, DelayFormat.state(dev) != .unknown {
+                        HStack(spacing: 8) {
+                            DelayBar(delaySec: dev, showLabel: false)
+                            Text(DelayFormat.sentence(dev))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DelayFormat.tone(dev))
+                        }
+                    }
+                } else {
+                    Text("Erre a menetre még nem jelentkezett be jármű.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.mutedForeground)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+        }
+    }
+
+    private func progressSubtitle(_ data: TripProgressResponse) -> String {
+        var text = data.nextStop.map { "következő: \($0.name)" } ?? "útközben"
+        if let speed = data.vehicle?.speed {
+            text += " · \(Int((speed * 3.6).rounded())) km/h"
+        }
+        return text
+    }
+
     // MARK: - Stops
 
     private var stopList: some View {
         VStack(spacing: 0) {
+            liveProgressRow
+
             ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
                 // A nil entry means this run skips the stop entirely.
                 if let time = time(at: index) {
@@ -232,11 +349,13 @@ struct TripDetailSheet: View {
 
     private var vehicleKey: String { "\(trip.tripId)|\(vehicle?.id ?? "")" }
 
-    /// Live deviation while the run is out there; the journal's own figure
-    /// once it has finished.
+    /// Live schedule deviation, straight from the vehicle feed. Deliberately
+    /// not backed by the journal's start delay — that number describes one
+    /// moment (departure), not the whole run, so stretching it across every
+    /// later stop would misstate arrivals. The journal's own start/end
+    /// figures are shown as-is in `RunSummaryView` instead.
     private var deviationSec: Int? {
         progress.progress?.scheduleDeviationSec
-            ?? (TripStatus.showsJournalVehicle(state) ? journalEntry?.startDelaySec : nil)
     }
 
     private var state: TripRunState {

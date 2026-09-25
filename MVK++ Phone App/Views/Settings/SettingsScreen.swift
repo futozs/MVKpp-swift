@@ -20,7 +20,6 @@ struct SettingsScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var navigation: AppNavigation
     @ObservedObject private var notifications = NotificationCenterStore.shared
-    @ObservedObject private var offline = OfflineMapManager.shared
     @ObservedObject private var offlineSchedule = OfflineScheduleManager.shared
 
     var body: some View {
@@ -40,8 +39,9 @@ struct SettingsScreen: View {
 
     // MARK: - Offline & map
 
-    /// Base map, offline map pack and offline timetable in one place — all
-    /// three answer the same question ("does this work without signal?").
+    /// Base map style picker alongside the offline timetable download — the
+    /// timetable is the one thing here that still works without signal, since
+    /// the base map is native Apple Maps and has no offline pack of its own.
     private var offlineSection: some View {
         Section {
             NavigationLink {
@@ -61,21 +61,6 @@ struct SettingsScreen: View {
                     Spacer(minLength: 8)
                     Text(navigation.tileLayer.name)
                         .foregroundStyle(Theme.mutedForeground)
-                }
-            }
-
-            NavigationLink {
-                OfflineMapSettingsView()
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "arrow.down.circle")
-                        .font(.system(size: 17))
-                        .foregroundStyle(Theme.primary)
-                        .frame(width: 26, height: 26)
-                    Text("Térkép letöltése")
-                    Spacer(minLength: 8)
-                    Text(offlineSummary)
-                        .foregroundStyle(offline.packs.isEmpty ? Theme.mutedForeground : Theme.primary)
                 }
             }
 
@@ -106,14 +91,6 @@ struct SettingsScreen: View {
         return days == 0 ? "Nincs" : "\(days) nap"
     }
 
-    /// Reads as "nincs letöltve" or "2 terület", which is all this row needs
-    /// to say before the rider taps into the detail screen.
-    private var offlineSummary: String {
-        if offline.isDownloading { return "Letöltés…" }
-        let count = offline.packs.count
-        return count == 0 ? "Nincs" : "\(count) alaptérkép"
-    }
-
     // MARK: - Watch and widget
 
     private var watchSection: some View {
@@ -123,7 +100,10 @@ struct SettingsScreen: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.mutedForeground)
             } else {
-                Picker("Widget megálló", selection: widgetStopBinding) {
+                Toggle("Legközelebbi kedvenc a widgeten", isOn: $favorites.widgetNearestEnabled)
+                    .tint(Theme.primary)
+
+                Picker(favorites.widgetNearestEnabled ? "Tartalék megálló" : "Widget megálló", selection: widgetStopBinding) {
                     Text("Nincs").tag(String?.none)
                     ForEach(favorites.stopIds, id: \.self) { stopId in
                         Text(stopName(stopId)).tag(String?.some(stopId))
@@ -137,6 +117,10 @@ struct SettingsScreen: View {
                 .tint(Theme.primary)
         } header: {
             Label("Óra és widget", systemImage: "applewatch")
+        } footer: {
+            if favorites.widgetNearestEnabled && !favorites.stopIds.isEmpty {
+                Text("Az óra widgetje GPS alapján mindig a hozzád legközelebbi figyelt megállót mutatja. Ha nincs helyadat, a tartalék megálló jelenik meg. Nyisd meg egyszer az órán az MVK++ appot, hogy engedélyezd a helymeghatározást.")
+            }
         }
         .listRowBackground(Theme.card)
     }

@@ -71,7 +71,7 @@ struct NextDeparturesListView: View {
                 .task(id: favorites.stopIds) {
                     await pollLoop()
                 }
-                .onChange(of: favorites.nearestFirstEnabled, initial: true) { _, enabled in
+                .onChange(of: needsLocation, initial: true) { _, enabled in
                     if enabled {
                         location.start()
                     } else {
@@ -140,6 +140,13 @@ struct NextDeparturesListView: View {
         guard let stopId = pendingLookupStopId else { return }
         pendingLookupStopId = nil
         coordinator.path.append(stopId)
+    }
+
+    /// Either the list is sorted by distance, or the widget follows the
+    /// nearest watched stop — which needs the permission granted here, in
+    /// the app, before the widget extension can get a fix of its own.
+    private var needsLocation: Bool {
+        favorites.nearestFirstEnabled || favorites.widgetNearestEnabled
     }
 
     private var orderedStopIds: [String] {

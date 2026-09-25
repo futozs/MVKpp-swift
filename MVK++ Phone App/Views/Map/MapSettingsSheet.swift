@@ -5,11 +5,11 @@
 
 import SwiftUI
 
-/// The base map choices, exactly the web app's five: street, dark, faded,
-/// satellite and topographic.
+/// The base map choices: street, dark, faded, satellite and terrain, each a
+/// native `MKMapConfiguration` rather than a separate tile source.
 ///
-/// Three of them are the same OpenStreetMap tiles under different colour
-/// treatments, so each row leads with a swatch — the names alone ("Sötét",
+/// Three of them are the same standard Apple map under different appearance
+/// settings, so each row leads with a swatch — the names alone ("Sötét",
 /// "Halvány") would not tell them apart.
 struct BaseMapList: View {
     @Binding var selectedLayerId: String
@@ -60,16 +60,6 @@ struct BaseMapList: View {
         }
         .listStyle(.plain)
         .mvkBackground()
-        .safeAreaInset(edge: .bottom) {
-            // Both OpenStreetMap and Esri require visible attribution.
-            Text(TileLayerCatalog.layer(id: selectedLayerId).attribution)
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.mutedForeground)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-        }
     }
 }
 

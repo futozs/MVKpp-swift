@@ -6,10 +6,23 @@
 import MapKit
 import SwiftUI
 
-/// The map itself. Wraps `MKMapView` rather than SwiftUI's `Map` for two
-/// reasons the ported design depends on: custom raster tiles (SwiftUI has no
-/// `MKTileOverlay` equivalent, and the base-map picker is a shipped feature),
-/// and annotation-view reuse for a thousand-odd stops plus a live fleet.
+/// The map itself. Wraps `MKMapView` rather than SwiftUI's `Map` for one
+/// reason the ported design depends on: annotation-view reuse for a
+/// thousand-odd stops plus a live fleet, which SwiftUI's `Map` does not give
+/// enough control over.
+///
+/// The base map itself is native Apple Maps (`MKMapConfiguration`), not a
+/// custom raster tile pipeline. A hand-rolled `MKTileOverlay` — fetch, decode,
+/// colour-filter, cache, and paper over every gap with a placeholder — was
+/// tried and repeatedly fought back: real devices kept showing a blank or
+/// flickering frame right at the start or end of a pinch, because the
+/// pipeline could not answer fast enough at the exact moment MapKit needed a
+/// new tile. Apple's own renderer has no fetch step to be late — it is the
+/// same one Maps.app uses — so panning and zooming are smooth by
+/// construction. The cost is real and was a deliberate trade, not an
+/// oversight: no offline base-map download (`MKMapConfiguration` has no
+/// public bulk-tile API), and the base map styles are the closest native
+/// equivalent to the old colour-filtered OSM layers, not a pixel match.
 struct TransitMapRepresentable: UIViewRepresentable {
 
     let stops: [Stop]
@@ -42,7 +55,6 @@ struct TransitMapRepresentable: UIViewRepresentable {
         map.delegate = context.coordinator
         map.showsCompass = false
         map.showsScale = false
-        map.pointOfInterestFilter = .excludingAll
         map.isRotateEnabled = false
         map.isPitchEnabled = false
 
@@ -116,23 +128,9 @@ struct TransitMapRepresentable: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: TransitMapRepresentable
 
-        private var baseOverlay: MapTileOverlay?
-        private var labelOverlay: MapTileOverlay?
         private var currentTileLayerId: String?
-        /// MapKit owns these; we only need them to say "repaint here" when a
-        /// tile turns up after the draw pass that asked for it.
-        private weak var baseRenderer: MKTileOverlayRenderer?
-        private weak var labelRenderer: MKTileOverlayRenderer?
-        /// Late tiles arrive in bursts of dozens. Their rects are unioned and
-        /// flushed on a short timer, so a screenful of them costs one
-        /// invalidation instead of forty.
-        private var repaintScheduled = false
-        /// Both debounced: `regionDidChange` fires repeatedly through a pinch,
-        /// and neither a `UserDefaults` write nor a prefetch sweep belongs in
-        /// that path.
+
         private var persistWork: DispatchWorkItem?
-        private var prefetchWork: DispatchWorkItem?
-        private var isGesturing = false
 
         private var stopAnnotations: [String: StopAnnotation] = [:]
         private var stopSignature = ""
@@ -150,36 +148,9 @@ struct TransitMapRepresentable: UIViewRepresentable {
         // MARK: User gestures
 
         @objc func handleUserGesture(_ recognizer: UIGestureRecognizer) {
-            switch recognizer.state {
-            case .began:
-                isGesturing = true
-                let handler = parent.onUserMovedMap
-                MainActor.assumeIsolated { handler() }
-            case .ended, .cancelled, .failed:
-                isGesturing = false
-                // The gesture is over, so a correction can no longer fight it.
-                clampZoomIfNeeded(on: recognizer.view as? MKMapView)
-            default:
-                break
-            }
-        }
-
-        /// Brings the camera back to the last zoom the tile source actually
-        /// has, once the rider's fingers are off.
-        ///
-        /// This deliberately replaces `setCameraZoomRange`. That clamps what
-        /// the *camera* reports while leaving the renderer working from the
-        /// zoom the pinch asked for, and the two disagreeing is what left the
-        /// map as an empty tile grid: MapKit asked for tiles at the capped
-        /// level, was handed every one of them, and drew them at a scale where
-        /// they covered nothing. Letting the pinch overshoot and settling
-        /// afterwards keeps the camera and the renderer talking about the same
-        /// map.
-        private func clampZoomIfNeeded(on map: MKMapView?) {
-            guard let map else { return }
-            let ceiling = Double(parent.tileLayer.maxNativeZoom)
-            guard map.zoomLevel > ceiling + 0.1 else { return }
-            map.setCenter(map.region.center, zoomLevel: ceiling, animated: true, maxZoom: ceiling)
+            guard recognizer.state == .began else { return }
+            let handler = parent.onUserMovedMap
+            MainActor.assumeIsolated { handler() }
         }
 
         func gestureRecognizer(
@@ -189,61 +160,50 @@ struct TransitMapRepresentable: UIViewRepresentable {
             true
         }
 
-        // MARK: Tiles
+        // MARK: Base map
 
+        /// Picks the native `MKMapConfiguration` for the chosen style and
+        /// forces the map's own appearance to match it, independent of the
+        /// system's actual light/dark setting — "Sötét" has to look dark even
+        /// on a phone set to light mode, since it is the rider's choice, not
+        /// iOS's.
+        ///
+        /// `pointOfInterestFilter` is set again here, per configuration, even
+        /// though `makeUIView` already sets it on the map view once: assigning
+        /// `preferredConfiguration` replaces the active configuration
+        /// wholesale, POI filter included, so without this every base-map
+        /// switch quietly turned every shop and restaurant icon back on.
         func applyTileLayer(_ option: TileLayerOption, to map: MKMapView) {
             guard currentTileLayerId != option.id else { return }
             currentTileLayerId = option.id
 
-            if let baseOverlay { map.removeOverlay(baseOverlay) }
-            if let labelOverlay { map.removeOverlay(labelOverlay) }
-            labelOverlay = nil
-
-            baseRenderer = nil
-            labelRenderer = nil
-
-            let base = MapTileOverlay(option: option)
-            base.onTileReady = { [weak self] rect in
-                self?.scheduleRepaint(rect, labels: false)
+            switch option.style {
+            case .standard:
+                map.overrideUserInterfaceStyle = .light
+                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
+                configuration.pointOfInterestFilter = .excludingAll
+                map.preferredConfiguration = configuration
+            case .standardDark:
+                map.overrideUserInterfaceStyle = .dark
+                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
+                configuration.pointOfInterestFilter = .excludingAll
+                map.preferredConfiguration = configuration
+            case .standardMuted:
+                map.overrideUserInterfaceStyle = .light
+                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
+                configuration.pointOfInterestFilter = .excludingAll
+                map.preferredConfiguration = configuration
+            case .hybrid:
+                map.overrideUserInterfaceStyle = .unspecified
+                let configuration = MKHybridMapConfiguration(elevationStyle: .realistic)
+                configuration.pointOfInterestFilter = .excludingAll
+                map.preferredConfiguration = configuration
+            case .standardTerrain:
+                map.overrideUserInterfaceStyle = .light
+                let configuration = MKStandardMapConfiguration(elevationStyle: .realistic, emphasisStyle: .default)
+                configuration.pointOfInterestFilter = .excludingAll
+                map.preferredConfiguration = configuration
             }
-            map.insertOverlay(base, at: 0, level: .aboveLabels)
-            baseOverlay = base
-
-            if option.labelsUrl != nil {
-                let labels = MapTileOverlay(option: option, labels: true)
-                labels.canReplaceMapContent = false
-                labels.onTileReady = { [weak self] rect in
-                    self?.scheduleRepaint(rect, labels: true)
-                }
-                map.insertOverlay(labels, at: 1, level: .aboveLabels)
-                labelOverlay = labels
-            }
-        }
-
-        /// Notes that a real tile has landed and makes sure the layer is
-        /// repainted once the burst is over.
-        ///
-        /// `reloadData` rather than `setNeedsDisplay(_:)`, because the slot
-        /// very likely holds a blown-up stand-in and the renderer would
-        /// happily redraw that same stand-in. Only a reload asks for the tile
-        /// again — and by the time this fires every tile on screen is in
-        /// memory, so the reload is answered synchronously and nothing
-        /// blanks. The delay is what makes it one reload per zoom rather than
-        /// one per tile.
-        private func scheduleRepaint(_ rect: MKMapRect, labels: Bool) {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !repaintScheduled else { return }
-                repaintScheduled = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                    self?.flushRepaint()
-                }
-            }
-        }
-
-        private func flushRepaint() {
-            repaintScheduled = false
-            baseRenderer?.reloadData()
-            labelRenderer?.reloadData()
         }
 
         // MARK: Stops
@@ -452,34 +412,21 @@ struct TransitMapRepresentable: UIViewRepresentable {
         // MARK: Camera
 
         func run(_ command: MapCommand, on map: MKMapView) {
-            let ceiling = Double(parent.tileLayer.maxNativeZoom)
             switch command {
             case .fly(let coordinate, let zoom):
-                map.setCenter(coordinate, zoomLevel: zoom, animated: true, maxZoom: ceiling)
+                map.setCenter(coordinate, zoomLevel: zoom, animated: true)
             case .jump(let coordinate, let zoom):
-                map.setCenter(coordinate, zoomLevel: zoom, animated: false, maxZoom: ceiling)
+                map.setCenter(coordinate, zoomLevel: zoom, animated: false)
             case .fit(let coordinates, let maxZoom):
-                map.fit(coordinates, maxZoom: min(maxZoom, ceiling))
+                map.fit(coordinates, maxZoom: maxZoom)
             case .flyAtLeast(let coordinate, let minZoom):
-                map.setCenter(coordinate, zoomLevel: max(map.zoomLevel, minZoom), animated: true, maxZoom: ceiling)
+                map.setCenter(coordinate, zoomLevel: max(map.zoomLevel, minZoom), animated: true)
             }
         }
 
         // MARK: MKMapViewDelegate
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let tile = overlay as? MKTileOverlay {
-                let renderer = MKTileOverlayRenderer(tileOverlay: tile)
-                if let mapTile = tile as? MapTileOverlay {
-                    if mapTile === labelOverlay {
-                        labelRenderer = renderer
-                    } else {
-                        baseRenderer = renderer
-                    }
-                }
-                return renderer
-            }
-
             if let route = overlay as? RouteOverlay {
                 let renderer = MKPolylineRenderer(polyline: route)
                 renderer.lineCap = .round
@@ -537,14 +484,8 @@ struct TransitMapRepresentable: UIViewRepresentable {
             let region = mapView.region
             let zoom = mapView.zoomLevel
 
-            // Nothing corrects the region here. Re-setting it from inside this
-            // callback fires the callback again, and doing that while a pinch
-            // is still running fought the gesture frame by frame — that was
-            // the shaking. Overshooting the tile source is settled once, when
-            // the fingers come off, in `clampZoomIfNeeded`.
             MainActor.assumeIsolated { self.parent.camera.updateZoom(zoom) }
             schedulePersist(center: region.center, zoom: zoom)
-            schedulePrefetch(region: region, zoom: zoom)
         }
 
         // MARK: Debounced side effects
@@ -559,45 +500,5 @@ struct TransitMapRepresentable: UIViewRepresentable {
             persistWork = work
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.6, execute: work)
         }
-
-        /// Warms the next zoom level in, for the ground currently on screen.
-        ///
-        /// A pinch asks for a whole new level of tiles at once, and that
-        /// burst is exactly when the map used to go to pieces. Fetching them
-        /// while the rider is still looking at the current level turns the
-        /// zoom into a cache read.
-        private func schedulePrefetch(region: MKCoordinateRegion, zoom: Double) {
-            prefetchWork?.cancel()
-            guard let overlay = baseOverlay else { return }
-
-            let box = TileBoundingBox(
-                minLat: region.center.latitude - region.span.latitudeDelta / 2,
-                minLon: region.center.longitude - region.span.longitudeDelta / 2,
-                maxLat: region.center.latitude + region.span.latitudeDelta / 2,
-                maxLon: region.center.longitude + region.span.longitudeDelta / 2
-            )
-            let current = Int(zoom.rounded()) + MapTileOverlay.zoomOffset
-            // Both directions: a pinch out is just as likely as a pinch in,
-            // and the level the rider zooms *away* to is the one that used to
-            // arrive blank.
-            let levels = [current + 1, current - 1]
-                .filter { $0 >= overlay.minimumZ && $0 <= overlay.maximumZ }
-
-            let work = DispatchWorkItem {
-                for level in levels {
-                    let tiles = TileMath.tiles(in: box, z: level)
-                    // A screenful at the next level in is four times the
-                    // current one; beyond that the rider has already moved on.
-                    guard tiles.count <= Self.prefetchLimit else { continue }
-                    for tile in tiles {
-                        overlay.warm(tile) { _ in }
-                    }
-                }
-            }
-            prefetchWork = work
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.45, execute: work)
-        }
-
-        private static let prefetchLimit = 64
     }
 }

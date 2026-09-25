@@ -64,8 +64,7 @@ struct NextDepartureProvider: TimelineProvider {
     }
 
     private func fetchEntry() async -> NextDepartureEntry {
-        let suite = UserDefaults(suiteName: FavoritesStore.appGroupID)
-        guard let stopId = suite?.string(forKey: FavoritesStore.widgetStopKey), !stopId.isEmpty else {
+        guard let stopId = await WidgetStopResolver.resolveStopId() else {
             return NextDepartureEntry(date: Date(), stopName: nil, arrival: nil, etaOverride: nil, message: "Válassz widget megállót a telefonon")
         }
         do {
@@ -164,7 +163,7 @@ struct NextDepartureWidget: Widget {
                 }
         }
         .configurationDisplayName("MVK++")
-        .description("A kiválasztott megálló következő indulása.")
+        .description("A kiválasztott vagy a legközelebbi figyelt megálló következő indulása.")
         .supportedFamilies([.accessoryRectangular])
     }
 }
