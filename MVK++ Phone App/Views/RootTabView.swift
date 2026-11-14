@@ -120,7 +120,7 @@ struct RootTabView: View {
         case .timetable: TimetableScreen()
         case .parking: ParkingScreen()
         case .planner: RoutePlannerScreen()
-        case .stats: StatsScreen()
+        case .stats: StatsScreen().environmentObject(incidents)
         }
     }
 

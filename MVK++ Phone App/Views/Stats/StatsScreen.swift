@@ -41,10 +41,12 @@ struct StatsScreen: View {
     }
 
     @EnvironmentObject private var store: TransitStore
+    @EnvironmentObject private var incidents: LiveIncidentsModel
     @ObservedObject private var local = LocalStore.shared
+    @Environment(\.tabActivation) private var tabActivation
 
-    /// nil until the live incident count decides the first panel: with a
-    /// live disruption the Üzemzavarok panel opens first.
+    /// nil until the rider picks one, and again on every visit (the web
+    /// remounts the tab): with a live disruption Üzemzavarok opens first.
     @State private var panel: Panel?
 
     private var modes: [TransitMode] { local.enabledModes }
@@ -68,7 +70,7 @@ struct StatsScreen: View {
     }
 
     var body: some View {
-        let current = panel ?? .vehicle
+        let current = panel ?? (incidents.count > 0 ? .incident : .vehicle)
         VStack(spacing: 0) {
             nav(current)
             ScrollView {
@@ -80,13 +82,11 @@ struct StatsScreen: View {
             }
             .scrollDismissesKeyboard(.immediately)
             .safeAreaPadding(.bottom, 90)
+            // A fresh mount per visit: every panel refetches and forgets its picks.
+            .id(tabActivation)
         }
         .background(Theme.background)
-        .task {
-            guard panel == nil else { return }
-            let live = try? await APIClient.shared.liveIncidents()
-            if panel == nil { panel = (live?.missing.isEmpty == false) ? .incident : .vehicle }
-        }
+        .onChange(of: tabActivation) { _, _ in panel = nil }
         .onChange(of: regional) { _, isOn in
             if !isOn, panel == .regional { panel = .vehicle }
         }
@@ -147,6 +147,8 @@ struct StatsScreen: View {
             .accessibilityLabel("Áttekintés: rendszám-jóslás pontossága és adatraktár")
         }
         .padding(.horizontal, 12)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Statisztikai nézetek")
         .background(Theme.background.opacity(0.85))
         .overlay(alignment: .bottom) {
             Rectangle().fill(Theme.border).frame(height: 1)
