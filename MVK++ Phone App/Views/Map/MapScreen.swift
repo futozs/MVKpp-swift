@@ -140,6 +140,7 @@ struct MapScreen: View {
             riddenVehicleId: rides.active?.vehicleId,
             is3D: is3D,
             historyOn: historyOn,
+            isActive: navigation.tab == .map,
             coverBottom: cover,
             camera: camera,
             onSelectStop: { navigation.selectedStopId = $0 },

@@ -51,6 +51,8 @@ struct RideButton: View {
             .opacity(isEnabled ? 1 : 0.5)
         }
         .buttonStyle(RidePressStyle())
+        .fixedSize(horizontal: !fullWidth, vertical: false)
+        .layoutPriority(fullWidth ? 0 : 1)
     }
 
     private var foreground: Color {

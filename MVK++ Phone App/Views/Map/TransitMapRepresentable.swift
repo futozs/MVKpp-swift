@@ -38,6 +38,8 @@ struct TransitMapRepresentable: UIViewRepresentable {
     let riddenVehicleId: String?
     let is3D: Bool
     let historyOn: Bool
+    /// The map tab is on screen; the motion tick idles otherwise.
+    var isActive = true
     /// Height of the panel covering the bottom of the map (focus card, ride).
     let coverBottom: CGFloat
 
@@ -538,7 +540,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         // MARK: Motion tick
 
         private func tickMotion() {
-            guard let map, !parent.historyOn else { return }
+            guard let map, !parent.historyOn, parent.isActive else { return }
             let now = RealtimeClient.shared.serverNow
             let ridden = parent.riddenVehicleId
             let gps = ridden != nil ? parent.ridePosition : nil

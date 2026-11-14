@@ -54,8 +54,7 @@ struct MultiStopScreen: View {
                 }
             }
             .background(AppBackground())
-            .navigationTitle("Megállófigyelő")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isPickerOpen) {
                 AddStopSheet(stops: store.stops)
                     .presentationDetents([.large])

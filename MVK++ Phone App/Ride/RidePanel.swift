@@ -35,15 +35,14 @@ struct RidePanel: View {
             content
         }
         .frame(maxWidth: .infinity)
-        .frame(maxHeight: UIScreen.main.bounds.height * 0.75, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
-        .background(Theme.card)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xxl, topTrailingRadius: Theme.Radius.xxl, style: .continuous))
-        .overlay(alignment: .top) {
+        .background {
             UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xxl, topTrailingRadius: Theme.Radius.xxl, style: .continuous)
+                .fill(Theme.card)
                 .stroke(Theme.border, lineWidth: 1)
+                .mvkShadow(Theme.Shadow.xl)
+                .ignoresSafeArea(edges: .bottom)
         }
-        .mvkShadow(Theme.Shadow.xl)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Utazás")
     }
@@ -190,7 +189,6 @@ struct RidePanel: View {
     private func riding(_ trip: TripLive) -> some View {
         let turn = ride.turn
         let plan = ride.loopPlan
-        let lastIdx = trip.stops.count - 1
 
         if controller.awayAsk, turn == nil {
             VStack(alignment: .leading, spacing: 2) {
@@ -264,7 +262,6 @@ struct RidePanel: View {
             }
             cancelButton
         }
-        .onAppear { _ = lastIdx }
     }
 
     private func planCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

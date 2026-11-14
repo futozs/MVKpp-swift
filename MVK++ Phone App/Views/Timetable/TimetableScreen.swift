@@ -25,8 +25,7 @@ struct TimetableScreen: View {
                 list
             }
             .background(Theme.card.ignoresSafeArea())
-            .navigationTitle("Menetrend")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: routeOpen) {
                 RouteTimetableView(model: model)
             }

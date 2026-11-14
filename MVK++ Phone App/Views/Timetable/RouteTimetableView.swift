@@ -15,6 +15,7 @@ struct RouteTimetableView: View {
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
 
     @State private var legendOpen = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         GeometryReader { geometry in
@@ -54,7 +55,7 @@ struct RouteTimetableView: View {
             .animation(Theme.Motion.normalAnimation, value: model.selectedTrip?.tripId)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Header
@@ -63,6 +64,18 @@ struct RouteTimetableView: View {
         let isFavorite = lineFavorites.contains(routeId: route.id, dir: model.selectedDir)
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Vissza a járatlistához")
+
                 RouteTile(short: route.short, colorHex: route.color, textHex: route.text, size: .large)
 
                 VStack(alignment: .leading, spacing: 2) {
