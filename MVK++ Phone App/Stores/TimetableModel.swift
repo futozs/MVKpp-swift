@@ -262,14 +262,10 @@ final class TimetableModel: ObservableObject {
         return iso
     }
 
-    /// Back on the tab (the web remounts the Menetrend, opening on today): a
-    /// day left on "today" rolls over to the new today; a day the rider paged
-    /// to stays.
+    /// Back on the tab: the web remounts the Menetrend, which opens on today.
     func reactivate() {
-        let today = Self.todayIso()
-        let wasToday = date == mountDay
-        mountDay = today
-        if wasToday { setDate(today) }
+        mountDay = Self.todayIso()
+        setDate(mountDay)
     }
 
     private func followServerToday() {

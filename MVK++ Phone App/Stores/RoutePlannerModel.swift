@@ -69,15 +69,10 @@ final class RoutePlannerModel: ObservableObject {
     private var ownStops: (key: String, places: [PlannerPlace])?
     private var catalog: [Stop] = []
     private var lastModes: String?
-    /// The date and time `setNow()` last filled in: while the form still
-    /// shows them, the rider has not picked a time of their own.
-    private var nowStamp: (date: String, time: String)
     private var cancellables: Set<AnyCancellable> = []
 
     init() {
-        let date = PlannerFormat.todayLocalIso(), time = PlannerFormat.nowLocalTime()
-        form = PlanFormValue(date: date, time: time)
-        nowStamp = (date, time)
+        form = PlanFormValue(date: PlannerFormat.todayLocalIso(), time: PlannerFormat.nowLocalTime())
         travel = PlanTravel(coach: false, rail: false)
         travel = resolvedTravel()
         lastModes = modes
@@ -197,16 +192,11 @@ final class RoutePlannerModel: ObservableObject {
     func setNow() {
         form.date = PlannerFormat.todayLocalIso()
         form.time = PlannerFormat.nowLocalTime()
-        nowStamp = (form.date, form.time)
     }
 
-    /// Back on the tab (the web remounts the planner at "now"): a time the
-    /// rider did not set, or a day that has passed, moves to now — otherwise
-    /// yesterday's date would silently turn the search into „Mi történt akkor?”.
-    func reactivate() {
-        let untouched = form.date == nowStamp.date && form.time == nowStamp.time
-        if untouched || form.date < PlannerFormat.todayLocalIso() { setNow() }
-    }
+    /// Back on the tab: the web remounts the planner at "now", so yesterday's
+    /// date never silently turns a search into „Mi történt akkor?”.
+    func reactivate() { setNow() }
 
     func swap() {
         let from = form.from
