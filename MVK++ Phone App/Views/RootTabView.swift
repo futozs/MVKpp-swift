@@ -33,10 +33,12 @@ struct RootTabView: View {
                 RoutePlannerScreen()
             }
 
-            // The Watch and the widget have no settings UI of their own —
-            // which stop the Smart Stack counts down is chosen here.
-            Tab("Beállítások", systemImage: "gearshape.fill", value: AppTab.settings) {
-                SettingsScreen()
+            Tab("Parkoló", systemImage: "parkingsign.square", value: AppTab.parking) {
+                ParkingScreen()
+            }
+
+            Tab("Statisztika", systemImage: "chart.bar", value: AppTab.stats) {
+                StatsScreen()
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

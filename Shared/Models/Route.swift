@@ -19,6 +19,11 @@ struct Route: Decodable, Identifiable, Hashable {
     /// Bare hex, no leading "#" — normalized on decode.
     let color: String
     let text: String
+    /// v3 (`?modes=`): the mode, the statistics key (MVK: the short name)
+    /// and the operator.
+    var mode: String? = nil
+    var key: String? = nil
+    var operator_: String? = nil
 
     /// GTFS route_type 900 is the tram family; everything MVK runs otherwise
     /// is a bus.
@@ -36,6 +41,9 @@ struct Route: Decodable, Identifiable, Hashable {
             type = try array.decode(String.self)
             color = Self.normalize(try array.decodeIfPresent(String.self), fallback: "888888")
             text = Self.normalize(try array.decodeIfPresent(String.self), fallback: "FFFFFF")
+            if !array.isAtEnd { mode = try array.decodeIfPresent(String.self) }
+            if !array.isAtEnd { key = try array.decodeIfPresent(String.self) }
+            if !array.isAtEnd { operator_ = try array.decodeIfPresent(String.self) }
             return
         }
 

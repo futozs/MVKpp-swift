@@ -20,6 +20,8 @@ enum DeepLink: Equatable {
     case trip(tripId: String, vehicleId: String?)
     /// Just bring the app forward.
     case home
+    /// One of the six views (the web's `#stats`, `#parking` … hash links).
+    case tab(AppTab)
 
     static let scheme = "mvkpp"
 
@@ -42,6 +44,9 @@ enum DeepLink: Equatable {
         case .home:
             components.host = "home"
             components.path = ""
+        case .tab(let tab):
+            components.host = "tab"
+            components.path = "/\(tab.rawValue)"
         }
         // Every case above produces a well-formed URL; the fallback exists
         // only so callers do not have to handle an impossible optional.
@@ -66,6 +71,9 @@ enum DeepLink: Equatable {
             self = .trip(tripId: value, vehicleId: vehicle)
         case "home":
             self = .home
+        case "tab":
+            guard let value, let tab = AppTab(rawValue: value) else { return nil }
+            self = .tab(tab)
         default:
             return nil
         }

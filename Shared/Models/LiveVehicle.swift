@@ -24,6 +24,20 @@ struct LiveVehicle: Decodable, Identifiable, Hashable {
     let speed: Double?
     let tripId: String
     let timestamp: Double?
+    /// v3: the transport mode ("tram", "bus", "coach", "rail"); native MVK
+    /// vehicles do not carry it.
+    var mode: String? = nil
+    var routeKey: String? = nil
+    /// v3: registration plate (Volán, and MVK from the fallback source).
+    var plate: String? = nil
+    var trainNo: String? = nil
+    var trainName: String? = nil
+    /// v3: official delay at the next stop (s) — Volán, rail, fallback.
+    var delaySec: Double? = nil
+    /// v3: position estimated from the timetable, not GPS.
+    var estimated: Bool? = nil
+    /// v3 (WebSocket): the server's own matcher's measured delay now (s).
+    var liveDelaySec: Double? = nil
 
     var coordinate: CLLocationCoordinate2D? {
         guard let lat, let lon else { return nil }

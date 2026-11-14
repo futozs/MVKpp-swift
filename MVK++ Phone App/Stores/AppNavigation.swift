@@ -22,6 +22,19 @@ final class AppNavigation: ObservableObject {
     /// later from another widget tap.
     @Published var watchlistFocusStopId: String?
 
+    // MARK: Shell overlays (web `App.tsx` modal state)
+
+    @Published var isNotificationsOpen = false
+    @Published var isAccountOpen = false
+    @Published var isSettingsOpen = false
+    /// "Mai zavarok" — opened from Statisztika and Menetrend.
+    @Published var isDisruptionsOpen = false
+    /// The stop board kiosk (`/kijelzo?m=…`): the stops it shows, or nil.
+    @Published var kioskStopIds: [String]?
+    /// A trip picked in "Mai zavarok", for the Menetrend to open. The
+    /// timetable consumes it and sets it back to nil.
+    @Published var pendingTimetableTrip: TimetableTripRequest?
+
     /// Which base map is drawn. Lives here rather than in the map view
     /// because Settings offers the same choice.
     @Published var tileLayerId: String {
@@ -87,6 +100,28 @@ final class AppNavigation: ObservableObject {
         if let tripId { focusTrip(tripId, vehicleId: vehicleId) }
     }
 
+    /// "Élőben a térképen" (Statisztika, Parkoló): a vehicle running a trip is
+    /// followed; otherwise it is pinned and highlighted on the map.
+    func focusVehicleOnMap(_ vehicleId: String, vehicle: LiveVehicle?) {
+        tab = .map
+        if let tripId = vehicle?.tripId, !tripId.isEmpty {
+            focusTrip(tripId, vehicleId: vehicleId)
+            return
+        }
+        exitFocus()
+        var next = filters
+        if !next.watch.contains(vehicleId) { next.watch.append(vehicleId) }
+        next.vq = ""
+        filters = next
+    }
+
+    /// A trip picked in "Mai zavarok" opens in the Menetrend.
+    func openTimetableTrip(_ request: TimetableTripRequest) {
+        isDisruptionsOpen = false
+        pendingTimetableTrip = request
+        tab = .timetable
+    }
+
     func clearFilters() {
         filters = .default
     }
@@ -109,6 +144,15 @@ final class AppNavigation: ObservableObject {
             focusTrip(tripId, vehicleId: vehicleId)
         case .home:
             tab = .map
+        case .tab(let target):
+            tab = target
         }
     }
+}
+
+/// One trip to show in the Menetrend: its route, direction and trip.
+struct TimetableTripRequest: Equatable {
+    let routeId: String
+    let dir: String
+    let tripId: String
 }

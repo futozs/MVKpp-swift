@@ -57,6 +57,15 @@ enum Theme {
     /// nor good news — the times are real, they are just not being checked.
     static let offline = hsl(38, 92, 60)
 
+    // Parking: the blue of a P sign = standing at a terminus; the depot is
+    // neutral; amber warns about a vehicle that went silent mid-trip.
+    static let park = hsl(213, 88, 62)
+    static let depot = hsl(160, 6, 58)
+    static let nosignal = hsl(38, 92, 56)
+    /// Tailwind amber-300 / amber-400, the reconnecting state of the live status.
+    static let amber300 = Color(red: 252 / 255, green: 211 / 255, blue: 77 / 255)
+    static let amber400 = Color(red: 251 / 255, green: 191 / 255, blue: 36 / 255)
+
     // MARK: - Green scale (`--sg-*`)
 
     static let signal50 = hsl(150, 69, 94.9)

@@ -13,6 +13,15 @@ struct Stop: Decodable, Identifiable, Hashable {
     let name: String
     let lat: Double
     let lon: Double
+    /// v3 (`?modes=`): which feed — "mvk", "coach" (Volán) or "rail".
+    var feed: String? = nil
+    /// v3: the parent station a platform or bay belongs to.
+    var parent: String? = nil
+    /// v3: this is the station itself.
+    var station = false
+    /// v3: a Volán stop standing at the same place as this MVK pole; in the
+    /// merged view it is not a separate item.
+    var twinOf: String? = nil
 
     init(id: String, code: String, name: String, lat: Double, lon: Double) {
         self.id = id
@@ -29,6 +38,15 @@ struct Stop: Decodable, Identifiable, Hashable {
         name = try container.decode(String.self)
         lat = try container.decode(Double.self)
         lon = try container.decode(Double.self)
+        if !container.isAtEnd { feed = Self.nonEmpty(try container.decodeIfPresent(String.self)) }
+        if !container.isAtEnd { parent = Self.nonEmpty(try container.decodeIfPresent(String.self)) }
+        if !container.isAtEnd { station = (try container.decodeIfPresent(Int.self) ?? 0) != 0 }
+        if !container.isAtEnd { twinOf = Self.nonEmpty(try container.decodeIfPresent(String.self)) }
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else { return nil }
+        return value
     }
 
     /// Matches by name, by the GTFS platform code (small 1-15 index), and by

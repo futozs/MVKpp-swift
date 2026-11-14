@@ -5,8 +5,9 @@
 
 import Foundation
 
+/// The six views of the web app's tab bar, in its order (`navTabs.tsx`).
 enum AppTab: String, Codable, CaseIterable {
-    case map, multistop, timetable, planner, settings
+    case map, multistop, timetable, parking, planner, stats
 }
 
 /// Where the rider left off. Restored on launch so reopening the app lands

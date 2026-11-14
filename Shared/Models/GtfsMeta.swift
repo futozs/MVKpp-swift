@@ -25,4 +25,7 @@ struct GtfsMeta: Decodable, Hashable {
     let serviceRange: DateRange?
     /// Past days still queryable from the archive.
     let archiveRange: DateRange?
+    /// Volán and rail in today's schedule: "off", "pending" while the worker
+    /// is still building them after a restart, "ready".
+    var regional: String? = nil
 }
