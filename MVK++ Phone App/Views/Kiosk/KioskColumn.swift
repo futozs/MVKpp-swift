@@ -213,10 +213,12 @@ private struct KioskEta: View {
                 Text("most")
                     .font(Theme.mono((big ? 1.9 : 1.15) * em, weight: .heavy))
                     .foregroundStyle(Theme.primary)
-                    .opacity(pulse ? 0.55 : 1)
+                    .scaleEffect(pulse ? 0.75 : 1)
+                    .opacity(pulse ? 0.4 : 1)
                     .onAppear {
                         guard !reduceMotion else { return }
-                        withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) { pulse = true }
+                        // `live-pulse`: 2.2 s a cycle on the app's ease-out.
+                        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
                     }
             } else {
                 let size = (big ? 2.6 : 1.35) * em

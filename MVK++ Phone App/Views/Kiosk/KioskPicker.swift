@@ -14,6 +14,7 @@ struct KioskPicker: View {
 
     @ObservedObject private var local = LocalStore.shared
     @State private var query = ""
+    @State private var resultsHeight: CGFloat = 0
     @FocusState private var searchFocused: Bool
 
     private var byId: [String: Stop] {
@@ -53,31 +54,37 @@ struct KioskPicker: View {
                 .background(.ultraThinMaterial)
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                header
-                selectedList
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                searchField
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(results) { s in
-                            resultRow(s)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    header
+                    selectedList
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                    searchField
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(results) { s in
+                                resultRow(s)
+                            }
                         }
+                        .padding(.horizontal, 12)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { resultsHeight = $0 }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                    .frame(maxHeight: resultsHeight + 8)
+                    footer
                 }
-                .padding(.top, 8)
-                .frame(maxHeight: .infinity)
-                footer
+                .background(Theme.card, in: card)
+                .clipShape(card)
+                .overlay(card.strokeBorder(Theme.border, lineWidth: 1))
+                .mvkShadow(Theme.Shadow.xl)
+                .frame(maxWidth: 512)
+                // Fits its content, up to 90% of the screen (web `max-h-[90dvh]`).
+                .frame(maxHeight: geo.size.height * 0.9)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(Theme.card, in: card)
-            .clipShape(card)
-            .overlay(card.strokeBorder(Theme.border, lineWidth: 1))
-            .mvkShadow(Theme.Shadow.xl)
-            .frame(maxWidth: 512)
             .padding(16)
         }
         .onAppear { searchFocused = true }
