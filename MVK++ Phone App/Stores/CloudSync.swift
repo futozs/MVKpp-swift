@@ -227,12 +227,12 @@ final class CloudSync: ObservableObject {
         started = true
         if Self.readDict(Self.knownKey) == nil { rememberAll() }
 
-        observers.append(NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.scheduleScan() }
+        observers.append(NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
+            Task { @MainActor in CloudSync.shared.scheduleScan() }
         })
-        observers.append(NotificationCenter.default.addObserver(forName: .mvkSessionChange, object: nil, queue: .main) { [weak self] _ in
+        observers.append(NotificationCenter.default.addObserver(forName: .mvkSessionChange, object: nil, queue: .main) { _ in
             Task { @MainActor in
-                if AccountSession.current != nil { await self?.onLoggedIn() } else { self?.onLoggedOut() }
+                if AccountSession.current != nil { await CloudSync.shared.onLoggedIn() } else { CloudSync.shared.onLoggedOut() }
             }
         })
         // Subscribed even when signed out: the handlers check the session, so a
