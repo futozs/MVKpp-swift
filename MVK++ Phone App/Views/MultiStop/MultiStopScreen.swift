@@ -402,8 +402,7 @@ struct MultiStopScreen: View {
     }
 
     private func focusTrip(_ tripId: String, _ vehicleId: String?) {
-        navigation.tab = .map
-        navigation.focusTrip(tripId, vehicleId: vehicleId)
+        navigation.focusTripOnMap(tripId, vehicleId: vehicleId, store: store)
     }
 
     // MARK: - Derived data

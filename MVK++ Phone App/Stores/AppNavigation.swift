@@ -55,7 +55,9 @@ final class AppNavigation: ObservableObject {
 
     init() {
         let restored = ViewStateStore.initialView()
-        tab = restored?.tab ?? .map
+        // Mid-ride the app opens on the map: the ride panel lives there, and
+        // that is where a ride that ended meanwhile is closed.
+        tab = RideStore.shared.active != nil ? .map : restored?.tab ?? .map
         selectedStopId = restored?.selectedStopId
         focusTripId = restored?.focusTripId
         focusVehicleId = restored?.focusVehicleId
@@ -85,6 +87,15 @@ final class AppNavigation: ObservableObject {
     func focusTrip(_ tripId: String, vehicleId: String? = nil) {
         focusTripId = tripId
         focusVehicleId = vehicleId
+    }
+
+    /// From the Menetrend and the Megállófigyelő: a vehicle that has since
+    /// moved on to another trip is followed on the trip it runs now, or the
+    /// old trip's path and data would show.
+    func focusTripOnMap(_ tripId: String, vehicleId: String?, store: TransitStore) {
+        let current = vehicleId.flatMap { store.vehicle(id: $0)?.tripId }
+        tab = .map
+        focusTrip(current.flatMap { $0.isEmpty ? nil : $0 } ?? tripId, vehicleId: vehicleId)
     }
 
     func exitFocus() {

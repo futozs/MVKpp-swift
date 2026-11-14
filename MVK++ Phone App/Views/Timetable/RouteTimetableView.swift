@@ -42,8 +42,7 @@ struct RouteTimetableView: View {
                             maxHeight: geometry.size.height * 0.42,
                             onClose: { withAnimation(Theme.Motion.normalAnimation) { model.chooseTrip(nil) } },
                             onFocusTrip: { tripId, vehicleId in
-                                navigation.focusTrip(tripId, vehicleId: vehicleId)
-                                navigation.tab = .map
+                                navigation.focusTripOnMap(tripId, vehicleId: vehicleId, store: store)
                             }
                         )
                         .id(trip.tripId)
