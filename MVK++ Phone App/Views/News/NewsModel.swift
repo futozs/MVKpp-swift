@@ -10,15 +10,27 @@ import Foundation
 /// 10 minutes, re-asked on open when older than 2.
 @MainActor
 final class NewsModel: ObservableObject {
-    @Published private(set) var feed: NewsFeed?
+    @Published private(set) var feed: NewsFeed? {
+        didSet { updateUnseen() }
+    }
     @Published private(set) var error: String?
     @Published private(set) var isLoading = true
+    /// Items not seen on any device: the map button's dot. Kept current when
+    /// the seen list changes here or arrives from another device.
+    @Published private(set) var unseenCount = 0
 
     /// The seen IDs — synced, so a read item is read on every device.
     private static let seenKey = "mvk_news_seen"
     private static let seenMax = 80
     private var loadedAt = Date.distantPast
     private var timer: Task<Void, Never>?
+    private var seenSubscription: AnyCancellable?
+
+    init() {
+        seenSubscription = LocalStore.shared.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.updateUnseen() }
+    }
 
     func start() {
         guard timer == nil else { return }
@@ -56,9 +68,10 @@ final class NewsModel: ObservableObject {
 
     private var seen: Set<Int> { Set(LocalStore.shared.json(Self.seenKey, as: [Int].self) ?? []) }
 
-    var unseenCount: Int {
+    private func updateUnseen() {
         let seen = seen
-        return (feed?.items ?? []).filter { !seen.contains($0.id) }.count
+        let count = (feed?.items ?? []).filter { !seen.contains($0.id) }.count
+        if count != unseenCount { unseenCount = count }
     }
 
     /// On opening the list: what is new now is returned, and all of it is

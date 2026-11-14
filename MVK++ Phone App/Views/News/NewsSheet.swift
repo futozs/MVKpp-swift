@@ -398,25 +398,28 @@ struct NewsBodyView: View {
     private func attributed(_ runs: [NewsRun]) -> AttributedString {
         var out = AttributedString()
         for run in runs {
-            var text = run.href != nil && run.text == run.href ? NewsTime.prettyURL(run.text) : run.text
-            if let routeId = run.route, let route = routes[routeId] {
-                text = "\u{2009}\(text)\u{2009}"
-                var piece = AttributedString(text)
+            let text = run.href != nil && run.text == run.href ? NewsTime.prettyURL(run.text) : run.text
+            var piece: AttributedString
+            // A route mentioned in a link or in bold/italic text keeps its
+            // colours and still carries the link and the emphasis.
+            let route = run.route.flatMap { routes[$0] }
+            if let route {
+                piece = AttributedString("\u{2009}\(text)\u{2009}")
                 piece.backgroundColor = Theme.hex(route.color)
                 piece.foregroundColor = Theme.hex(route.text, fallback: .white)
-                piece.font = .system(size: 12, weight: .heavy).monospacedDigit()
-                out += piece
-                continue
+                let font = Font.system(size: 12, weight: .heavy).monospacedDigit()
+                piece.font = run.italic == true ? font.italic() : font
+            } else {
+                piece = AttributedString(text)
+                if run.bold == true {
+                    piece.font = .system(size: 14.5, weight: .semibold)
+                    piece.foregroundColor = Theme.foreground
+                }
+                if run.italic == true { piece.font = .system(size: 14.5).italic() }
             }
-            var piece = AttributedString(text)
-            if run.bold == true {
-                piece.font = .system(size: 14.5, weight: .semibold)
-                piece.foregroundColor = Theme.foreground
-            }
-            if run.italic == true { piece.font = .system(size: 14.5).italic() }
             if let href = run.href, let url = URL(string: href) {
                 piece.link = url
-                piece.foregroundColor = Theme.primary
+                if route == nil { piece.foregroundColor = Theme.primary }
                 piece.underlineStyle = .single
                 piece += AttributedString(" ↗")
             }
