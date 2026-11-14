@@ -130,6 +130,8 @@ struct RideLoopStep: View {
     }
 
     @State private var loaded: Loaded = .loading
+    /// Shown above the list while its stops load and when they fail.
+    @State private var nextTrip: NextTrip?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -138,13 +140,13 @@ struct RideLoopStep: View {
                 hint: "\(terminus)-nál a buszon maradsz. Válaszd ki, hol szállsz le a következő menetéből, odáig magától viszem tovább az utazást.",
                 onBack: onBack
             )
+            if let nextTrip { nextHeader(nextTrip) }
             switch loaded {
             case .loading:
                 RideMessage(text: "Megnézem, merre megy tovább a busz…")
             case .none, .failed:
                 fallback
             case .ok(let next, let stops, let times):
-                nextHeader(next)
                 if stops.isEmpty {
                     fallback
                 } else {
@@ -193,6 +195,7 @@ struct RideLoopStep: View {
 
     private func load() async {
         loaded = .loading
+        nextTrip = nil
         var next: NextTrip?
         if let c = try? await APIClient.shared.continuation(tripId: ride.tripId, vehicleId: ride.vehicleId), let n = c.next, n.kind != nil, !n.cancelled {
             next = NextTrip(tripId: n.tripId, route: n.route, color: n.color, text: n.text, headsign: n.headsign, depTime: n.depTime, serviceDate: ride.serviceDate)
@@ -204,6 +207,7 @@ struct RideLoopStep: View {
             loaded = .none
             return
         }
+        nextTrip = next
         guard let detail = try? await APIClient.shared.rideTrip(tripId: next.tripId, date: next.serviceDate) else {
             loaded = .failed
             return

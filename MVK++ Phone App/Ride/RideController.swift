@@ -240,14 +240,17 @@ final class RideController: ObservableObject {
 
     var worstTraffic: TrafficAhead? { traffic.max { $0.excessS < $1.excessS } }
 
+    /// Recomputed with every evaluation, like the web's memo on the boarding
+    /// stop, the destination and the loop turn.
     private func updateTraffic() {
         guard let trip, let a = store.active, a.turn == nil else {
             trafficFeed.stop()
-            traffic = []
+            if !traffic.isEmpty { traffic = [] }
             return
         }
         trafficFeed.start()
-        traffic = TrafficFeed.ahead(trafficSegments, stops: trip.stops, from: max(passed, fromIdx), to: a.destIdx ?? lastIdx)
+        let next = TrafficFeed.ahead(trafficSegments, stops: trip.stops, from: max(passed, fromIdx), to: a.destIdx ?? lastIdx)
+        if next != traffic { traffic = next }
     }
 
     // MARK: - Effects
@@ -255,6 +258,7 @@ final class RideController: ObservableObject {
     /// The web's RidePanel effects, run whenever the trip, the position, the
     /// continuation or the ride itself changes.
     private func evaluate() {
+        defer { updateTraffic() }
         guard let a = store.active else { return }
         let turn = a.turn
         let plan = a.loopPlan

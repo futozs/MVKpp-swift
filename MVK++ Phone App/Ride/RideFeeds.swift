@@ -53,10 +53,26 @@ final class TripLiveFeed {
 
     private struct Push: Decodable {
         struct Payload: Decodable {
+            /// A push without the key leaves the bus where it was (web
+            /// `useTripLive`: `"vehicle" in m`); an explicit null clears it.
+            let hasVehicle: Bool
             let vehicle: LossyVehicle?
             let run: TripRun?
             let measuredDelaySec: Double?
             let forecast: RideTripForecast?
+
+            private enum CodingKeys: String, CodingKey {
+                case vehicle, run, measuredDelaySec, forecast
+            }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                hasVehicle = c.contains(.vehicle)
+                vehicle = try c.decodeIfPresent(LossyVehicle.self, forKey: .vehicle)
+                run = try c.decodeIfPresent(TripRun.self, forKey: .run)
+                measuredDelaySec = try c.decodeIfPresent(Double.self, forKey: .measuredDelaySec)
+                forecast = try c.decodeIfPresent(RideTripForecast.self, forKey: .forecast)
+            }
         }
         let data: Payload?
     }
@@ -137,7 +153,7 @@ final class TripLiveFeed {
         next.run = m.run ?? next.run
         next.delayS = m.measuredDelaySec ?? m.run?.lastDelayS ?? next.delayS
         if !fc.isEmpty { next.forecast = Dictionary(fc.map { ($0.idx, $0) }, uniquingKeysWith: { a, _ in a }) }
-        next.vehicle = m.vehicle?.vehicle
+        if m.hasVehicle { next.vehicle = m.vehicle?.vehicle }
         value = next
         onChange?(value)
         // A new stop event (the bus left a stop): reload the measured times.

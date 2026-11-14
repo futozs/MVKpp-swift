@@ -35,7 +35,7 @@ struct StopCardView: View {
     @State private var leaveBusy = false
     @State private var leaveNote: String?
 
-    private var isStation: Bool { StopKind.isStation(stop.id) }
+    private var isStation: Bool { stop.station || StopKind.isStation(stop.id) }
     private var listLimit: Int { isStation ? 12 : 8 }
 
     var body: some View {
@@ -76,7 +76,7 @@ struct StopCardView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(Theme.foreground)
                     }
-                    Text(StopKind.label(stopId: stop.id))
+                    Text(StopKind.label(stopId: stop.id, isStation: stop.station))
                     if let merged = model.response?.merged, merged.count >= 2 {
                         Text("·")
                         SharedStopTag(merged: merged)

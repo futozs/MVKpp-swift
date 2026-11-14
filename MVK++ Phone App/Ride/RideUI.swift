@@ -322,8 +322,14 @@ enum RideFormat {
         return minutes % 60 != 0 ? "\(h) óra \(minutes % 60) perc" : "\(h) óra"
     }
 
-    static func delayLabel(_ s: Double?) -> String { DelayFormat.label(s.map { Int($0.rounded()) }) }
-    static func delayTone(_ s: Double?) -> Color { DelayFormat.tone(s.map { Int($0.rounded()) }) }
+    static func delayLabel(_ s: Double?) -> String { DelayFormat.label(s.map(stateSeconds)) }
+    static func delayTone(_ s: Double?) -> Color { DelayFormat.tone(s.map(stateSeconds)) }
+
+    /// Whole seconds that land on the same side of ±45 s as the raw value
+    /// (web `delayState` compares unrounded): 44.6 s is still on time.
+    private static func stateSeconds(_ s: Double) -> Int {
+        abs(s) < Double(DelayFormat.onTimeSec) ? 0 : Int(s.rounded())
+    }
 
     static func trafficColor(_ level: Double) -> Color { TrafficColor.color(level) }
 }

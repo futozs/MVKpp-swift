@@ -41,9 +41,9 @@ struct AppRoot: View {
             .preferredColorScheme(.dark)
             .onOpenURL(perform: open)
             .onReceive(NotificationCenter.default.publisher(for: .mvkOpenLink)) { note in
-                if let link = note.object as? DeepLink {
+                if let url = note.object as? URL {
                     PhoneAppDelegate.pendingLink = nil
-                    open(link)
+                    open(url)
                 }
             }
             .task {
@@ -58,9 +58,19 @@ struct AppRoot: View {
             }
     }
 
+    /// `mvkpp://` links (widgets, intents) and links into the web app
+    /// (universal links, a push's `url`).
     private func open(_ url: URL) {
-        guard let link = DeepLink(url: url) else { return }
-        open(link)
+        if let link = DeepLink(url: url) {
+            open(link)
+        } else if let link = WebLink(url: url) {
+            // A linked stop is put on the watchlist, or the link would lead
+            // nowhere (web `applyLink`).
+            if case .app(_, let stopId?) = link, !favorites.contains(stopId) {
+                favorites.add(stopId)
+            }
+            navigation.open(link)
+        }
     }
 
     private func open(_ link: DeepLink) {
@@ -82,18 +92,37 @@ extension Notification.Name {
 /// token, and notification taps.
 final class PhoneAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     /// A tap that arrived before the UI was listening (cold start).
-    @MainActor static var pendingLink: DeepLink?
+    @MainActor static var pendingLink: URL?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Set before returning: the tap that cold-started the app is delivered
+        // right after launch and is lost without a delegate in place.
+        UNUserNotificationCenter.current().delegate = self
         MainActor.assumeIsolated {
             BackgroundRefresh.register()
-            Task {
-                await NotificationCenterStore.shared.configure()
-                // Set after `configure()`, which installs the shared presenter.
-                UNUserNotificationCenter.current().delegate = self
-            }
+            Task { await NotificationCenterStore.shared.configure() }
         }
         return true
+    }
+
+    /// Portrait, except while the kiosk board is up: in landscape it shows
+    /// its stops side by side.
+    @MainActor private static var orientations: UIInterfaceOrientationMask = .portrait
+
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        MainActor.assumeIsolated { Self.orientations }
+    }
+
+    @MainActor static func allowLandscape(_ allowed: Bool) {
+        orientations = allowed ? .allButUpsideDown : .portrait
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            var controller = scene.keyWindow?.rootViewController
+            while let current = controller {
+                current.setNeedsUpdateOfSupportedInterfaceOrientations()
+                controller = current.presentedViewController
+            }
+            if !allowed { scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) }
+        }
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -102,17 +131,22 @@ final class PhoneAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
 
+    /// Without this, iOS delivers a notification silently while the app is in
+    /// the foreground, exactly when someone tests an arrival alarm.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
     }
 
-    /// A tap brings the app forward with that stop in the Megállófigyelő.
+    /// A tap opens the push's `url` (`/?stop=SP12#multistop`); a local
+    /// alarm carries only its stop, for the Megállófigyelő.
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let stopId = response.notification.request.content.userInfo["stopId"] as? String else { return }
+        let info = response.notification.request.content.userInfo
+        let url = (info["url"] as? String).flatMap(WebLink.resolve)
+            ?? (info["stopId"] as? String).map { DeepLink.watchlist($0).url }
+        guard let url else { return }
         await MainActor.run {
-            let link = DeepLink.watchlist(stopId)
-            PhoneAppDelegate.pendingLink = link
-            NotificationCenter.default.post(name: .mvkOpenLink, object: link)
+            PhoneAppDelegate.pendingLink = url
+            NotificationCenter.default.post(name: .mvkOpenLink, object: url)
         }
     }
 }

@@ -21,6 +21,7 @@ struct ParkingScreen: View {
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     @State private var selected: ParkingSelection?
+    @State private var routesByShort: [String: Route] = [:]
 
     private static let favoritesKey = "mvk_parking_favorites"
     private static let modeKey = "mvk_parking_mode"
@@ -41,6 +42,12 @@ struct ParkingScreen: View {
         .background(Theme.background)
         .onAppear { model.start() }
         .onDisappear { model.stop() }
+        // A vehicle that left the snapshot closes its card rather than blanking it.
+        .onReceive(model.$data) { data in
+            guard let id = selected?.id else { return }
+            if data.flatMap({ ParkingLocated.locate($0, id: id) }) == nil { selected = nil }
+        }
+        .task(id: store.routes.count) { routesByShort = Self.routesByShort(store.routes) }
         .sheet(item: $selected) { selection in
             if let data = model.data {
                 ParkingVehicleSheet(snap: data, id: selection.id, now: model.now, lookup: lookup) { id in
@@ -78,8 +85,16 @@ struct ParkingScreen: View {
 
     // MARK: - Route lookup
 
+    /// The web's `new Map(routes.map(…))`: in catalog order, the last route
+    /// with a short name wins (the rail categories share theirs).
+    private static func routesByShort(_ routes: [String: Route]) -> [String: Route] {
+        let catalog = SharedCatalogCache.routes().filter { routes[$0.id] != nil }
+        let ordered = catalog.count == routes.count ? catalog : routes.values.sorted { $0.id < $1.id }
+        return Dictionary(ordered.map { ($0.short, $0) }, uniquingKeysWith: { _, last in last })
+    }
+
     private var lookup: ParkingRouteLookup {
-        let byShort = Dictionary(store.routes.values.map { ($0.short, $0) }, uniquingKeysWith: { first, _ in first })
+        let byShort = routesByShort
         return { short in
             guard let short else { return nil }
             return byShort[short] ?? short.split(separator: " ").first.flatMap { byShort[String($0)] }

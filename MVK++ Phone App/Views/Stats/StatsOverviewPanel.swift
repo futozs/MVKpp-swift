@@ -132,12 +132,20 @@ struct StatsOverviewPanel: View {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let text = raw.replacingOccurrences(of: " ", with: "T")
-        let date = iso.date(from: text) ?? ISO8601DateFormatter().date(from: text)
-        guard let date else { return "" }
+        guard let date = iso.date(from: text) ?? ISO8601DateFormatter().date(from: text) ?? Self.localTime(text) else { return "" }
         let f = DateFormatter()
         f.locale = StatsFormat.hu
         f.dateFormat = "HH:mm"
         return f.string(from: date)
+    }
+
+    /// A timestamp without an offset (`2026-11-14 03:00:00`) is local time,
+    /// as `new Date()` reads it on the web.
+    private static func localTime(_ text: String) -> Date? {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return f.date(from: String(text.prefix(19)))
     }
 }
 

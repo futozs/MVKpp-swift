@@ -18,9 +18,9 @@ import WidgetKit
 /// for a Watch and its paired iPhone (two separate devices/OSes).
 @MainActor
 final class FavoritesStore: ObservableObject {
-    /// The web app lets riders watch as many stops as they like; twelve is
-    /// where a phone carousel stops being navigable, and it is far above what
-    /// anyone puts on a watch.
+    /// How many stops the watch's own code entry may add. The list itself has
+    /// no cap (like the web's), and it syncs whole: a capped copy coming back
+    /// from the watch would drop the phone's extra stops.
     static let maxCount = 12
     static let appGroupID = "group.hu.futozs.mvk"
     nonisolated static let widgetStopKey = "mvk_widget_stop_id"
@@ -78,7 +78,8 @@ final class FavoritesStore: ObservableObject {
 
     init() {
         stopIds = (Self.suite.array(forKey: Self.storageKey) as? [String]) ?? ["SP1"]
-        nearestFirstEnabled = Self.suite.bool(forKey: Self.nearestFirstKey)
+        // On unless switched off, as on the web (anything but "0" is on).
+        nearestFirstEnabled = Self.suite.object(forKey: Self.nearestFirstKey) as? Bool ?? true
         widgetStopId = Self.suite.string(forKey: Self.widgetStopKey)
         widgetNearestEnabled = Self.suite.bool(forKey: Self.widgetNearestKey)
         cancellable = WatchLink.shared.received.sink { [weak self] payload in
@@ -89,7 +90,7 @@ final class FavoritesStore: ObservableObject {
     }
 
     func add(_ stopId: String) {
-        guard !stopIds.contains(stopId), stopIds.count < Self.maxCount else { return }
+        guard !stopIds.contains(stopId) else { return }
         stopIds.append(stopId)
         persist()
     }

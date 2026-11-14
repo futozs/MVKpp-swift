@@ -16,11 +16,9 @@ final class KioskBoardModel: ObservableObject {
     private let stopId: String
     private let boardKey: String
     private var subscription: AnyCancellable?
-    private var pollTask: Task<Void, Never>?
+    private lazy var fallback = FallbackPoll(every: .seconds(10)) { [weak self] in await self?.load() }
 
     private static let limit = 10
-    private static let pollInterval: Duration = .seconds(10)
-    private static let connectGrace: Duration = .milliseconds(2500)
 
     init(stopId: String, boardKey: String) {
         self.stopId = stopId
@@ -39,20 +37,12 @@ final class KioskBoardModel: ObservableObject {
             self?.data = board
             self?.error = nil
         }
-        pollTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.connectGrace)
-            while !Task.isCancelled {
-                guard let self else { return }
-                if !RealtimeClient.shared.connected { await self.load() }
-                try? await Task.sleep(for: Self.pollInterval)
-            }
-        }
+        fallback.start()
     }
 
     func stop() {
         subscription = nil
-        pollTask?.cancel()
-        pollTask = nil
+        fallback.stop()
     }
 
     private func load() async {

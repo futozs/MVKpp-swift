@@ -26,6 +26,9 @@ enum DeepLink: Equatable {
     case ride
     /// Mai zavarok.
     case disruptions
+    /// The stop board kiosk (web `/kijelzo?m=SP1,SP2`). No stops opens the
+    /// last board, or the first watched stops.
+    case kiosk([String])
 
     static let scheme = "mvkpp"
 
@@ -57,6 +60,12 @@ enum DeepLink: Equatable {
         case .disruptions:
             components.host = "disruptions"
             components.path = ""
+        case .kiosk(let stopIds):
+            components.host = "kiosk"
+            components.path = ""
+            if !stopIds.isEmpty {
+                components.queryItems = [URLQueryItem(name: "m", value: stopIds.joined(separator: ","))]
+            }
         }
         // Every case above produces a well-formed URL; the fallback exists
         // only so callers do not have to handle an impossible optional.
@@ -88,8 +97,19 @@ enum DeepLink: Equatable {
             self = .ride
         case "disruptions":
             self = .disruptions
+        case "kiosk":
+            self = .kiosk(Self.kioskStops(url))
         default:
             return nil
         }
+    }
+
+    /// The `m` query of a kiosk link: comma-separated stop ids.
+    static func kioskStops(_ url: URL) -> [String] {
+        let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first { $0.name == "m" }?.value ?? ""
+        return value.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
     }
 }

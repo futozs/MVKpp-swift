@@ -58,8 +58,8 @@ struct StatsNetworkPanel: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 StatsHeading("Hálózat")
-                StatsPillPicker(items: Self.daytypes.map { StatsPillItem(id: $0.id, label: $0.label) }, value: daytype, onChange: { daytype = $0 })
-                StatsPillPicker(items: Self.periods, value: period, onChange: { period = $0 })
+                StatsPillPicker(items: Self.daytypes.map { StatsPillItem(id: $0.id, label: $0.label) }, value: daytype, onChange: { daytype = $0 }, groupLabel: "Naptípus")
+                StatsPillPicker(items: Self.periods, value: period, onChange: { period = $0 }, groupLabel: "Időszak")
             }
 
             StatsQueryBoundary(query, empty: { $0.hourly.isEmpty }) { d in
@@ -108,7 +108,7 @@ struct StatsNetworkPanel: View {
                             label: String(h.hour % 24),
                             value: h.avg_delay_s.map { ($0 / 6).rounded() / 10 },
                             tone: v > 180 ? Theme.late : v < -30 ? Theme.early : Theme.ontime,
-                            title: "\(h.hour % 24):00–\(h.hour % 24 + 1):00 · átlag \(StatsFormat.minutes(h.avg_delay_s)) · \(h.otp_pct.map { String(Int($0)) } ?? "")% pontos · 85%-ban legfeljebb \(StatsFormat.minutes(h.p85_delay_s)) · \(h.n) mérés"
+                            title: "\(h.hour % 24):00–\(h.hour % 24 + 1):00 · átlag \(StatsFormat.minutes(h.avg_delay_s)) · \(h.otp_pct.map { StatsFormat.raw($0) } ?? "")% pontos · 85%-ban legfeljebb \(StatsFormat.minutes(h.p85_delay_s)) · \(h.n) mérés"
                         )
                     },
                     unit: "p",
@@ -117,7 +117,7 @@ struct StatsNetworkPanel: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                StatsPillPicker(items: Self.windows.map { StatsPillItem(id: $0.id, label: $0.label, sub: $0.sub) }, value: win, onChange: { win = $0 })
+                StatsPillPicker(items: Self.windows.map { StatsPillItem(id: $0.id, label: $0.label, sub: $0.sub) }, value: win, onChange: { win = $0 }, groupLabel: "Napszak")
                 StatsChartFrame(
                     title: "Hol lassul be a forgalom",
                     hint: "\(w.label) (\(w.sub) óra) · megállóközök, ahol a buszok a menetrendnél a legtöbbet lassabbak (medián menetidő − menetrendi idő)"
@@ -134,7 +134,7 @@ struct StatsNetworkPanel: View {
                                 label: "\(s.from_name) → \(s.to_name)",
                                 sub: "terv \(tenth(s.sched_s)) p · tény \(tenth(s.p50_s)) p (85%: \(tenth(s.p85_s)) p) · \(s.n) áthaladás",
                                 value: max(0, s.excess_s),
-                                display: "+\(tenth(s.excess_s)) p\(s.excess_pct.map { " (\(Int($0))%)" } ?? "")"
+                                display: "+\(tenth(s.excess_s)) p\(s.excess_pct.map { " (\(StatsFormat.raw($0))%)" } ?? "")"
                             )
                         })
                     }
@@ -198,10 +198,11 @@ struct StatsRegionalPanel: View {
                     StatsPillPicker(
                         items: [StatsPillItem(id: Scope.all, label: "Mind"), .init(id: .rail, label: "Vonat"), .init(id: .coach, label: "Volán")],
                         value: active,
-                        onChange: { scope = $0 }
+                        onChange: { scope = $0 },
+                        groupLabel: "Mód"
                     )
                 }
-                StatsPillPicker(items: Self.periods, value: period, onChange: { period = $0 })
+                StatsPillPicker(items: Self.periods, value: period, onChange: { period = $0 }, groupLabel: "Időszak")
             }
 
             StatsQueryBoundary(query, empty: { !($0.summary?.n ?? 0 > 0) && $0.trains.isEmpty && $0.causes.isEmpty }) { d in
@@ -229,8 +230,8 @@ struct StatsRegionalPanel: View {
 
         return VStack(alignment: .leading, spacing: 16) {
             StatsTileGrid {
-                StatsStatTile(label: "Pontos érkezés", value: s?.ontime.map { "\(Int($0))%" } ?? "", sub: (s?.n ?? 0) > 0 ? "\(StatsFormat.number(s?.n ?? 0)) megálló-érkezés" : "nincs adat", tone: .ontime)
-                StatsStatTile(label: "Átlagos késés", value: StatsFormat.minutes(s?.avg_delay_s), sub: s?.late.map { "\(Int($0))% több mint 5 perccel késett" }, tone: .late)
+                StatsStatTile(label: "Pontos érkezés", value: s?.ontime.map { "\(StatsFormat.raw($0))%" } ?? "", sub: (s?.n ?? 0) > 0 ? "\(StatsFormat.number(s?.n ?? 0)) megálló-érkezés" : "nincs adat", tone: .ontime)
+                StatsStatTile(label: "Átlagos késés", value: StatsFormat.minutes(s?.avg_delay_s), sub: s?.late.map { "\(StatsFormat.raw($0))% több mint 5 perccel késett" }, tone: .late)
                 StatsStatTile(label: "85%-ban legfeljebb", value: StatsFormat.minutes(s?.p85_delay_s), sub: "a megállókban mért késés")
                 StatsStatTile(
                     label: "Vágány / kocsiállás",
@@ -249,7 +250,7 @@ struct StatsRegionalPanel: View {
                                 label: String(x.date.dropFirst(5)).replacingOccurrences(of: "-", with: "."),
                                 value: x.avg_delay_s.map { ($0 / 6).rounded() / 10 },
                                 tone: v > 180 ? Theme.late : v < -30 ? Theme.early : Theme.ontime,
-                                title: "\(x.date) · átlag \(StatsFormat.minutes(x.avg_delay_s)) · \(x.ontime.map { String(Int($0)) } ?? "")% pontos · \(x.n) mérés"
+                                title: "\(x.date) · átlag \(StatsFormat.minutes(x.avg_delay_s)) · \(x.ontime.map { StatsFormat.raw($0) } ?? "")% pontos · \(x.n) mérés"
                             )
                         },
                         unit: "p"
@@ -268,7 +269,7 @@ struct StatsRegionalPanel: View {
                 } else {
                     StatsRankBars(rows: worst.map { t in
                         StatsRankRow(
-                            sub: "\(t.runs) menet · \(t.ontime_pct.map { String(Int($0)) } ?? "")% pontos · 85%-ban legfeljebb \(StatsFormat.minutes(t.p85_end_delay_s))",
+                            sub: "\(t.runs) menet · \(t.ontime_pct.map { StatsFormat.raw($0) } ?? "")% pontos · 85%-ban legfeljebb \(StatsFormat.minutes(t.p85_end_delay_s))",
                             value: max(0, t.avg_end_delay_s ?? 0),
                             display: StatsFormat.minutes(t.avg_end_delay_s)
                         ) {

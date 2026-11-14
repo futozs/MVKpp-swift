@@ -77,7 +77,8 @@ struct TimetableTripPanel: View {
                 isDeparture: target.isDeparture,
                 departureLabel: stops.firstIndex(where: { $0.id == target.stop.id }).flatMap { index in
                     trip.times.indices.contains(index) ? trip.times[index] : nil
-                } ?? trip.departure
+                } ?? trip.departure,
+                date: ServiceClock.ymdToIso(dateYmd) ?? ServiceDay.isoToday()
             )
         }
         .task(id: actualsKey) {
@@ -215,8 +216,13 @@ struct TimetableTripPanel: View {
         }
     }
 
+    /// Only the first stop with an alarm for this run rings (web `watchedStopIndex`).
+    private var watchedStopIndex: Int? {
+        stops.firstIndex { notifications.watch(stopId: $0.id)?.tripId == trip.tripId }
+    }
+
     private func stopRow(stop: TimetableStop, time: String, index: Int) -> some View {
-        let watching = notifications.watch(stopId: stop.id)?.tripId == trip.tripId
+        let watching = index == watchedStopIndex
         let actual = actuals.byStop[stop.id]
         return HStack(spacing: 8) {
             Text(stop.name)

@@ -80,9 +80,14 @@ final class AlertsStore: ObservableObject {
     static let key = "mvk_alert_watches"
 
     @Published private(set) var alerts: [AlertWatch]
+    private var settingsObserver: NSObjectProtocol?
 
     private init() {
         alerts = LocalStore.shared.json(Self.key, as: [AlertWatch].self) ?? []
+        // The main switch or "Ne zavarj" withdrew the planned alarms.
+        settingsObserver = NotificationCenter.default.addObserver(forName: .mvkNotificationSettingsChanged, object: nil, queue: .main) { _ in
+            Task { @MainActor in AlertsStore.shared.refresh() }
+        }
     }
 
     private func write(_ list: [AlertWatch]) {
@@ -370,7 +375,7 @@ enum LocalAlertEvaluator {
     /// applies to: the scheduled minute less the walk and the safety margin.
     /// A live board on the day replaces that day's entry with an exact one.
     static func planRecurring(_ alert: AlertWatch) {
-        guard let schedMin = alert.schedMin, alert.kind == "leave" else { return }
+        guard let schedMin = alert.schedMin, alert.kind == "leave", NotificationCenterStore.shared.settings.enabled else { return }
         let leadMin = Int(((alert.walkS + CatchBus.safetyS + CatchBus.earlyDefaultS) / 60).rounded(.up))
         let route = alert.routeShorts?.first.map(HungarianText.withSuffix) ?? ""
         let now = Date().timeIntervalSince1970
@@ -387,7 +392,8 @@ enum LocalAlertEvaluator {
             fire.hour = minute / 60
             fire.minute = minute % 60
             fire.timeZone = BudapestClock.timeZone
-            guard let date = calendar.date(from: fire), date.timeIntervalSince1970 > now else { continue }
+            guard let date = calendar.date(from: fire), date.timeIntervalSince1970 > now,
+                  !NotificationCenterStore.shared.isWithinDnd(now: date) else { continue }
             post(
                 id: "\(prefix(stopId: alert.stopId, slot: alert.slot))day-\(iso)",
                 title: "Indulj most: \(route) \(BudapestClock.hm(minute: schedMin))",

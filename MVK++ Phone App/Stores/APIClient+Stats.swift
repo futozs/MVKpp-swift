@@ -20,44 +20,62 @@ extension APIClient {
     // MARK: - Warehouse (`get`)
 
     func statsHealth() async throws -> StatsHealth {
-        try await statsRequest(path: "/stats/health", queryItems: [])
+        try await warehouse(path: "/health", queryItems: [])
     }
 
     func statsVehicles(modes: String?) async throws -> StatsVehicleList {
-        try await statsRequest(path: "/stats/vehicles", queryItems: modes.map { [URLQueryItem(name: "modes", value: $0)] } ?? [])
+        try await warehouse(path: "/vehicles", queryItems: modes.map { [URLQueryItem(name: "modes", value: $0)] } ?? [])
     }
 
     func statsVehicle(id: String, date: String) async throws -> StatsVehicleDetail {
-        try await statsRequest(path: "/stats/vehicle/\(id)", queryItems: [URLQueryItem(name: "date", value: date)])
+        try await warehouse(path: "/vehicle/\(id)", queryItems: [URLQueryItem(name: "date", value: date)])
     }
 
     func statsVehicleTrack(id: String, date: String, every: Int = 2) async throws -> StatsVehicleTrack {
-        try await statsRequest(path: "/stats/vehicle/\(id)/track", queryItems: [
+        try await warehouse(path: "/vehicle/\(id)/track", queryItems: [
             URLQueryItem(name: "date", value: date),
             URLQueryItem(name: "every", value: String(every)),
         ])
     }
 
     func statsVehicleRoutes(id: String) async throws -> StatsVehicleRoutes {
-        try await statsRequest(path: "/stats/vehicle/\(id)/routes", queryItems: [])
+        try await warehouse(path: "/vehicle/\(id)/routes", queryItems: [])
     }
 
     func statsVehicleIncidents(id: String) async throws -> StatsVehicleIncidents {
-        try await statsRequest(path: "/stats/vehicle/\(id)/incidents", queryItems: [])
+        try await warehouse(path: "/vehicle/\(id)/incidents", queryItems: [])
     }
 
     func statsRoute(short: String, from: String, to: String) async throws -> StatsRouteResponse {
-        try await statsRequest(path: "/stats/route/\(short)", queryItems: [
+        try await warehouse(path: "/route/\(short)", queryItems: [
             URLQueryItem(name: "from", value: from),
             URLQueryItem(name: "to", value: to),
         ])
     }
 
     func statsStop(id: String, from: String, to: String) async throws -> StatsStopResponse {
-        try await statsRequest(path: "/stats/stop/\(id)", queryItems: [
+        try await warehouse(path: "/stop/\(id)", queryItems: [
             URLQueryItem(name: "from", value: from),
             URLQueryItem(name: "to", value: to),
         ])
+    }
+
+    /// The web's `get`: a failure reads `Statisztika [404] /vehicle/123?date=…: body`.
+    private func warehouse<T: Decodable>(path: String, queryItems: [URLQueryItem]) async throws -> T {
+        let (data, response) = try await session.data(from: try url(path: "/stats\(path)", queryItems: queryItems))
+        if let http = response as? HTTPURLResponse, http.statusCode != 503, !(200..<300).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            let text = body.isEmpty ? HTTPURLResponse.localizedString(forStatusCode: http.statusCode) : body
+            throw StatsEngineError(message: "Statisztika [\(http.statusCode)] \(Self.shown(path, queryItems)): \(text)")
+        }
+        try checkStats(response: response, data: data)
+        return try decode(data)
+    }
+
+    private static func shown(_ path: String, _ queryItems: [URLQueryItem]) -> String {
+        var components = URLComponents()
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        return path + (components.percentEncodedQuery.map { "?\($0)" } ?? "")
     }
 
     // MARK: - v3 (`getRoot`)
@@ -98,7 +116,9 @@ extension APIClient {
         let (data, response) = try await session.data(from: try url(path: path, queryItems: queryItems))
         if let http = response as? HTTPURLResponse {
             if http.statusCode == 503 { throw StatsUnavailableError(reason: "Az adatraktár nem érhető el.") }
-            if !(200..<300).contains(http.statusCode) { throw APIError.badStatus(http.statusCode) }
+            if !(200..<300).contains(http.statusCode) {
+                throw StatsEngineError(message: "Statisztika [\(http.statusCode)] \(Self.shown(path, queryItems))")
+            }
         }
         return try decode(data)
     }

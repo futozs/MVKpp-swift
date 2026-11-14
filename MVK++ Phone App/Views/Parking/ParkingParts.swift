@@ -41,9 +41,12 @@ struct ParkingRouteChip: View {
     }
 }
 
-/// Live signal: a pulsing green dot; silent: an empty ring.
+/// Live signal: a green dot with a ping ring (Tailwind `animate-ping`);
+/// silent: an empty ring.
 struct ParkingSignalDot: View {
     let online: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if online {

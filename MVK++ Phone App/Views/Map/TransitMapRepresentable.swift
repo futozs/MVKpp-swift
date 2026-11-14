@@ -65,7 +65,8 @@ struct TransitMapRepresentable: UIViewRepresentable {
         pan.maximumNumberOfTouches = 1
         let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-        for recognizer in [pan, pinch, tap] as [UIGestureRecognizer] {
+        let rotate = UIRotationGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleRotate(_:)))
+        for recognizer in [pan, pinch, tap, rotate] as [UIGestureRecognizer] {
             recognizer.delegate = context.coordinator
             recognizer.cancelsTouchesInView = false
             map.addGestureRecognizer(recognizer)
@@ -153,11 +154,26 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private var focusKey = ""
         private var focusOverlays: [RouteOverlay] = []
         private var focusSignature = ""
+        /// 3D: glow plus the passed / remaining split replacing the plain stroke
+        /// (web `setFocusProgress`), refreshed once a second.
+        private var focusStroke: RouteOverlay?
+        private var focusCoordinates: [CLLocationCoordinate2D] = []
+        private var progressOverlays: [RouteOverlay] = []
+        private var progressAlong: Double?
+        private var progressKey = ""
+        private var progressAt = Date.distantPast
+        private static let progressInterval: TimeInterval = 1
+        private static let offLineM: Double = 80
 
         // Follow
         private var followPaused = false
         private var followCentered = false
         private var zooming = false
+        private var rotating = false
+        /// After a manual rotate the rider's heading stays for a while
+        /// (web `follow3d.ts` `USER_BEARING_HOLD_MS`).
+        private var userHeadingUntil = Date.distantPast
+        private static let userHeadingHold: TimeInterval = 5
         private var holdUntil = Date.distantPast
         private var chaseHeading: Double?
         private var chaseLead: Double?
@@ -227,6 +243,18 @@ struct TransitMapRepresentable: UIViewRepresentable {
             switch recognizer.state {
             case .began: zooming = true
             case .ended, .cancelled, .failed: zooming = false
+            default: break
+            }
+        }
+
+        @objc func handleRotate(_ recognizer: UIRotationGestureRecognizer) {
+            switch recognizer.state {
+            case .began, .changed:
+                rotating = true
+            case .ended, .cancelled, .failed:
+                rotating = false
+                userHeadingUntil = Date().addingTimeInterval(Self.userHeadingHold)
+                chaseHeading = map?.camera.heading
             default: break
             }
         }
@@ -451,6 +479,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 followPaused = false
                 followCentered = false
                 zooming = false
+                userHeadingUntil = .distantPast
                 chaseHeading = nil
                 chaseLead = nil
                 p.camera.setFollowPaused(false)
@@ -508,8 +537,14 @@ struct TransitMapRepresentable: UIViewRepresentable {
             let signature = path.map { "\($0.trip)|\($0.shape.count)|\($0.color)" } ?? ""
             guard signature != focusSignature else { return }
             focusSignature = signature
-            map.removeOverlays(focusOverlays)
+            map.removeOverlays(focusOverlays + progressOverlays)
             focusOverlays = []
+            progressOverlays = []
+            focusStroke = nil
+            focusCoordinates = []
+            progressAlong = nil
+            progressKey = ""
+            progressAt = .distantPast
             focusLine = nil
             focusAlong = nil
             guard let path, parent.focusTripId != nil else { return }
@@ -531,7 +566,10 @@ struct TransitMapRepresentable: UIViewRepresentable {
             stroke.isFocus = true
             stroke.colorHex = path.color
             focusOverlays = [halo, stroke]
+            focusStroke = stroke
+            focusCoordinates = coordinates
             map.addOverlays(focusOverlays, level: .aboveLabels)
+            updateFocusProgress(at: focus?.annotation.coordinate)
             if focus == nil, path.vehicle == nil {
                 map.fit(coordinates, maxZoom: 16)
             }
@@ -577,6 +615,64 @@ struct TransitMapRepresentable: UIViewRepresentable {
             }
             focus = entry
             follow(entry.annotation.coordinate, entry: entry)
+            updateFocusProgress(at: entry.annotation.coordinate)
+        }
+
+        private func updateFocusProgress(at position: CLLocationCoordinate2D?) {
+            guard let map, let line = focusLine, let stroke = focusStroke, focusCoordinates.count > 1 else { return }
+            guard parent.is3D else {
+                guard !progressOverlays.isEmpty else { return }
+                map.removeOverlays(progressOverlays)
+                progressOverlays = []
+                progressKey = ""
+                map.addOverlay(stroke, level: .aboveLabels)
+                return
+            }
+            let now = Date()
+            guard progressOverlays.isEmpty || now.timeIntervalSince(progressAt) >= Self.progressInterval else { return }
+            progressAt = now
+
+            var along: Double?
+            if let position {
+                let near = progressAlong ?? Self.nearestAlong(line, position)
+                if let hit = Onboard.projectOnShape(line, lat: position.latitude, lon: position.longitude, near: near), hit.dist <= Self.offLineM {
+                    along = hit.along
+                }
+            }
+            progressAlong = along
+            let key = along.map { String(Int($0 / 5)) } ?? "-"
+            guard key != progressKey else { return }
+            progressKey = key
+
+            let color = stroke.colorHex
+            func overlay(_ points: [CLLocationCoordinate2D], glow: Bool = false, passed: Bool = false) -> RouteOverlay {
+                let o = RouteOverlay(coordinates: points, count: points.count)
+                o.isFocus = true
+                o.isGlow = glow
+                o.isPassed = passed
+                o.colorHex = color
+                return o
+            }
+            var next = [overlay(focusCoordinates, glow: true)]
+            if let along, along > 0, let split = Self.split(focusCoordinates, cum: line.cum, at: along) {
+                if split.passed.count > 1 { next.append(overlay(split.passed, passed: true)) }
+                if split.remaining.count > 1 { next.append(overlay(split.remaining)) }
+            } else {
+                next.append(overlay(focusCoordinates))
+            }
+            if progressOverlays.isEmpty { map.removeOverlay(stroke) }
+            map.removeOverlays(progressOverlays)
+            progressOverlays = next
+            map.addOverlays(next, level: .aboveLabels)
+        }
+
+        private static func split(_ points: [CLLocationCoordinate2D], cum: [Double], at along: Double) -> (passed: [CLLocationCoordinate2D], remaining: [CLLocationCoordinate2D])? {
+            guard cum.count == points.count, let i = cum.lastIndex(where: { $0 <= along }), i + 1 < points.count else { return nil }
+            let a = points[i], b = points[i + 1]
+            let span = cum[i + 1] - cum[i]
+            let f = span > 0 ? (along - cum[i]) / span : 0
+            let cut = CLLocationCoordinate2D(latitude: a.latitude + (b.latitude - a.latitude) * f, longitude: a.longitude + (b.longitude - a.longitude) * f)
+            return (Array(points[...i]) + [cut], [cut] + Array(points[(i + 1)...]))
         }
 
         // MARK: Follow
@@ -588,7 +684,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         }
 
         private func follow(_ position: CLLocationCoordinate2D, entry: FocusEntry) {
-            guard let map, !followPaused, !zooming, Date() >= holdUntil else { return }
+            guard let map, !followPaused, !zooming, !rotating, Date() >= holdUntil else { return }
             if parent.is3D {
                 chase(position, entry: entry, in: map)
                 return
@@ -624,7 +720,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private func chase(_ position: CLLocationCoordinate2D, entry: FocusEntry, in map: MKMapView) {
             let target = headingTarget(position, entry: entry)
             let current = chaseHeading ?? target ?? map.camera.heading
-            let heading = target.map { MapChase.approach(current, $0, dt: Self.tick) } ?? current
+            let heading = Date() < userHeadingUntil ? current : target.map { MapChase.approach(current, $0, dt: Self.tick) } ?? current
             chaseHeading = heading
             let first = !followCentered
             followCentered = true
@@ -797,7 +893,6 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 return lastHistory
             }
             setHistoryStale(false, in: map)
-            if zooming { return lastHistory }
             let prev = frames.get(start - MapHistoryData.windowSec)
             let next = frames.get(start + MapHistoryData.windowSec)
             historyFrame += 1
@@ -868,8 +963,11 @@ struct TransitMapRepresentable: UIViewRepresentable {
             }
         }
 
+        /// Nil once the vehicle is no longer drawn (filtered out, or out of the
+        /// recording), so its popup can close.
         func historySample(_ id: String) -> (sample: MapHistorySampler.Sample?, route: String?) {
-            (history[id]?.sample, history[id]?.route)
+            guard let state = history[id], state.shown else { return (nil, nil) }
+            return (state.sample, state.route)
         }
 
         func clearHistory() {
@@ -904,6 +1002,12 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 if route.isHalo {
                     renderer.strokeColor = UIColor(Theme.background).withAlphaComponent(route.isFocus ? 0.6 : 0.55)
                     renderer.lineWidth = route.isFocus ? 8 : 6
+                } else if route.isGlow {
+                    renderer.strokeColor = UIColor(Theme.hex(route.colorHex)).withAlphaComponent(0.28)
+                    renderer.lineWidth = 20
+                } else if route.isPassed {
+                    renderer.strokeColor = UIColor(Theme.mutedForeground).withAlphaComponent(0.98)
+                    renderer.lineWidth = 4
                 } else {
                     renderer.strokeColor = UIColor(Theme.hex(route.colorHex)).withAlphaComponent(0.95)
                     renderer.lineWidth = route.isFocus ? 4 : 3

@@ -40,7 +40,7 @@ struct StopDetailSheet: View {
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
-                    Text(StopKind.label(stopId: stop.id))
+                    Text(StopKind.label(stopId: stop.id, isStation: stop.station))
                         .font(Theme.mono(11, weight: .regular))
                     Text("·")
                     if let merged = model.response?.merged, merged.count >= 2 {
@@ -140,7 +140,6 @@ struct StopDetailSheet: View {
                                 verdict: catchFor.verdict(arrival)
                             ) { tripId, vehicleId in
                                 onFocusTrip(tripId, vehicleId)
-                                dismiss()
                             }
                         }
                     }

@@ -95,7 +95,8 @@ struct KioskScreen: View {
         .statusBarHidden(hidesStatusBar)
         .persistentSystemOverlays(hidesStatusBar ? .hidden : .automatic)
         .contentShape(Rectangle())
-        .onTapGesture { wake() }
+        // Any touch wakes the controls, the buttons and the picker included.
+        .simultaneousGesture(TapGesture().onEnded { wake() })
         .task {
             while !Task.isCancelled {
                 now = Date(timeIntervalSince1970: realtime.serverNow)
@@ -103,7 +104,8 @@ struct KioskScreen: View {
             }
         }
         .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true
+            UsageReporter.shared.track("kiosk")
+            UIApplication.shared.isIdleTimerDisabled = !picking
             wake()
         }
         .onDisappear {
@@ -111,8 +113,14 @@ struct KioskScreen: View {
             idleTask?.cancel()
         }
         .onChange(of: ids) { _, next in
+            wake()
             guard !next.isEmpty else { return }
             local.setJSON(KioskStops.storageKey, next)
+        }
+        // The screen stays on for the board, not while picking (web `useWakeLock(!picking)`).
+        .onChange(of: picking) { _, isPicking in
+            UIApplication.shared.isIdleTimerDisabled = !isPicking
+            wake()
         }
         .animation(Theme.Motion.normalAnimation, value: picking)
     }

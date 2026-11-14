@@ -242,6 +242,17 @@ final class PushService: ObservableObject {
         )
     }
 
+    /// A notify sheet's save: registers the watch on the server at once and
+    /// reports the outcome, which the sheet shows (web `registerPushWatch`).
+    /// Marked as synced first, so the mirror below does not send it again.
+    func register(_ watch: NotifyWatch) async -> Diagnostic {
+        lastSynced[watch.stopId] = watch
+        let result = await registerWatch(config(for: watch))
+        NotificationCenterStore.shared.setPushRegistered(stopId: watch.stopId, result.ok)
+        lastSynced[watch.stopId] = NotificationCenterStore.shared.watches[watch.stopId]
+        return result
+    }
+
     /// Watches are set by the stop and trip sheets; whatever changed is sent
     /// to (or removed from) the server.
     private func mirror(_ watches: [String: NotifyWatch]) {

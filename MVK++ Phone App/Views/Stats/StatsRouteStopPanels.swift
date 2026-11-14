@@ -70,9 +70,10 @@ struct StatsRoutePanel: View {
                     },
                     value: current,
                     onChange: { short = $0 },
-                    placeholder: "Vonalszám vagy útvonal, pl. 1 vagy Tiszai"
+                    placeholder: "Vonalszám vagy útvonal, pl. 1 vagy Tiszai",
+                    groupLabel: "Vonal keresése"
                 )
-                StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 })
+                StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 }, groupLabel: "Időszak")
             }
 
             if current != nil {
@@ -216,7 +217,7 @@ struct StatsStopPanel: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 StatsHeading("Megállók")
-                StatsSearchField(text: $search, placeholder: "Megálló keresése…", clearable: false)
+                StatsSearchField(text: $search, placeholder: "Megálló keresése…", clearable: false, fieldLabel: "Megálló keresése")
                 if !favorites.isEmpty {
                     HStack(spacing: 8) {
                         HStack(spacing: 4) {
@@ -304,8 +305,8 @@ struct StatsStopPanel: View {
             } label: {
                 Image(systemName: favorite ? "star.fill" : "star")
                     .font(.system(size: 12))
-                    .foregroundStyle(favorite ? (active ? Theme.primaryForeground : Theme.early) : Theme.mutedForeground)
-                    .opacity(favorite ? 1 : 0.6)
+                    .foregroundStyle(favorite ? (active ? Theme.primaryForeground : Theme.early) : (active ? Theme.primaryForeground : Theme.mutedForeground))
+                    .opacity(favorite ? 1 : 0.4)
                     .frame(width: 20, height: 20)
                     .contentShape(Rectangle())
             }

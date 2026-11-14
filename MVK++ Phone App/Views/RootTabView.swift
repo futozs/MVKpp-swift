@@ -17,6 +17,11 @@ extension EnvironmentValues {
     /// False while a visited tab stays mounted behind the active one: its
     /// live work (subscriptions, polls, timers) pauses until it is shown again.
     @Entry var isTabActive = true
+    /// Bumped every time the tab is shown again. The web remounts a tab on
+    /// each visit, so a screen keys its loads on this (`.task(id:)`) and
+    /// resets the state a fresh mount would (today's date, the panel picked
+    /// by default) when it changes.
+    @Entry var tabActivation = 0
 }
 
 struct RootTabView: View {
@@ -33,6 +38,7 @@ struct RootTabView: View {
     @State private var visited: Set<AppTab> = []
     @State private var isLiveStatusOpen = false
     @State private var headerBottom: CGFloat = 0
+    @State private var activations: [AppTab: Int] = [:]
 
     var body: some View {
         ZStack {
@@ -41,6 +47,7 @@ struct RootTabView: View {
                 if isActive || (visited.contains(tab) && tab != .parking) {
                     screen(tab)
                         .environment(\.isTabActive, isActive)
+                        .environment(\.tabActivation, activations[tab] ?? 0)
                         .opacity(isActive ? 1 : 0)
                         .allowsHitTesting(isActive)
                         .accessibilityHidden(!isActive)
@@ -73,9 +80,11 @@ struct RootTabView: View {
         .fullScreenCover(isPresented: kioskBinding) {
             KioskScreen(stopIds: navigation.kioskStopIds ?? []) { navigation.kioskStopIds = nil }
         }
+        .onChange(of: navigation.kioskStopIds != nil) { _, shown in PhoneAppDelegate.allowLandscape(shown) }
         .onAppear { visited.insert(navigation.tab) }
         .onChange(of: navigation.tab) { _, tab in
             visited.insert(tab)
+            activations[tab, default: 0] += 1
             UsageReporter.shared.track(tab.rawValue)
         }
         .onChange(of: store.stops) { _, _ in foldMergedTwins() }
@@ -117,7 +126,7 @@ struct RootTabView: View {
         case .timetable: TimetableScreen()
         case .parking: ParkingScreen()
         case .planner: RoutePlannerScreen()
-        case .stats: StatsScreen()
+        case .stats: StatsScreen().environmentObject(incidents)
         }
     }
 

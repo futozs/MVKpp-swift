@@ -39,11 +39,12 @@ struct RouteTimetableView: View {
                             journalEntry: model.journal.trips[trip.tripId],
                             nowSec: model.nowSec,
                             day: model.day,
-                            maxHeight: geometry.size.height * 0.42,
+                            // 42vh on the web: of the whole screen, not of the
+                            // space left between the header and the tab bar.
+                            maxHeight: (geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom) * 0.42,
                             onClose: { withAnimation(Theme.Motion.normalAnimation) { model.chooseTrip(nil) } },
                             onFocusTrip: { tripId, vehicleId in
-                                navigation.focusTrip(tripId, vehicleId: vehicleId)
-                                navigation.tab = .map
+                                navigation.focusTripOnMap(tripId, vehicleId: vehicleId, store: store)
                             }
                         )
                         .id(trip.tripId)

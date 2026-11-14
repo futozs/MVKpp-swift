@@ -416,7 +416,7 @@ struct RideStats {
             $0.value != $1.value ? $0.value > $1.value : $0.key.compare($1.key, options: .numeric, locale: hu) == .orderedAscending
         }.map { ($0.key, $0.value) }
         routes = routeAcc.map { route, v in
-            RouteCount(route: route, color: v.sample.color, text: v.sample.text, n: v.n, avgDelayS: v.count > 0 ? (v.sum / Double(v.count)).rounded() : nil)
+            RouteCount(route: route, color: v.sample.color, text: v.sample.text, n: v.n, avgDelayS: v.count > 0 ? (v.sum / Double(v.count) + 0.5).rounded(.down) : nil)
         }.sorted {
             $0.n != $1.n ? $0.n > $1.n : $0.route.compare($1.route, options: .numeric, locale: hu) == .orderedAscending
         }

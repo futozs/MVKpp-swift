@@ -25,6 +25,11 @@ enum StatsFormat {
         return f.string(from: NSNumber(value: value)) ?? String(value)
     }
 
+    /// A number as the web prints it raw in a template string: `42.5`, `42`.
+    static func raw(_ value: Double) -> String {
+        value.rounded() == value && abs(value) < 1e15 ? String(Int(value)) : String(value)
+    }
+
     /// One decimal at most (`PLAIN`).
     static func plain(_ value: Double) -> String {
         number(value, maxFraction: 1)

@@ -149,10 +149,20 @@ struct RideAddSheet: View {
 
     // MARK: - Data
 
+    /// Most ridden first; a tie keeps the order the routes first appear in
+    /// (the web's `Map` insertion order with a stable sort).
     private var favorites: [String] {
         var n: [String: Int] = [:]
-        for r in store.rides { n[r.route, default: 0] += 1 }
-        return n.sorted { $0.value > $1.value }.prefix(Self.favoritesCount).map(\.key)
+        var order: [String] = []
+        for r in store.rides {
+            if n[r.route] == nil { order.append(r.route) }
+            n[r.route, default: 0] += 1
+        }
+        let ranked = order.enumerated().sorted { a, b in
+            let na = n[a.element] ?? 0, nb = n[b.element] ?? 0
+            return na != nb ? na > nb : a.offset < b.offset
+        }
+        return ranked.prefix(Self.favoritesCount).map(\.element)
     }
 
     private var prevVehicle: String { legs.last?.vehicleId ?? base?.vehicleId ?? "" }
@@ -308,12 +318,12 @@ struct RideAddSheet: View {
                         TextField("pályaszám, ha tudod", text: Binding(
                             get: { leg.vehicleId },
                             set: { value in
-                                let clean = String(value.filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }.prefix(12))
+                                let clean = String(value.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }.prefix(12))
                                 patchCurrent { $0.vehicleId = clean }
                             }
                         ))
                         .font(Theme.mono(13, weight: .regular))
-                        .textInputAutocapitalization(.characters)
+                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding(.horizontal, 10)
                         .frame(width: 176, height: 32)

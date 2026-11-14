@@ -20,6 +20,9 @@ struct TripNotifySheet: View {
     let isDeparture: Bool
     /// "HH:MM" for this run at this stop.
     let departureLabel: String
+    /// The timetable's service day (`yyyy-MM-dd`): a one-off alarm is for
+    /// that day only, since the trip id is another run on another day.
+    let date: String
 
     @ObservedObject private var notifications = NotificationCenterStore.shared
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +31,7 @@ struct TripNotifySheet: View {
     @State private var recurring = false
     @State private var permissionDenied = false
     @State private var existed = false
+    @State private var pushStatus: PushStatus?
     @FocusState private var thresholdFocused: Bool
 
     var body: some View {
@@ -46,14 +50,7 @@ struct TripNotifySheet: View {
                 }
 
                 if permissionDenied {
-                    Text("Az értesítések le vannak tiltva ehhez az apphoz. Engedélyezd a Beállítások › Értesítések alatt, majd próbáld újra.")
-                        .font(Theme.sans(12))
-                        .foregroundStyle(Theme.destructive)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.destructive.opacity(0.3), lineWidth: 1))
+                    NotificationPermissionNote()
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -96,6 +93,10 @@ struct TripNotifySheet: View {
                 .padding(.vertical, 10)
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
+                if let pushStatus {
+                    PushStatusBox(status: pushStatus)
+                }
+
                 VStack(spacing: 8) {
                     Button {
                         Task { await save() }
@@ -136,7 +137,7 @@ struct TripNotifySheet: View {
         let lead = isDeparture
             ? "Szólunk, mielőtt ez a menet elindul innen: \(stopName)"
             : "Szólunk, mielőtt ez a menet ideér: \(stopName)"
-        return "\(lead), lezárt telefonon is."
+        return "\(lead), lezárt telefonon is, ha a push-regisztráció sikerül."
     }
 
     private func save() async {
@@ -144,6 +145,7 @@ struct TripNotifySheet: View {
             permissionDenied = true
             return
         }
+        PushService.shared.permissionGranted()
         let thresholdMin = min(60, max(1, Int(threshold) ?? NotificationCenterStore.defaultThresholdMin))
         notifications.setWatch(
             NotifyWatch(
@@ -153,11 +155,14 @@ struct TripNotifySheet: View {
                 routeShorts: recurring ? [routeShort] : nil,
                 tripId: recurring ? nil : tripId,
                 isDeparture: isDeparture,
-                schedMin: recurring ? Self.parseHourMinute(departureLabel) : nil
+                schedMin: recurring ? Self.parseHourMinute(departureLabel) : nil,
+                date: recurring ? nil : date
             )
         )
+        guard let saved = notifications.watch(stopId: stopId) else { return }
+        let result = await PushService.shared.register(saved)
+        pushStatus = PushStatus(result)
         existed = true
-        dismiss()
     }
 
     /// "HH:MM" → minutes since midnight. GTFS times run past 24:00 for

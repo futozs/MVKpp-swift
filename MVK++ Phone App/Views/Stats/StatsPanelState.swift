@@ -102,6 +102,7 @@ struct StatsPillPicker<ID: Hashable>: View {
     let onChange: (ID) -> Void
     var isFavorite: ((ID) -> Bool)?
     var onToggleFavorite: ((ID) -> Void)?
+    var groupLabel: String?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -112,6 +113,8 @@ struct StatsPillPicker<ID: Hashable>: View {
             }
             .padding(.bottom, 4)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(groupLabel ?? "")
     }
 
     private func pill(_ item: StatsPillItem<ID>) -> some View {
@@ -146,8 +149,8 @@ struct StatsPillPicker<ID: Hashable>: View {
                 } label: {
                     Image(systemName: favorite ? "star.fill" : "star")
                         .font(.system(size: 12))
-                        .foregroundStyle(favorite ? (active ? Theme.primaryForeground : Theme.early) : (active ? Theme.primaryForeground : Theme.mutedForeground))
-                        .opacity(favorite ? 1 : 0.6)
+                        .foregroundStyle(favorite ? Theme.early : (active ? Theme.primaryForeground : Theme.mutedForeground))
+                        .opacity(favorite ? 1 : 0.4)
                         .frame(width: 20, height: 20)
                         .contentShape(Rectangle())
                 }
@@ -170,6 +173,7 @@ struct StatsSearchField: View {
     @Binding var text: String
     let placeholder: String
     var clearable = true
+    var fieldLabel: String?
 
     @FocusState private var focused: Bool
 
@@ -185,6 +189,7 @@ struct StatsSearchField: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .submitLabel(.search)
+                .accessibilityLabel(fieldLabel ?? placeholder)
             if clearable, !text.isEmpty {
                 Button {
                     text = ""
@@ -217,20 +222,21 @@ struct StatsSearchablePicker<ID: Hashable>: View {
     var limit = 120
     var isFavorite: ((ID) -> Bool)?
     var onToggleFavorite: ((ID) -> Void)?
+    var groupLabel: String?
 
     @State private var query = ""
 
     var body: some View {
         let filtered = filter()
         VStack(alignment: .leading, spacing: 8) {
-            StatsSearchField(text: $query, placeholder: placeholder)
+            StatsSearchField(text: $query, placeholder: placeholder, fieldLabel: groupLabel)
             if filtered.isEmpty {
                 Text("Nincs „\(query)” találat.")
                     .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.horizontal, 4)
             } else {
-                StatsPillPicker(items: filtered, value: value, onChange: onChange, isFavorite: isFavorite, onToggleFavorite: onToggleFavorite)
+                StatsPillPicker(items: filtered, value: value, onChange: onChange, isFavorite: isFavorite, onToggleFavorite: onToggleFavorite, groupLabel: groupLabel)
                 if items.count > filtered.count {
                     Text(verbatim: "\(filtered.count) látszik a(z) \(items.count) elemből szűkíts a kereséssel.")
                         .font(Theme.sans(11))

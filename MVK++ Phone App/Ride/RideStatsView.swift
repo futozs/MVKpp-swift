@@ -12,6 +12,8 @@ struct RideStatsView: View {
     let stats: RideStats
     let fleetSize: Int?
 
+    /// The hour tapped in „Mikor utazol” (web `BarChart` hover).
+
     private static let weekdays = ["H", "K", "Sze", "Cs", "P", "Szo", "V"]
     private static let day: DateFormatter = {
         let f = DateFormatter()

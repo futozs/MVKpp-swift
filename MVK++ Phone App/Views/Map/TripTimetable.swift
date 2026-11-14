@@ -291,10 +291,16 @@ private extension Theme {
 final class TripTimetableModel: ObservableObject {
     @Published private(set) var data: TrainDetailResponse?
     @Published private(set) var error: FriendlyError?
+    private var tripId: String?
 
+    /// Restarted when the map tab is shown again; the data of the same trip
+    /// stays on screen meanwhile.
     func run(tripId: String) async {
-        data = nil
-        error = nil
+        if tripId != self.tripId {
+            self.tripId = tripId
+            data = nil
+            error = nil
+        }
         while !Task.isCancelled {
             do {
                 let response = try await APIClient.shared.tripDetail(tripId: tripId)

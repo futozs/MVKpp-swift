@@ -358,6 +358,10 @@ final class RouteOverlay: MKPolyline {
     var colorHex: String = "1FB574"
     var isHalo = false
     var isFocus = false
+    /// 3D follow: the wide soft line under the followed route.
+    var isGlow = false
+    /// 3D follow: the part of the route the bus has already run.
+    var isPassed = false
 }
 
 /// A congested link, coloured by its level.

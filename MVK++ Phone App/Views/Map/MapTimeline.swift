@@ -27,9 +27,20 @@ final class MapTimelinePlayback: ObservableObject {
 
     struct Bounds {
         let start: Double
-        /// The latest available moment (today: now).
-        let limit: Double
+        let end: Double
+        /// The latest available moment: today it moves with the clock, a
+        /// minute behind it (web `useTimelinePlayback`).
+        @MainActor var limit: Double {
+            max(start, min(end - 1, RealtimeClient.shared.serverNow.rounded(.down) - MapTimelinePlayback.liveMargin))
+        }
+
+        init(_ range: MapHistoryTime.DayRange) {
+            start = range.start
+            end = range.end
+        }
     }
+
+    static let liveMargin: Double = 60
 
     var bounds: Bounds
     var getWindow: (Double) -> MapHistoryWindow? = { _ in nil }
@@ -121,7 +132,8 @@ final class MapTimelinePlayback: ObservableObject {
 
     func togglePlay() {
         let next = !playing
-        if next, t >= bounds.limit - 1 {
+        let limit = bounds.limit
+        if next, t >= limit - 1 {
             t = bounds.start
             cursor = t
         }
@@ -229,9 +241,10 @@ private struct MapTimelinePlayer: View {
     @StateObject private var frames = MapHistoryFrames()
     @StateObject private var playback: MapTimelinePlayback
     @State private var day: String
+    @State private var dayListOpen = false
+    @Environment(\.isTabActive) private var isTabActive
 
     private static let prefetchLead: Double = 15 * 60
-    private static let liveMargin: Double = 60
 
     init(days: [String], routes: [String: Route], filters: FilterState, camera: MapCameraController, selectedHistoryId: Binding<String?>, exitIcon: Bool, onExit: @escaping () -> Void) {
         self.days = days
@@ -246,15 +259,11 @@ private struct MapTimelinePlayer: View {
         let range = MapHistoryTime.serviceDayRange(first)
         let now = RealtimeClient.shared.serverNow.rounded(.down)
         let offset = now - MapHistoryTime.serviceDayRange(MapHistoryTime.serviceDay(of: now)).start
-        let limit = Self.limit(range)
+        let bounds = MapTimelinePlayback.Bounds(range)
         _playback = StateObject(wrappedValue: MapTimelinePlayback(
-            initial: min(limit, range.start + offset),
-            bounds: MapTimelinePlayback.Bounds(start: range.start, limit: limit)
+            initial: min(bounds.limit, range.start + offset),
+            bounds: bounds
         ))
-    }
-
-    private static func limit(_ range: MapHistoryTime.DayRange) -> Double {
-        max(range.start, min(range.end - 1, RealtimeClient.shared.serverNow.rounded(.down) - liveMargin))
     }
 
     private var range: MapHistoryTime.DayRange { MapHistoryTime.serviceDayRange(day) }
@@ -316,15 +325,18 @@ private struct MapTimelinePlayer: View {
                 clock
                 MapTimelineExitButton(compact: true, showIcon: exitIcon, action: onExit)
             }
-            MapTimelineSlider(
-                range: range,
-                value: playback.cursor,
-                maxValue: playback.bounds.limit,
-                valueText: "\(MapHistoryTime.clockShort(playback.cursor)), \(MapHistoryTime.dateOf(playback.cursor))",
-                onScrub: { playback.seek($0) },
-                onScrubStart: playback.scrubStart,
-                onScrubEnd: playback.scrubEnd
-            )
+            // Today's limit moves with the clock; one slider point is minutes.
+            TimelineView(.periodic(from: .now, by: 15)) { _ in
+                MapTimelineSlider(
+                    range: range,
+                    value: playback.cursor,
+                    maxValue: playback.bounds.limit,
+                    valueText: "\(MapHistoryTime.clockShort(playback.cursor)), \(MapHistoryTime.dateOf(playback.cursor))",
+                    onScrub: { playback.seek($0) },
+                    onScrubStart: playback.scrubStart,
+                    onScrubEnd: playback.scrubEnd
+                )
+            }
             .padding(.horizontal, -4)
             .padding(.top, 6)
             HStack(spacing: 8) {
@@ -349,6 +361,11 @@ private struct MapTimelinePlayer: View {
             }
         }
         .onAppear(perform: wire)
+        .onChange(of: playback.cursor) { _, _ in dropGonePopup() }
+        .onChange(of: playback.stats) { _, _ in dropGonePopup() }
+        .onChange(of: isTabActive) { _, active in
+            if !active, playback.playing { playback.togglePlay() }
+        }
         .onDisappear {
             playback.stop()
             frames.cancelAll()
@@ -362,11 +379,33 @@ private struct MapTimelinePlayer: View {
         .onChange(of: filters) { _, _ in
             wire()
             playback.invalidate()
+            dropGonePopup()
         }
-        .onChange(of: routes.count) { _, _ in
+        .onChange(of: routeSignature) { _, _ in
             wire()
             playback.invalidate()
         }
+    }
+
+    /// What a redraw depends on; the route count alone misses a recoloured
+    /// or renamed route.
+    private var routeSignature: Int {
+        var hasher = Hasher()
+        for r in routes.values.sorted(by: { $0.id < $1.id }) {
+            hasher.combine(r.id)
+            hasher.combine(r.short)
+            hasher.combine(r.key)
+            hasher.combine(r.color)
+            hasher.combine(r.text)
+            hasher.combine(r.type)
+        }
+        return hasher.finalize()
+    }
+
+    /// The popup closes once its vehicle is no longer on the map.
+    private func dropGonePopup() {
+        guard let id = selectedHistoryId, camera.historySample(id).sample == nil else { return }
+        selectedHistoryId = nil
     }
 
     private func wire() {
@@ -435,15 +474,11 @@ private struct MapTimelinePlayer: View {
         }
     }
 
+    /// Only the recorded days (`TimelineDayPicker.tsx`). The bar sits at the
+    /// bottom of the screen, so the list opens upwards.
     private var dayPicker: some View {
-        let today = MapHistoryTime.serviceDay(of: RealtimeClient.shared.serverNow)
-        return Menu {
-            Picker("Rögzített napok", selection: Binding(get: { day }, set: changeDay)) {
-                ForEach(days, id: \.self) { d in
-                    let hint = d == today ? "ma" : d == MapHistoryTime.addDays(today, -1) ? "tegnap" : nil
-                    Text(hint.map { "\(MapHistoryTime.dayLabel(d)) · \($0)" } ?? MapHistoryTime.dayLabel(d)).tag(d)
-                }
-            }
+        Button {
+            withAnimation(Theme.Motion.fastAnimation) { dayListOpen.toggle() }
         } label: {
             HStack(spacing: 8) {
                 Text(MapHistoryTime.dayLabel(day, short: true))
@@ -454,20 +489,85 @@ private struct MapTimelinePlayer: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.mutedForeground)
+                    .rotationEffect(.degrees(dayListOpen ? 180 : 0))
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, minHeight: 44)
             .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Nap: \(MapHistoryTime.dayLabel(day))")
+        .accessibilityValue(dayListOpen ? "kinyitva" : "")
+        .overlay(alignment: .bottomLeading) {
+            if dayListOpen {
+                dayList
+                    .alignmentGuide(.bottom) { $0[.bottom] + 44 + 8 }
+                    .transition(.opacity)
+            }
+        }
+        .zIndex(1)
+    }
+
+    private var dayList: some View {
+        let today = MapHistoryTime.serviceDay(of: RealtimeClient.shared.serverNow)
+        return ScrollViewReader { reader in
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(days, id: \.self) { d in
+                        let selected = d == day
+                        let hint = d == today ? "ma" : d == MapHistoryTime.addDays(today, -1) ? "tegnap" : nil
+                        Button {
+                            changeDay(d)
+                            withAnimation(Theme.Motion.fastAnimation) { dayListOpen = false }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(MapHistoryTime.dayLabel(d))
+                                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                if let hint {
+                                    Text(hint)
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(Theme.mutedForeground)
+                                }
+                                if selected {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                            }
+                            .foregroundStyle(selected ? Theme.primary : Theme.foreground)
+                            .padding(.horizontal, 10)
+                            .frame(height: 44)
+                            .background(selected ? Theme.primary.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .id(d)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
+                }
+                .padding(4)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: 288)
+            .fixedSize(horizontal: false, vertical: true)
+            .onAppear { reader.scrollTo(day) }
+        }
+        .frame(minWidth: 220)
+        .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
+        .mvkShadow(Theme.Shadow.xl)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Rögzített napok")
     }
 
     private func changeDay(_ next: String) {
         let dayOffset = playback.cursor - range.start
         let nextRange = MapHistoryTime.serviceDayRange(next)
         day = next
-        playback.seek(nextRange.start + dayOffset, bounds: MapTimelinePlayback.Bounds(start: nextRange.start, limit: Self.limit(nextRange)))
+        playback.seek(nextRange.start + dayOffset, bounds: MapTimelinePlayback.Bounds(nextRange))
     }
 
     private var speedControl: some View {
@@ -567,6 +667,7 @@ struct MapTimelineSlider: View {
                     .mvkShadow(Theme.Shadow.md)
                     .offset(x: 16 + width * pct - 10, y: 6)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -576,7 +677,7 @@ struct MapTimelineSlider: View {
                             onScrubStart()
                         }
                         let f = min(1, max(0, (g.location.x - 16) / max(width, 1)))
-                        onScrub(min(maxValue, (range.start + f * span).rounded()))
+                        onScrub((range.start + f * span).rounded())
                     }
                     .onEnded { _ in
                         dragging = false

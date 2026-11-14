@@ -126,7 +126,7 @@ struct DeviceSettingsScreen: View {
     private var watchlistSection: some View {
         Section {
             LabeledContent("Figyelt megállók") {
-                Text("\(favorites.stopIds.count) / \(FavoritesStore.maxCount)")
+                Text("\(favorites.stopIds.count)")
                     .font(Theme.mono(13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
             }

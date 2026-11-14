@@ -5,6 +5,7 @@
 
 import Combine
 import SwiftUI
+import UIKit
 
 /// Beállítások (web `SettingsMenu`): transport modes, the Megállófigyelő
 /// features, the header counters, location, and the account row — then what
@@ -199,6 +200,15 @@ struct SettingsSheet: View {
                 isOn: Binding(get: { isOn }, set: { $0 ? location.start() : location.stop() }),
                 disabled: location.status == .denied || location.status == .unavailable
             )
+            if location.status == .denied {
+                Button("Beállítások megnyitása") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .buttonStyle(.mvk(.outline, size: .small))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+            }
         }
         .padding(6)
     }

@@ -18,11 +18,10 @@ final class ParkingModel: ObservableObject {
 
     private var received: (at: Double, local: Double)?
     private var subscription: AnyCancellable?
-    private var loops: [Task<Void, Never>] = []
+    private var ticker: Task<Void, Never>?
+    private lazy var fallback = FallbackPoll(every: .seconds(15)) { [weak self] in await self?.load() }
 
-    private let pollInterval: Duration = .seconds(15)
     private let tickInterval: Duration = .seconds(15)
-    private let connectGrace: Duration = .milliseconds(2500)
 
     /// The server clock now (unix s), from the snapshot's `at` and the time
     /// since it arrived — right even when the phone's clock is off.
@@ -39,26 +38,20 @@ final class ParkingModel: ObservableObject {
             guard let snapshot = try? message.decode(ParkingPush.self).data else { return }
             self?.apply(snapshot)
         }
-        loops.append(Task { [weak self] in
-            try? await Task.sleep(for: self?.connectGrace ?? .zero)
-            while !Task.isCancelled {
-                guard let self else { return }
-                if !RealtimeClient.shared.connected { await self.load() }
-                try? await Task.sleep(for: self.pollInterval)
-            }
-        })
-        loops.append(Task { [weak self] in
+        fallback.start()
+        ticker = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: self?.tickInterval ?? .seconds(15))
                 self?.tick += 1
             }
-        })
+        }
     }
 
     func stop() {
         subscription = nil
-        loops.forEach { $0.cancel() }
-        loops = []
+        fallback.stop()
+        ticker?.cancel()
+        ticker = nil
     }
 
     private struct ParkingPush: Decodable {

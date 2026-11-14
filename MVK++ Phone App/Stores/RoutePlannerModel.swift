@@ -69,12 +69,24 @@ final class RoutePlannerModel: ObservableObject {
     private var ownStops: (key: String, places: [PlannerPlace])?
     private var catalog: [Stop] = []
     private var lastModes: String?
+    private var cancellables: Set<AnyCancellable> = []
 
     init() {
         form = PlanFormValue(date: PlannerFormat.todayLocalIso(), time: PlannerFormat.nowLocalTime())
         travel = PlanTravel(coach: false, rail: false)
         travel = resolvedTravel()
         lastModes = modes
+        // Until ticked here, Volán and rail follow the Settings' modes.
+        LocalStore.shared.objectWillChange
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                let next = self.resolvedTravel()
+                guard next != self.travel else { return }
+                self.travel = next
+                self.travelChanged()
+            }
+            .store(in: &cancellables)
     }
 
     var isLoading: Bool {
@@ -182,6 +194,10 @@ final class RoutePlannerModel: ObservableObject {
         form.time = PlannerFormat.nowLocalTime()
     }
 
+    /// Back on the tab: the web remounts the planner at "now", so yesterday's
+    /// date never silently turns a search into „Mi történt akkor?”.
+    func reactivate() { setNow() }
+
     func swap() {
         let from = form.from
         form.from = form.to
@@ -244,7 +260,10 @@ final class RoutePlannerModel: ObservableObject {
         guard let query else { return }
         lastQuery = query
         runTask?.cancel()
-        if !silent { result = .loading }
+        if !silent {
+            result = .loading
+            stopRefresh()
+        }
         runTask = Task { [weak self] in
             do {
                 let plan = try await APIClient.shared.planJourney(query)
@@ -255,6 +274,7 @@ final class RoutePlannerModel: ObservableObject {
             } catch {
                 guard !Task.isCancelled, !silent, let self else { return }
                 self.result = .error(Self.message(for: error))
+                self.stopRefresh()
             }
         }
     }

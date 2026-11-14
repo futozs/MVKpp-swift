@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// An alert for one stop: how early to be told, which routes count, and
 /// congestion alerts — the web app's `StopNotifyDialog`.
@@ -18,6 +19,7 @@ struct StopNotifySheet: View {
     @State private var routeShorts: [String] = []
     @State private var permissionDenied = false
     @State private var existed = false
+    @State private var pushStatus: PushStatus?
     @FocusState private var thresholdFocused: Bool
 
     var body: some View {
@@ -30,14 +32,14 @@ struct StopNotifySheet: View {
                             .tracking(-0.45)
                             .padding(.trailing, 24)
                             .foregroundStyle(Theme.foreground)
-                        Text("Szólunk, amikor a busz a beállított időn belülre ér ehhez a megállóhoz, lezárt telefonon is.")
+                        Text("Szólunk, amikor a busz a beállított időn belülre ér ehhez a megállóhoz, lezárt telefonon is, ha a push-regisztráció sikerül.")
                             .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     if permissionDenied {
-                        ErrorNotice(message: "Az értesítések le vannak tiltva. Engedélyezd a Beállítások → Értesítések → MVK++ alatt.")
+                        NotificationPermissionNote()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -79,6 +81,10 @@ struct StopNotifySheet: View {
                     }
 
                     TrafficAlertSwitch(stopId: stop.id, stopName: stop.name, routeShorts: routeShorts)
+
+                    if let pushStatus {
+                        PushStatusBox(status: pushStatus)
+                    }
                 }
                 .padding(24)
             }
@@ -153,6 +159,9 @@ struct StopNotifySheet: View {
             return
         }
         let minutes = min(60, max(1, Int(threshold) ?? NotificationCenterStore.defaultThresholdMin))
+        PushService.shared.permissionGranted()
+        // A watch pinned to a run (from the Menetrend, or daily at one time)
+        // stays pinned; otherwise saving here would widen it to any bus.
         let previous = notifications.watch(stopId: stop.id)
         notifications.setWatch(
             NotifyWatch(
@@ -162,17 +171,86 @@ struct StopNotifySheet: View {
                 routeShorts: routeShorts.isEmpty ? nil : routeShorts,
                 tripId: previous?.tripId,
                 isDeparture: previous?.isDeparture,
-                schedMin: previous?.schedMin
+                schedMin: previous?.schedMin,
+                date: previous?.date
             )
         )
+        existed = true
+        guard let saved = notifications.watch(stopId: stop.id) else { return }
+        let result = await PushService.shared.register(saved)
+        pushStatus = PushStatus(result)
         notifications.scheduleAlarm(stopId: stop.id, stopName: stop.name, arrivals: arrivals)
-        dismiss()
     }
 
     private func remove() {
         notifications.removeWatch(stopId: stop.id)
         notifications.cancelAlarm(stopId: stop.id)
         dismiss()
+    }
+}
+
+/// The outcome of a notify sheet's push registration.
+struct PushStatus: Equatable {
+    let ok: Bool
+    let reason: String?
+
+    init(_ diagnostic: PushService.Diagnostic) {
+        ok = diagnostic.ok
+        reason = diagnostic.reason
+    }
+}
+
+/// „Lezárt telefonos (push) értesítés”: whether the server took the watch, so
+/// the rider knows if it also comes with the phone locked.
+struct PushStatusBox: View {
+    let status: PushStatus
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Lezárt telefonos (push) értesítés")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.mutedForeground)
+            if status.ok {
+                Label("Sikeresen regisztrálva a szerveren.", systemImage: "checkmark.circle")
+                    .foregroundStyle(Theme.ontime)
+            } else {
+                Label(status.reason ?? "Nem sikerült regisztrálni a szerveren.", systemImage: "xmark.circle")
+                    .foregroundStyle(Theme.destructive)
+            }
+        }
+        .font(.system(size: 11))
+        .labelStyle(StatusLabelStyle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private struct StatusLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                configuration.icon
+                configuration.title.fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// Why no alarm can be set: iOS has notifications switched off for the app.
+/// Shared by the stop and trip notify sheets (web `PermissionNote`).
+struct NotificationPermissionNote: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ErrorNotice(message: "Az iOS letiltotta az értesítéseket ehhez az apphoz. Engedélyezd a Beállítások appban, majd próbáld újra.")
+            Button("Beállítások megnyitása") {
+                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            .buttonStyle(.mvk(.outline, size: .small))
+        }
     }
 }
 

@@ -19,6 +19,7 @@ struct MapScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
     @Environment(\.isTabActive) private var isTabActive
+    @Environment(\.tabActivation) private var tabActivation
 
     @ObservedObject private var rides = RideStore.shared
 
@@ -52,7 +53,7 @@ struct MapScreen: View {
 
     /// The followed trip's path is polled only while the map is on screen.
     private func followPath() {
-        tripPath.follow(tripId: isTabActive ? navigation.focusTripId : nil, vehicleId: navigation.focusVehicleId)
+        tripPath.follow(tripId: navigation.focusTripId, vehicleId: navigation.focusVehicleId, active: isTabActive)
     }
 
     var body: some View {
@@ -103,6 +104,17 @@ struct MapScreen: View {
             followPath()
             traffic.setEnabled(navigation.filters.traffic && !historyOn && isTabActive)
         }
+        .onChange(of: tabActivation) { _, _ in
+            // The web remounts the map on each visit: panels and the
+            // timeline start closed.
+            historyOn = false
+            isFilterOpen = false
+            isLayersOpen = false
+            isSearchOpen = false
+            popupVehicleId = nil
+            popupTraffic = nil
+            popupHistoryId = nil
+        }
         .onChange(of: navigation.selectedStopId) { _, stopId in
             guard let stop = store.stop(id: stopId) else { return }
             camera.send(.flyAtLeast(CLLocationCoordinate2D(latitude: stop.lat, longitude: stop.lon), minZoom: closeZoom))
@@ -129,7 +141,7 @@ struct MapScreen: View {
 
     private func map(cover: CGFloat) -> some View {
         TransitMapRepresentable(
-            stops: store.stops,
+            stops: store.mapStops,
             routes: store.routes,
             vehicles: store.liveVehicles,
             visibleVehicles: filteredVehicles,
@@ -283,7 +295,7 @@ struct MapScreen: View {
             if let message = location.errorMessage, geoAsked || location.status != .denied {
                 MapNotice(text: message)
             }
-            if !historyOn, navigation.focusTripId == nil {
+            if !historyOn {
                 MapControlButton(systemImage: "clock.arrow.circlepath", label: "Idővonal") {
                     openHistory()
                 }
@@ -408,7 +420,7 @@ struct MapScreen: View {
                 .accessibilityLabel("Keresés bezárása")
                 .transition(.opacity)
             MapSearchPanel(
-                stops: store.stops,
+                stops: store.mapStops,
                 vehicles: store.liveVehicles,
                 position: location.position,
                 monitoredStopIds: favorites.stopIds,
@@ -474,7 +486,7 @@ struct MapScreen: View {
     private func focusOnMe(animated: Bool) {
         guard let position = location.position else { return }
         let me = position.coordinate
-        if let hit = Geo.nearest(store.stops, lat: position.lat, lon: position.lon), hit.km <= nearStopKm {
+        if let hit = Geo.nearest(store.mapStops, lat: position.lat, lon: position.lon), hit.km <= nearStopKm {
             camera.send(.fit([me, CLLocationCoordinate2D(latitude: hit.item.lat, longitude: hit.item.lon)], maxZoom: closeZoom))
             return
         }
@@ -517,10 +529,12 @@ struct MapScreen: View {
 
     // MARK: - Derived data
 
+    /// Following a trip only hides the stop drawer (web `App.tsx`): the
+    /// selection stays, so „Követés vége” brings the drawer back.
     private var selectedStopBinding: Binding<Stop?> {
         Binding(
             get: { navigation.focusTripId != nil ? nil : store.stop(id: navigation.selectedStopId) },
-            set: { if $0 == nil { navigation.selectedStopId = nil } }
+            set: { if $0 == nil, navigation.focusTripId == nil { navigation.selectedStopId = nil } }
         )
     }
 

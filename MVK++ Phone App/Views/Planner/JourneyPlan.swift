@@ -202,10 +202,10 @@ struct PlannerPlace: Decodable, Hashable, Identifiable {
         name = stop.name
         lat = stop.lat
         lon = stop.lon
-        feed = nil
-        parent = nil
-        station = false
-        twinOf = nil
+        feed = stop.feed
+        parent = stop.parent
+        station = stop.station
+        twinOf = stop.twinOf
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
