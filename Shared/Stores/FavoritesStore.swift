@@ -117,6 +117,14 @@ final class FavoritesStore: NSObject, ObservableObject {
         persist()
     }
 
+    /// Replaces the whole list in one write (merged twin stops folding into
+    /// their MVK pole).
+    func setStopIds(_ ids: [String]) {
+        guard ids != stopIds else { return }
+        stopIds = ids
+        persist()
+    }
+
     func move(from source: IndexSet, to destination: Int) {
         stopIds.move(fromOffsets: source, toOffset: destination)
         persist()

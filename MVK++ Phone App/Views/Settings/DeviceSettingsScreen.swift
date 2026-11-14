@@ -1,40 +1,36 @@
 //
-//  SettingsScreen.swift
+//  DeviceSettingsScreen.swift
 //  MVK++ Phone App
 //
 
 import SwiftUI
 import WidgetKit
 
-/// Where the phone configures the rest of the family: what the Watch shows,
-/// which stop the Smart Stack widget counts down, and when the app is allowed
-/// to interrupt.
+/// What only the iPhone has: the offline timetable, the base map, what the
+/// Watch and the Smart Stack widget show, the watchlist order, and About.
+/// Pushed from Beállítások ("Ezen az iPhone-on").
 ///
 /// The watch and the widget have no UI of their own for this — the widget
 /// literally says "pick a stop on the phone" until one is set — so this screen
 /// is the only place these can be chosen.
-struct SettingsScreen: View {
+struct DeviceSettingsScreen: View {
 
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var navigation: AppNavigation
-    @ObservedObject private var notifications = NotificationCenterStore.shared
     @ObservedObject private var offlineSchedule = OfflineScheduleManager.shared
 
     var body: some View {
-        NavigationStack {
-            Form {
-                offlineSection
-                watchSection
-                watchlistSection
-                notificationsSection
-                aboutSection
-            }
-            .mvkBackground()
-            .navigationTitle("Beállítások")
-            .task { await notifications.refreshAuthorization() }
+        Form {
+            offlineSection
+            watchSection
+            watchlistSection
+            aboutSection
         }
+        .mvkBackground()
+        .navigationTitle("Ezen az iPhone-on")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Offline & map
@@ -150,38 +146,6 @@ struct SettingsScreen: View {
         .listRowBackground(Theme.card)
     }
 
-    // MARK: - Notifications
-
-    private var notificationsSection: some View {
-        Section {
-            Toggle("Értesítések", isOn: $notifications.settings.enabled)
-                .tint(Theme.primary)
-
-            if notifications.authorization == .denied {
-                Text("Az iOS letiltotta — engedélyezd a rendszerbeállításokban.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.destructive)
-            }
-
-            Toggle("Ne zavarjanak", isOn: $notifications.settings.dndEnabled)
-                .tint(Theme.primary)
-
-            if notifications.settings.dndEnabled {
-                DatePicker("Kezdés", selection: dndStartBinding, displayedComponents: .hourAndMinute)
-                DatePicker("Vége", selection: dndEndBinding, displayedComponents: .hourAndMinute)
-            }
-
-            LabeledContent("Beállított értesítések") {
-                Text("\(notifications.watches.count)")
-                    .font(Theme.mono(13, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
-            }
-        } header: {
-            Label("Értesítések", systemImage: "bell")
-        }
-        .listRowBackground(Theme.card)
-    }
-
     // MARK: - About
 
     private var aboutSection: some View {
@@ -203,29 +167,6 @@ struct SettingsScreen: View {
             set: { favorites.widgetStopId = $0 }
         )
     }
-
-    /// The stored value is minutes past midnight; the picker wants a Date, so
-    /// both ends map onto an arbitrary day.
-    private func minutesBinding(_ keyPath: WritableKeyPath<NotificationSettings, Int>) -> Binding<Date> {
-        Binding(
-            get: {
-                let minutes = notifications.settings[keyPath: keyPath]
-                return Calendar.current.date(
-                    bySettingHour: minutes / 60,
-                    minute: minutes % 60,
-                    second: 0,
-                    of: Date()
-                ) ?? Date()
-            },
-            set: { newValue in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                notifications.settings[keyPath: keyPath] = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            }
-        )
-    }
-
-    private var dndStartBinding: Binding<Date> { minutesBinding(\.dndStartMin) }
-    private var dndEndBinding: Binding<Date> { minutesBinding(\.dndEndMin) }
 
     private func stopName(_ stopId: String) -> String {
         store.stop(id: stopId)?.name ?? stopId

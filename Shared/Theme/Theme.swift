@@ -66,6 +66,10 @@ enum Theme {
     static let amber300 = Color(red: 252 / 255, green: 211 / 255, blue: 77 / 255)
     static let amber400 = Color(red: 251 / 255, green: 191 / 255, blue: 36 / 255)
 
+    /// The tint that keeps Liquid Glass dark over a light map, so the light
+    /// foreground stays readable — the glass version of the web's card bars.
+    static let glassTint = card.opacity(0.62)
+
     // MARK: - Green scale (`--sg-*`)
 
     static let signal50 = hsl(150, 69, 94.9)
