@@ -41,13 +41,43 @@ struct ParkingRouteChip: View {
     }
 }
 
-/// Live signal: a pulsing green dot; silent: an empty ring.
+/// Live signal: a green dot with a ping ring (Tailwind `animate-ping`);
+/// silent: an empty ring.
 struct ParkingSignalDot: View {
     let online: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private struct Ping {
+        var scale: CGFloat = 1
+        var opacity: Double = 1
+    }
+
     var body: some View {
         if online {
-            LiveDot(size: 8)
+            Circle()
+                .fill(Theme.live)
+                .frame(width: 8, height: 8)
+                .background {
+                    if !reduceMotion {
+                        KeyframeAnimator(initialValue: Ping(), repeating: true) { ping in
+                            Circle()
+                                .fill(Theme.live.opacity(0.6))
+                                .scaleEffect(ping.scale)
+                                .opacity(ping.opacity)
+                        } keyframes: { _ in
+                            let curve = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0, y: 0), endControlPoint: UnitPoint(x: 0.2, y: 1))
+                            KeyframeTrack(\.scale) {
+                                LinearKeyframe(2, duration: 0.75, timingCurve: curve)
+                                LinearKeyframe(2, duration: 0.25)
+                            }
+                            KeyframeTrack(\.opacity) {
+                                LinearKeyframe(0, duration: 0.75, timingCurve: curve)
+                                LinearKeyframe(0, duration: 0.25)
+                            }
+                        }
+                    }
+                }
                 .accessibilityLabel("Élő GPS-jel")
         } else {
             Circle()

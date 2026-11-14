@@ -168,7 +168,7 @@ struct ParkingVehicleSheet: View {
                 if let delay = v.delayS {
                     Divider().overlay(Theme.border.opacity(0.7))
                     row("Késés") {
-                        Text(delay >= 60 ? "+\(Int((delay / 60).rounded())) perc" : delay <= -60 ? "\(Int((delay / 60).rounded())) perc (siet)" : "pontos")
+                        Text(delay >= 60 ? "+\(Int((delay / 60).rounded())) perc" : delay <= -60 ? "\(ParkingFormat.jsRound(delay / 60)) perc (siet)" : "pontos")
                     }
                 }
             case .terminus(_, let v), .depot(_, let v), .nosignal(_, let v):

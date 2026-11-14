@@ -143,7 +143,10 @@ struct ParkingBlockChart: View {
                 }
             }
             .onScrollGeometryChange(for: CGPoint.self) { $0.contentOffset } action: { _, new in offset = new }
-            .frame(height: 520)
+            // Fits its rows, up to 70% of the screen (web `max-h-[70dvh]`).
+            .containerRelativeFrame(.vertical) { length, _ in
+                min(headerH + bodyHeight + (rows.isEmpty ? 80 : 0), length * 0.7)
+            }
             .task {
                 guard !centered else { return }
                 // First load: "now" in the middle, once the content has a size.

@@ -7,6 +7,8 @@ import Foundation
 
 /// Text helpers of the parking view (web `parking/format.ts`).
 enum ParkingFormat {
+    /// JavaScript's `Math.round`: halves go up, so −2.5 → −2.
+    static func jsRound(_ x: Double) -> Int { Int((x + 0.5).rounded(.down)) }
 
     private static let budapestHM: DateFormatter = {
         let formatter = DateFormatter()
