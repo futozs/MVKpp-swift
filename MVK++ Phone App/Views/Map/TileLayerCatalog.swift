@@ -38,6 +38,8 @@ struct TileLayerOption: Identifiable, Hashable {
 
     let id: String
     let name: String
+    /// Short name for the small picker.
+    let short: String
     let note: String
     let style: Style
     /// Representative color, shown in the base map picker.
@@ -47,11 +49,11 @@ struct TileLayerOption: Identifiable, Hashable {
 enum TileLayerCatalog {
 
     static let all: [TileLayerOption] = [
-        TileLayerOption(id: "osm", name: "Utcatérkép", note: "Apple térkép", style: .standard, swatch: "E8E0D8"),
-        TileLayerOption(id: "dark", name: "Sötét", note: "Sötétített Apple térkép", style: .standardDark, swatch: "20241F"),
-        TileLayerOption(id: "light", name: "Halvány", note: "Kifakított Apple térkép", style: .standardMuted, swatch: "DEDEDC"),
-        TileLayerOption(id: "satellite", name: "Műhold", note: "Apple műholdas térkép", style: .hybrid, swatch: "3F5B3C"),
-        TileLayerOption(id: "topo", name: "Domborzat", note: "Domborzati Apple térkép", style: .standardTerrain, swatch: "CBD3B0"),
+        TileLayerOption(id: "osm", name: "Utcatérkép", short: "Utca", note: "Apple térkép", style: .standard, swatch: "E8E0D8"),
+        TileLayerOption(id: "dark", name: "Sötét", short: "Sötét", note: "Sötétített Apple térkép", style: .standardDark, swatch: "20241F"),
+        TileLayerOption(id: "light", name: "Halvány", short: "Halvány", note: "Kifakított Apple térkép", style: .standardMuted, swatch: "DEDEDC"),
+        TileLayerOption(id: "satellite", name: "Műhold", short: "Műhold", note: "Apple műholdas térkép", style: .hybrid, swatch: "3F5B3C"),
+        TileLayerOption(id: "topo", name: "Domborzat", short: "Terep", note: "Domborzati Apple térkép", style: .standardTerrain, swatch: "CBD3B0"),
     ]
 
     static let storageKey = "mvk_map_tile"

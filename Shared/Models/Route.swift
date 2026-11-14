@@ -19,13 +19,18 @@ struct Route: Decodable, Identifiable, Hashable {
     /// Bare hex, no leading "#" — normalized on decode.
     let color: String
     let text: String
+    /// v3 (`?modes=`): mode, statistics key, operator.
+    var mode: TransitMode?
+    var key: String?
+    var operatorName: String?
 
     /// GTFS route_type 900 is the tram family; everything MVK runs otherwise
     /// is a bus.
     var isTram: Bool { type == "900" }
 
     private enum CodingKeys: String, CodingKey {
-        case id, short, long, type, color, text
+        case id, short, long, type, color, text, mode, key
+        case operatorName = "operator"
     }
 
     init(from decoder: Decoder) throws {
@@ -36,6 +41,9 @@ struct Route: Decodable, Identifiable, Hashable {
             type = try array.decode(String.self)
             color = Self.normalize(try array.decodeIfPresent(String.self), fallback: "888888")
             text = Self.normalize(try array.decodeIfPresent(String.self), fallback: "FFFFFF")
+            if !array.isAtEnd { mode = ((try? array.decodeIfPresent(String.self)) ?? nil).flatMap(TransitMode.init(rawValue:)) }
+            if !array.isAtEnd { key = (try? array.decodeIfPresent(String.self)) ?? nil }
+            if !array.isAtEnd { operatorName = (try? array.decodeIfPresent(String.self)) ?? nil }
             return
         }
 
@@ -46,6 +54,9 @@ struct Route: Decodable, Identifiable, Hashable {
         type = try keyed.decode(String.self, forKey: .type)
         color = Self.normalize(try keyed.decodeIfPresent(String.self, forKey: .color), fallback: "888888")
         text = Self.normalize(try keyed.decodeIfPresent(String.self, forKey: .text), fallback: "FFFFFF")
+        mode = try? keyed.decodeIfPresent(TransitMode.self, forKey: .mode)
+        key = try? keyed.decodeIfPresent(String.self, forKey: .key)
+        operatorName = try? keyed.decodeIfPresent(String.self, forKey: .operatorName)
     }
 
     init(id: String, short: String, long: String, type: String, color: String, text: String) {

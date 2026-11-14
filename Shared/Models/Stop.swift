@@ -13,6 +13,14 @@ struct Stop: Decodable, Identifiable, Hashable {
     let name: String
     let lat: Double
     let lon: Double
+    /// v3 (`?modes=`): `mvk`, `coach` or `rail`.
+    var feed: String?
+    /// v3: the parent station a platform or bay belongs to.
+    var parent: String?
+    /// v3: the station itself.
+    var station: Bool?
+    /// v3: this Volán stop stands where this MVK stop does.
+    var twinOf: String?
 
     init(id: String, code: String, name: String, lat: Double, lon: Double) {
         self.id = id
@@ -29,6 +37,18 @@ struct Stop: Decodable, Identifiable, Hashable {
         name = try container.decode(String.self)
         lat = try container.decode(Double.self)
         lon = try container.decode(Double.self)
+        if !container.isAtEnd { feed = (try? container.decodeIfPresent(String.self)) ?? nil }
+        if !container.isAtEnd { parent = (try? container.decodeIfPresent(String.self)) ?? nil }
+        if !container.isAtEnd {
+            if (try? container.decodeNil()) == true {
+                station = nil
+            } else if let flag = try? container.decode(Int.self) {
+                station = flag != 0
+            } else {
+                station = try? container.decode(Bool.self)
+            }
+        }
+        if !container.isAtEnd { twinOf = (try? container.decodeIfPresent(String.self)) ?? nil }
     }
 
     /// Matches by name, by the GTFS platform code (small 1-15 index), and by
