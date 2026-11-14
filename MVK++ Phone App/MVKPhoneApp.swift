@@ -24,6 +24,7 @@ struct MVKPhoneApp: App {
                 .tint(Theme.primary)
                 .preferredColorScheme(.dark)
                 .task { await NotificationCenterStore.shared.configure() }
+                .task { RideController.shared.attach(location: location, transit: store) }
                 .onOpenURL { url in
                     guard let link = DeepLink(url: url) else { return }
                     // The Megállófigyelő only has a card for a stop it is
