@@ -37,7 +37,6 @@ final class StopArrivalsModel: ObservableObject {
 
     var errorMessage: String? { error?.reason }
 
-    private static let pollInterval: Duration = .seconds(4)
     /// Wait this long for the socket before falling back to polling.
     private static let connectGrace: Duration = .milliseconds(2500)
     private static let retryBase: Double = 3
@@ -56,6 +55,13 @@ final class StopArrivalsModel: ObservableObject {
     private var retryDelay = retryBase
     private var lastSuccessAt: Date?
     private var observers: Set<AnyCancellable> = []
+    /// The fallback poll while the socket is down: 4 s for a stop board, 15 s
+    /// for the „Szokásos utad” card (web `POLL_MS` in each).
+    private let pollInterval: Duration
+
+    init(pollInterval: Duration = .seconds(4)) {
+        self.pollInterval = pollInterval
+    }
 
     func start(stopId: String, stopName: String = "", limit: Int = 16) async {
         let board = LocalStore.shared.boardKey
@@ -117,7 +123,7 @@ final class StopArrivalsModel: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 if !RealtimeClient.shared.connected { await self.load() }
-                try? await Task.sleep(for: Self.pollInterval)
+                try? await Task.sleep(for: self.pollInterval)
             }
         }
     }

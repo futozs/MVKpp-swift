@@ -32,7 +32,7 @@ private struct CommuteCardBody: View {
 
     @EnvironmentObject private var location: LocationProvider
     @ObservedObject private var features = WatchFeatures.shared
-    @StateObject private var model = StopArrivalsModel()
+    @StateObject private var model = StopArrivalsModel(pollInterval: .seconds(15))
     @Environment(\.isTabActive) private var isTabActive
     @State private var busy = false
     @State private var note: String?

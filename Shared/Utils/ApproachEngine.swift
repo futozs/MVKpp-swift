@@ -67,6 +67,9 @@ final class ApproachEngine: ObservableObject {
     private var samples: [Sample] = []
     private var currentTripId: String?
     private var avgKmh: Double?
+    /// The bus position last sampled. The rider moving re-runs `update`, but
+    /// only a new bus position is a sample (web `useApproach` effect deps).
+    private var sampledAlongKm: Double?
 
     struct VehicleFix {
         let lat: Double
@@ -85,6 +88,7 @@ final class ApproachEngine: ObservableObject {
             currentTripId = tripId
             samples = []
             avgKmh = nil
+            sampledAlongKm = nil
         }
 
         let usableShape = (shape?.count ?? 0) >= 2 ? shape : nil
@@ -92,9 +96,10 @@ final class ApproachEngine: ObservableObject {
             vehicle.flatMap { Geo.projectOntoPath(path, lat: $0.lat, lon: $0.lon) }
         }
 
-        if let busAlongKm = busProjection?.alongKm {
+        if let busAlongKm = busProjection?.alongKm, busAlongKm != sampledAlongKm {
             recordSample(alongKm: busAlongKm)
         }
+        sampledAlongKm = busProjection?.alongKm
 
         guard let position else {
             approach = .noGPS
@@ -154,6 +159,7 @@ final class ApproachEngine: ObservableObject {
     func reset() {
         samples = []
         avgKmh = nil
+        sampledAlongKm = nil
         currentTripId = nil
         approach = .noGPS
     }
