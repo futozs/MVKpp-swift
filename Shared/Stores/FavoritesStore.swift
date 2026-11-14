@@ -78,7 +78,8 @@ final class FavoritesStore: ObservableObject {
 
     init() {
         stopIds = (Self.suite.array(forKey: Self.storageKey) as? [String]) ?? ["SP1"]
-        nearestFirstEnabled = Self.suite.bool(forKey: Self.nearestFirstKey)
+        // On unless switched off, as on the web (anything but "0" is on).
+        nearestFirstEnabled = Self.suite.object(forKey: Self.nearestFirstKey) as? Bool ?? true
         widgetStopId = Self.suite.string(forKey: Self.widgetStopKey)
         widgetNearestEnabled = Self.suite.bool(forKey: Self.widgetNearestKey)
         cancellable = WatchLink.shared.received.sink { [weak self] payload in

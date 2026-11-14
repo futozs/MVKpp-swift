@@ -145,8 +145,10 @@ enum SyncRegistry {
                     }
                 }
             ),
+            // The web stores "1"/"0" and treats anything but "0" as on. Both
+            // that and an older build's "true"/"false" parse as a Bool here.
             "mvk_watch_nearest_first": Binding(
-                read: { (appGroup.object(forKey: "mvk_watch_nearest_first") as? Bool).map { $0 ? "true" : "false" } },
+                read: { (appGroup.object(forKey: "mvk_watch_nearest_first") as? Bool).map { $0 ? "1" : "0" } },
                 write: { value in
                     if let flag = jsonObject(value) as? Bool {
                         appGroup.set(flag, forKey: "mvk_watch_nearest_first")
