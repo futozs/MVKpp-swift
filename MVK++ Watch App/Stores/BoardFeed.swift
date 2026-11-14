@@ -117,8 +117,8 @@ final class VehicleFeed: ObservableObject {
     private var modes = ""
 
     private struct Delta: Decodable {
-        let full: [LiveVehicle]?
-        let upd: [LiveVehicle]?
+        let full: [Lenient<LiveVehicle>]?
+        let upd: [Lenient<LiveVehicle>]?
         let del: [String]?
     }
 
@@ -128,9 +128,9 @@ final class VehicleFeed: ObservableObject {
         subscription = RealtimeClient.shared.subscribe("vehicles@\(modes)") { [weak self] message in
             guard let self, let delta = try? message.decode(Delta.self) else { return }
             if let full = delta.full {
-                self.map = Dictionary(full.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+                self.map = Dictionary(Array(lenient: full).map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
             } else {
-                for vehicle in delta.upd ?? [] { self.map[vehicle.id] = vehicle }
+                for vehicle in Array(lenient: delta.upd ?? []) { self.map[vehicle.id] = vehicle }
                 for id in delta.del ?? [] { self.map[id] = nil }
             }
             self.publish()

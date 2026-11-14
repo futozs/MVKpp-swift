@@ -70,6 +70,48 @@ struct LiveMotion: Codable, Hashable {
     let k: [[Double]]?
 }
 
+extension LiveVehicle {
+    private enum CodingKeys: String, CodingKey {
+        case id, label, routeId, routeShort, routeColor, routeText, headsign, lat, lon, bearing, speed, tripId, timestamp
+        case motion, mode, routeKey, plate, trainNo, trainName, delaySec, estimated, source, liveDelaySec
+    }
+
+    /// Only the id is required: any other field the feed sends empty, as a
+    /// number, or with a value this build does not know reads as missing, so
+    /// the vehicle still shows (the web renders it either way).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        guard let id = c.lenientString(.id), !id.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "Vehicle without an id")
+        }
+        self.init(
+            id: id,
+            label: c.lenientString(.label) ?? "",
+            routeId: c.lenientString(.routeId) ?? "",
+            routeShort: c.lenientString(.routeShort) ?? "",
+            routeColor: c.lenientString(.routeColor) ?? "",
+            routeText: c.lenientString(.routeText) ?? "",
+            headsign: c.lenientString(.headsign) ?? "",
+            lat: c.lenientDouble(.lat),
+            lon: c.lenientDouble(.lon),
+            bearing: c.lenientDouble(.bearing),
+            speed: c.lenientDouble(.speed),
+            tripId: c.lenientString(.tripId) ?? "",
+            timestamp: c.lenientDouble(.timestamp),
+            motion: c.lenient(LiveMotion.self, .motion),
+            mode: c.lenient(TransitMode.self, .mode),
+            routeKey: c.lenientString(.routeKey),
+            plate: c.lenientString(.plate),
+            trainNo: c.lenientString(.trainNo),
+            trainName: c.lenientString(.trainName),
+            delaySec: c.lenientInt(.delaySec),
+            estimated: c.lenient(Bool.self, .estimated),
+            source: c.lenientString(.source),
+            liveDelaySec: c.lenientInt(.liveDelaySec)
+        )
+    }
+}
+
 struct VehiclePositionsHeader: Decodable, Hashable {
     let version: String?
     let timestamp: Double
@@ -78,4 +120,12 @@ struct VehiclePositionsHeader: Decodable, Hashable {
 struct VehiclePositionsResponse: Decodable {
     let header: VehiclePositionsHeader
     let vehicles: [LiveVehicle]
+
+    private enum CodingKeys: String, CodingKey { case header, vehicles }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        header = try c.decode(VehiclePositionsHeader.self, forKey: .header)
+        vehicles = Array(lenient: try c.decode([Lenient<LiveVehicle>].self, forKey: .vehicles))
+    }
 }

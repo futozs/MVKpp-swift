@@ -47,12 +47,17 @@ final class RealtimeClient: ObservableObject {
     private var globalListeners: [UUID: Listener] = [:]
     private var retry = 0
     private var reconnectTask: Task<Void, Never>?
+    private var keepaliveTask: Task<Void, Never>?
     private var auth: (token: String, deviceId: String)?
     private var lastMessageAt = Date.distantPast
     private let session = URLSession(configuration: .default)
 
     /// Wait this long for a pong after waking before assuming the socket died.
     private let wakeProbe: Duration = .seconds(3)
+    /// The vehicle feed pushes every few seconds; this long without any
+    /// message means a socket the system still calls open may be dead (a
+    /// switch between Wi-Fi and cellular leaves no error behind).
+    private let silenceLimit: TimeInterval = 20
 
     private static let url: URL = {
         let base = APIConfig.baseURL
@@ -126,6 +131,7 @@ final class RealtimeClient: ObservableObject {
     private func didOpen() {
         retry = 0
         connected = true
+        startKeepalive()
         if let auth { send(["t": "auth", "token": auth.token, "deviceId": auth.deviceId]) }
         let topics = Array(listeners.keys)
         if !topics.isEmpty { send(["t": "sub", "topics": topics]) }
@@ -190,6 +196,8 @@ final class RealtimeClient: ObservableObject {
         dead.cancel(with: .goingAway, reason: nil)
         task = nil
         connected = false
+        keepaliveTask?.cancel()
+        keepaliveTask = nil
         if !listeners.isEmpty || !globalListeners.isEmpty { scheduleReconnect() }
     }
 
@@ -216,12 +224,29 @@ final class RealtimeClient: ObservableObject {
             ensure()
             return
         }
+        probe(task)
+    }
+
+    /// Pings, and drops the socket if nothing at all arrives in reply; the
+    /// reconnect re-subscribes and the server sends every topic's full state.
+    private func probe(_ task: URLSessionWebSocketTask) {
         let sentAt = Date()
         send(["t": "ping"])
         Task { [weak self] in
             try? await Task.sleep(for: self?.wakeProbe ?? .seconds(3))
             guard let self, self.task === task, self.lastMessageAt < sentAt else { return }
             self.drop(task)
+        }
+    }
+
+    private func startKeepalive() {
+        keepaliveTask?.cancel()
+        keepaliveTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard let self, let task = self.task, self.connected else { return }
+                if Date().timeIntervalSince(self.lastMessageAt) > self.silenceLimit { self.probe(task) }
+            }
         }
     }
 

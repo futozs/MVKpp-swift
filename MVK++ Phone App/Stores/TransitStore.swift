@@ -219,17 +219,17 @@ final class TransitStore: ObservableObject {
     }
 
     private struct VehicleDelta: Decodable {
-        let full: [LiveVehicle]?
-        let upd: [LiveVehicle]?
+        let full: [Lenient<LiveVehicle>]?
+        let upd: [Lenient<LiveVehicle>]?
         let del: [String]?
     }
 
     private func handleVehicles(_ message: RealtimeMessage) {
         guard let delta = try? message.decode(VehicleDelta.self) else { return }
         if let full = delta.full {
-            vehicleMap = Dictionary(full.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+            vehicleMap = Dictionary(Array(lenient: full).map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         } else {
-            for vehicle in delta.upd ?? [] { vehicleMap[vehicle.id] = vehicle }
+            for vehicle in Array(lenient: delta.upd ?? []) { vehicleMap[vehicle.id] = vehicle }
             for id in delta.del ?? [] { vehicleMap[id] = nil }
         }
         publishVehicles()

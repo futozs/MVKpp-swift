@@ -29,8 +29,8 @@ final class TripJournalFeed: ObservableObject {
 
     private struct RunsMessage: Decodable {
         let date: String?
-        let full: [String: TripJournalEntry]?
-        let upd: [String: TripJournalEntry]?
+        let full: [String: Lenient<TripJournalEntry>]?
+        let upd: [String: Lenient<TripJournalEntry>]?
     }
 
     init() {
@@ -98,9 +98,9 @@ final class TripJournalFeed: ObservableObject {
         topic = RealtimeClient.shared.subscribe("runs:\(day)") { [weak self] message in
             guard let self, let payload = try? message.decode(RunsMessage.self), payload.date == self.ymd else { return }
             if let full = payload.full {
-                self.trips = full
+                self.trips = Dictionary(lenient: full)
             } else if let upd = payload.upd {
-                self.trips.merge(upd) { _, new in new }
+                self.trips.merge(Dictionary(lenient: upd)) { _, new in new }
             }
         }
     }
