@@ -31,6 +31,19 @@ struct NotifyWatch: Codable, Hashable {
     var date: String?
     /// The server delivers this one by push (APNs), so the device stays quiet.
     var pushRegistered: Bool?
+    /// The run the pending local alarm is set for, and when it goes off:
+    /// once it has fired, the same bus is not announced again.
+    var scheduledTripId: String?
+    var scheduledFireAt: TimeInterval?
+    /// When the watch was first set, unix seconds. The list keeps this order,
+    /// as the web keeps its insertion order; editing a watch keeps its place.
+    var createdAt: TimeInterval?
+}
+
+extension Notification.Name {
+    /// The main switch or the quiet hours changed and pending alarms were
+    /// withdrawn: whoever plans alarms ahead plans them again.
+    static let mvkNotificationSettingsChanged = Notification.Name("mvk-notification-settings-changed")
 }
 
 struct NotificationSettings: Codable, Equatable {
@@ -62,6 +75,7 @@ final class NotificationCenterStore: ObservableObject {
         didSet {
             guard settings != oldValue else { return }
             persistSettings()
+            withdrawPendingAlarms()
         }
     }
     @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
@@ -124,8 +138,15 @@ final class NotificationCenterStore: ObservableObject {
 
     func hasWatch(stopId: String) -> Bool { watches[stopId] != nil }
 
+    /// The watches in the order they were set (web `getAllWatches`).
+    var orderedWatches: [NotifyWatch] {
+        watches.values.sorted { ($0.createdAt ?? 0, $0.stopId) < ($1.createdAt ?? 0, $1.stopId) }
+    }
+
     func setWatch(_ watch: NotifyWatch) {
-        watches[watch.stopId] = watch
+        var next = watch
+        next.createdAt = watches[watch.stopId]?.createdAt ?? watch.createdAt ?? Date().timeIntervalSince1970
+        watches[watch.stopId] = next
         persistWatches()
     }
 
@@ -143,20 +164,20 @@ final class NotificationCenterStore: ObservableObject {
 
     // MARK: - Firing
 
-    /// Called on every arrivals refresh.
+    /// Called on every arrivals refresh (web `checkAndNotify`).
     ///
-    /// Rather than waiting for the ETA to fall inside the threshold and firing
-    /// then — which only works while the app happens to be polling — the
-    /// notification is *scheduled* for the moment it comes due. iOS delivers a
-    /// scheduled local notification even if the app is closed by then, so the
-    /// rider gets it whether or not MVK++ is still on screen.
+    /// A bus already inside the threshold is announced at once. The next one
+    /// further out is also *scheduled* for the moment it comes due, because iOS
+    /// delivers a scheduled local notification even if the app is closed by
+    /// then. The scheduled trip is remembered with its fire time, so the
+    /// refresh after it fired does not announce the same bus a second time.
     func scheduleAlarm(stopId: String, stopName: String, arrivals: [ArrivalItem]) {
-        guard settings.enabled, isAuthorized, let watch = watches[stopId] else { return }
+        guard let watch = watches[stopId] else { return }
 
         let center = UNUserNotificationCenter.current()
         let identifier = Self.identifier(stopId: stopId)
 
-        guard watch.pushRegistered != true else {
+        guard settings.enabled, isAuthorized, watch.pushRegistered != true else {
             center.removePendingNotificationRequests(withIdentifiers: [identifier])
             return
         }
@@ -165,64 +186,79 @@ final class NotificationCenterStore: ObservableObject {
             let today = ServiceDay.isoToday()
             if date < today {
                 removeWatch(stopId: stopId)
+                center.removePendingNotificationRequests(withIdentifiers: [identifier])
                 return
             }
             if date != today { return }
         }
 
-        guard let next = arrivals.first(where: { isTargeted($0, watch: watch) }) else {
-            center.removePendingNotificationRequests(withIdentifiers: [identifier])
-            return
-        }
-
-        // How long until the bus is `thresholdMin` away.
-        let leadSeconds = Double(next.etaMin - watch.thresholdMin) * 60
-
-        if leadSeconds <= 0 {
-            fireNow(next, watch: watch, stopId: stopId, stopName: stopName, identifier: identifier)
-            return
-        }
-
-        // Do-not-disturb is judged at the moment it would arrive, not now.
-        guard !isWithinDnd(now: Date().addingTimeInterval(leadSeconds)) else {
-            center.removePendingNotificationRequests(withIdentifiers: [identifier])
-            return
-        }
-
-        let request = UNNotificationRequest(
-            identifier: identifier,
-            content: content(for: [next], watch: watch, stopId: stopId, stopName: stopName),
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: leadSeconds, repeats: false)
-        )
-        // Same identifier every time, so each refresh simply corrects the
-        // pending alarm as the prediction moves.
-        center.add(request)
-    }
-
-    private func fireNow(
-        _ arrival: ArrivalItem,
-        watch: NotifyWatch,
-        stopId: String,
-        stopName: String,
-        identifier: String
-    ) {
-        guard !isWithinDnd() else { return }
-        // One announcement per run — the bus stays inside the threshold for
-        // several polls on its way in.
-        guard !(watch.lastNotifiedTripIds ?? []).contains(arrival.tripId) else { return }
-
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(
-                identifier: identifier,
-                content: content(for: [arrival], watch: watch, stopId: stopId, stopName: stopName),
-                trigger: nil
-            )
-        )
-
+        let now = Date()
+        let nowUnix = now.timeIntervalSince1970
+        // A cancelled run never arrives; the server's push skips it too.
+        let targeted = arrivals.filter { !$0.isCancelled && $0.etaMin >= 0 && matches($0, watch: watch) }
         var updated = watch
-        updated.lastNotifiedTripIds = [arrival.tripId]
-        watches[stopId] = updated
-        persistWatches()
+
+        var alreadyFired: Set<String> = []
+        if let scheduled = watch.scheduledTripId, let fireAt = watch.scheduledFireAt, fireAt <= nowUnix {
+            if targeted.contains(where: { $0.tripId == scheduled }) {
+                alreadyFired.insert(scheduled)
+            } else {
+                updated.scheduledTripId = nil
+                updated.scheduledFireAt = nil
+            }
+        }
+
+        let inside = targeted.filter { $0.etaMin <= watch.thresholdMin }
+        if !isWithinDnd(now: now) {
+            let announced = Set(watch.lastNotifiedTripIds ?? []).union(alreadyFired)
+            let fresh = inside.filter { !announced.contains($0.tripId) }
+            if !fresh.isEmpty {
+                if let scheduled = updated.scheduledTripId, fresh.contains(where: { $0.tripId == scheduled }) {
+                    center.removePendingNotificationRequests(withIdentifiers: [identifier])
+                    updated.scheduledTripId = nil
+                    updated.scheduledFireAt = nil
+                }
+                center.add(UNNotificationRequest(
+                    identifier: "\(identifier)-now",
+                    content: content(for: fresh, watch: watch, stopId: stopId, stopName: stopName),
+                    trigger: nil
+                ))
+            }
+            // Trip ids repeat every day: once a bus is gone it is let go, or
+            // tomorrow's run with the same id would stay silent.
+            updated.lastNotifiedTripIds = inside.isEmpty ? nil : inside.map(\.tripId)
+        }
+
+        let handled = Set(updated.lastNotifiedTripIds ?? []).union(alreadyFired)
+        if let next = targeted.first(where: { $0.etaMin > watch.thresholdMin && !handled.contains($0.tripId) }) {
+            let fireDate = now.addingTimeInterval(Double(next.etaMin - watch.thresholdMin) * 60)
+            // Do-not-disturb is judged at the moment it would arrive, not now.
+            if isWithinDnd(now: fireDate) {
+                center.removePendingNotificationRequests(withIdentifiers: [identifier])
+                updated.scheduledTripId = nil
+                updated.scheduledFireAt = nil
+            } else {
+                // Same identifier every time, so each refresh simply corrects
+                // the pending alarm as the prediction moves.
+                center.add(UNNotificationRequest(
+                    identifier: identifier,
+                    // It goes off when the bus is `thresholdMin` away.
+                    content: content(for: [next], watch: watch, stopId: stopId, stopName: stopName, etaMin: watch.thresholdMin),
+                    trigger: UNTimeIntervalNotificationTrigger(timeInterval: fireDate.timeIntervalSince(now), repeats: false)
+                ))
+                updated.scheduledTripId = next.tripId
+                updated.scheduledFireAt = fireDate.timeIntervalSince1970
+            }
+        } else if let fireAt = updated.scheduledFireAt, fireAt > nowUnix {
+            center.removePendingNotificationRequests(withIdentifiers: [identifier])
+            updated.scheduledTripId = nil
+            updated.scheduledFireAt = nil
+        }
+
+        if updated != watch {
+            watches[stopId] = updated
+            persistWatches()
+        }
     }
 
     func cancelAlarm(stopId: String) {
@@ -232,18 +268,26 @@ final class NotificationCenterStore: ObservableObject {
 
     private static func identifier(stopId: String) -> String { "mvk-stop-\(stopId)" }
 
+    /// The web's wording: the train number on a train, „villamos” on a tram,
+    /// a bus with its fleet number; a regional stop by name only (its id says
+    /// nothing to a rider).
     private func content(
         for arrivals: [ArrivalItem],
         watch: NotifyWatch,
         stopId: String,
-        stopName: String
+        stopName: String,
+        etaMin: Int? = nil
     ) -> UNMutableNotificationContent {
-        let minEta = max(0, arrivals.map(\.etaMin).min() ?? 0)
+        let minEta = max(0, etaMin ?? arrivals.map(\.etaMin).min() ?? 0)
 
         let label: (ArrivalItem) -> String = { arrival in
+            if arrival.mode == .rail {
+                return "\(arrival.route)\(arrival.trainNo.map { " \($0)" } ?? "") vonat"
+            }
+            let noun = arrival.mode == .tram ? "villamos" : "busz"
             let route = HungarianText.withSuffix(arrival.route)
-            if let vehicleId = arrival.vehicle?.id { return "\(route) busz (\(vehicleId))" }
-            return "\(route) busz"
+            if let vehicleId = arrival.vehicle?.id { return "\(route) \(noun) (\(TransitIds.displayVehicleId(vehicleId)))" }
+            return "\(route) \(noun)"
         }
 
         let content = UNMutableNotificationContent()
@@ -251,22 +295,15 @@ final class NotificationCenterStore: ObservableObject {
 
         let delayNote = arrivals.count == 1 ? Self.delaySuffix(arrivals[0].delaySec) : ""
         let isPinnedRun = watch.tripId != nil || watch.schedMin != nil
+        let place = TransitIds.isRegional(stopId) ? stopName : "\(stopName) (\(stopId))"
         content.body = isPinnedRun
-            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote) — \(stopName) (\(stopId))"
-            : "\(stopName) (\(stopId)) — kb. \(minEta) percen belül\(delayNote)"
+            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote) · \(place)"
+            : "\(place) · kb. \(minEta) percen belül\(delayNote)"
         content.sound = .default
         content.threadIdentifier = Self.identifier(stopId: stopId)
         content.interruptionLevel = .timeSensitive
         content.userInfo = ["stopId": stopId]
         return content
-    }
-
-    /// Whether this departure is one the watch cares about — route, pinned
-    /// trip or pinned scheduled minute. The threshold is applied separately,
-    /// because scheduling needs the next match regardless of how far off it is.
-    private func isTargeted(_ arrival: ArrivalItem, watch: NotifyWatch) -> Bool {
-        guard arrival.etaMin >= 0 else { return false }
-        return matches(arrival, watch: watch)
     }
 
     private func matches(_ arrival: ArrivalItem, watch: NotifyWatch) -> Bool {
@@ -276,8 +313,8 @@ final class NotificationCenterStore: ObservableObject {
             }
             // Work back from the live ETA to the scheduled minute, so a late
             // bus still matches the run the rider actually pinned.
-            let delayMin = Int((Double(arrival.delaySec ?? 0) / 60).rounded())
-            let nowMin = Self.minutesSinceMidnight()
+            let delayMin = Int((Double(arrival.delaySec ?? 0) / 60 + 0.5).rounded(.down))
+            let nowMin = Self.budapestMinute()
             let arrivalSchedMin = ((nowMin + arrival.etaMin - delayMin) % 1440 + 1440) % 1440
             if Self.minuteDistance(arrivalSchedMin, schedMin) > Self.recurringWindowMin { return false }
         } else if let tripId = watch.tripId {
@@ -289,40 +326,32 @@ final class NotificationCenterStore: ObservableObject {
         return true
     }
 
-    private func post(fresh: [ArrivalItem], watch: NotifyWatch, stopId: String, stopName: String) {
-        let minEta = max(0, fresh.map(\.etaMin).min() ?? 0)
-
-        let label: (ArrivalItem) -> String = { arrival in
-            let route = HungarianText.withSuffix(arrival.route)
-            if let vehicleId = arrival.vehicle?.id { return "\(route) busz (\(vehicleId))" }
-            return "\(route) busz"
+    /// The main switch or the quiet hours changed: alarms already handed to
+    /// iOS would still go off, so every pending one is withdrawn. Stop alarms
+    /// come back with the next arrivals refresh; the special alerts re-plan
+    /// on `mvkNotificationSettingsChanged`.
+    private func withdrawPendingAlarms() {
+        for (stopId, watch) in watches where watch.scheduledTripId != nil {
+            var updated = watch
+            updated.scheduledTripId = nil
+            updated.scheduledFireAt = nil
+            watches[stopId] = updated
         }
-
-        let content = UNMutableNotificationContent()
-        content.title = fresh.map(label).joined(separator: ", ")
-
-        let delayNote = fresh.count == 1 ? Self.delaySuffix(fresh[0].delaySec) : ""
-        let isPinnedRun = watch.tripId != nil || watch.schedMin != nil
-        content.body = isPinnedRun
-            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote) — \(stopName) (\(stopId))"
-            : "\(stopName) (\(stopId)) — kb. \(minEta) percen belül\(delayNote)"
-        content.sound = .default
-        // One live notification per stop: a replacement, not a pile.
-        content.threadIdentifier = "mvk-stop-\(stopId)"
-
-        let request = UNNotificationRequest(
-            identifier: "mvk-stop-\(stopId)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
+        persistWatches()
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let ids = await center.pendingNotificationRequests().map(\.identifier)
+                .filter { $0.hasPrefix("mvk-stop-") || $0.hasPrefix("mvk-alert-") }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+            NotificationCenter.default.post(name: .mvkNotificationSettingsChanged, object: nil)
+        }
     }
 
     // MARK: - Do not disturb
 
     func isWithinDnd(now: Date = Date()) -> Bool {
         guard settings.dndEnabled, settings.dndStartMin != settings.dndEndMin else { return false }
-        let nowMin = Self.minutesSinceMidnight(now)
+        let nowMin = Self.budapestMinute(now)
         // A window that wraps past midnight (22:00–07:00) inverts the test.
         if settings.dndStartMin < settings.dndEndMin {
             return nowMin >= settings.dndStartMin && nowMin < settings.dndEndMin
@@ -332,8 +361,12 @@ final class NotificationCenterStore: ObservableObject {
 
     // MARK: - Helpers
 
-    private static func minutesSinceMidnight(_ date: Date = Date()) -> Int {
-        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+    /// Budapest wall-clock minute of the day, as the server measures it for
+    /// pushes, whatever the device's time zone.
+    private static func budapestMinute(_ date: Date = Date()) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = ServiceClock.timeZone
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
         return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
     }
 
@@ -345,7 +378,7 @@ final class NotificationCenterStore: ObservableObject {
 
     private static func delaySuffix(_ delaySec: Int?) -> String {
         guard let delaySec, abs(delaySec) >= delayMentionThresholdSec else { return "" }
-        let min = Int((Double(abs(delaySec)) / 60).rounded())
+        let min = Int((Double(abs(delaySec)) / 60 + 0.5).rounded(.down))
         return delaySec > 0 ? " (\(min) perc késés)" : " (\(min) perccel korábban)"
     }
 

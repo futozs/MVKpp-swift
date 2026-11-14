@@ -181,10 +181,6 @@ struct NotificationsSheet: View {
 
     // MARK: - Stop watches
 
-    private var sortedWatches: [NotifyWatch] {
-        center.watches.values.sorted { $0.stopName.localizedCompare($1.stopName) == .orderedAscending }
-    }
-
     private static func time(_ minutes: Int) -> String {
         String(format: "%02d:%02d", (minutes / 60) % 24, minutes % 60)
     }
@@ -197,7 +193,7 @@ struct NotificationsSheet: View {
     }
 
     private var watchList: some View {
-        let watches = sortedWatches
+        let watches = center.orderedWatches
         return VStack(alignment: .leading, spacing: 8) {
             CapsLabel("Aktív figyelések (\(watches.count))")
             if watches.isEmpty {

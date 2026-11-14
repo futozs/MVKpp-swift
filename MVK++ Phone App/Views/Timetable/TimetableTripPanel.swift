@@ -77,7 +77,8 @@ struct TimetableTripPanel: View {
                 isDeparture: target.isDeparture,
                 departureLabel: stops.firstIndex(where: { $0.id == target.stop.id }).flatMap { index in
                     trip.times.indices.contains(index) ? trip.times[index] : nil
-                } ?? trip.departure
+                } ?? trip.departure,
+                date: ServiceClock.ymdToIso(dateYmd) ?? ServiceDay.isoToday()
             )
         }
         .task(id: actualsKey) {
