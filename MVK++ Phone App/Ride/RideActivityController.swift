@@ -122,7 +122,15 @@ final class RideActivityController {
         do {
             var stamped = state
             stamped.updatedAt = Date().timeIntervalSince1970.rounded()
-            let started = try Activity.request(attributes: attributes, content: ActivityContent(state: stamped, staleDate: nil), pushType: .token)
+            let content = ActivityContent(state: stamped, staleDate: nil)
+            // Without a push token (no APNs entitlement, or registration
+            // refused) the card still runs on the app's own updates.
+            let started: Activity<RideActivityAttributes>
+            if let withPush = try? Activity.request(attributes: attributes, content: content, pushType: .token) {
+                started = withPush
+            } else {
+                started = try Activity.request(attributes: attributes, content: content, pushType: nil)
+            }
             activity = started
             rideId = ride.id
             lastState = state

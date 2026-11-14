@@ -129,7 +129,9 @@ final class PhoneAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         MainActor.assumeIsolated { PushService.shared.didRegister(token: deviceToken) }
     }
 
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        MainActor.assumeIsolated { PushService.shared.didFailToRegister() }
+    }
 
     /// Without this, iOS delivers a notification silently while the app is in
     /// the foreground, exactly when someone tests an arrival alarm.

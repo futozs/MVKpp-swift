@@ -21,6 +21,9 @@ final class PushService: ObservableObject {
     @Published private(set) var deviceToken: String?
     /// The server can send APNs (`GET /push/apns`); nil until asked.
     @Published private(set) var serverConfigured: Bool?
+    /// iOS refused a device token (a build signed without the push
+    /// capability); asking again will not help.
+    @Published private(set) var registrationFailed = false
 
     struct Diagnostic {
         let ok: Bool
@@ -62,7 +65,12 @@ final class PushService: ObservableObject {
             .sink { [weak self] watches in self?.mirror(watches) }
     }
 
+    func didFailToRegister() {
+        registrationFailed = true
+    }
+
     func didRegister(token: Data) {
+        registrationFailed = false
         let hex = token.map { String(format: "%02x", $0) }.joined()
         guard hex != deviceToken else { return }
         deviceToken = hex
@@ -109,7 +117,9 @@ final class PushService: ObservableObject {
             return Diagnostic(ok: false, reason: "A szerveren nincs beállítva az iPhone-os push (APNs), nyitott appnál és háttérfrissítéssel szólok.")
         }
         guard let endpoint else {
-            return Diagnostic(ok: false, reason: "Az iPhone még nem adott push-azonosítót. Próbáld újra pár másodperc múlva.")
+            return Diagnostic(ok: false, reason: registrationFailed
+                ? "Ezen az iPhone-on nem érhető el a push, nyitott appnál és háttérfrissítéssel szólok."
+                : "Az iPhone még nem adott push-azonosítót. Próbáld újra pár másodperc múlva.")
         }
         var body: [String: Any] = [
             "subscription": ["endpoint": endpoint],
