@@ -15,6 +15,7 @@ struct MultiStopScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
     @ObservedObject private var watches = TransitWatchesStore.shared
+    @Environment(\.isTabActive) private var isTabActive
 
     enum WatchView: String { case stops, rides }
 
@@ -22,8 +23,9 @@ struct MultiStopScreen: View {
     @State private var isPickerOpen = false
     @State private var isReordering = false
     @State private var page: String?
-    /// A deep link has just chosen a card; the next "nearest stop changed"
-    /// nudge must not immediately steal it back.
+    /// A deep link has chosen a card: while the tab stays open, a change of
+    /// the nearest stop must not page away from it (web `appliedFocusRef`,
+    /// which lives until the carousel unmounts).
     @State private var holdsDeepLinkPage = false
 
     private static let quickStops: [(label: String, match: String, mode: TransitMode?)] = [
@@ -58,15 +60,12 @@ struct MultiStopScreen: View {
                 .presentationBackground(Theme.background)
         }
         .onChange(of: nearestId) { _, id in
-            guard id != nil, !isReordering else { return }
-            guard !holdsDeepLinkPage else {
-                holdsDeepLinkPage = false
-                return
-            }
+            guard id != nil, !isReordering, !holdsDeepLinkPage else { return }
             withAnimation(Theme.Motion.normalAnimation) { page = cardKeys.first }
         }
         .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
         .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
+        .onChange(of: isTabActive) { _, active in if !active { holdsDeepLinkPage = false } }
         .onAppear {
             AlertsStore.shared.refresh()
             applyDeepLinkFocus()
@@ -390,12 +389,13 @@ struct MultiStopScreen: View {
 
     // MARK: - Deep links
 
-    /// Scrolls to the card a `mvkpp://watch/<stop>` link asked for.
+    /// Scrolls to the card a `mvkpp://watch/<stop>` link asked for. The stop
+    /// view opens at once; the card is scrolled to as soon as it is on the
+    /// list (the link adds the stop, and the catalog may still be loading).
     private func applyDeepLinkFocus() {
-        guard let stopId = navigation.watchlistFocusStopId,
-              watchedStops.contains(where: { $0.id == stopId })
-        else { return }
+        guard let stopId = navigation.watchlistFocusStopId else { return }
         view = .stops
+        guard watchedStops.contains(where: { $0.id == stopId }) else { return }
         holdsDeepLinkPage = true
         withAnimation(Theme.Motion.normalAnimation) { page = stopId }
         navigation.watchlistFocusStopId = nil
@@ -479,9 +479,10 @@ struct MultiStopScreen: View {
         }
     }
 
+    /// Adds the station, never one of its platforms.
     private func addByName(_ needle: String) {
         let query = needle.normalizedForSearch
-        guard let found = store.stops.first(where: {
+        guard let found = KioskStops.pickable(store.stops).first(where: {
             $0.name.normalizedForSearch.contains(query) || $0.id.lowercased().contains(query)
         }) else { return }
         favorites.toggle(found.id)

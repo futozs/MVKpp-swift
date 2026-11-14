@@ -85,6 +85,9 @@ struct AddStopSheet: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .task(id: trainSearchKey) { await searchTrains() }
+        // Each search field opens focused (web `autoFocus`): the stop search on
+        // open, the train number field when its tab mounts it.
+        .task(id: tab == .train) { searchFocused = true }
     }
 
     // MARK: - Header texts
@@ -218,10 +221,8 @@ struct AddStopSheet: View {
 
     private func stopRow(_ stop: Stop) -> some View {
         let selected = tab == .stops ? favorites.contains(stop.id) : relFrom?.id == stop.id
-        let disabled = tab == .relation
-            ? relationsFull
-            : !selected && favorites.stopIds.count >= FavoritesStore.maxCount
-        let kind = StopKind.label(stopId: stop.id)
+        let disabled = tab == .relation && relationsFull
+        let kind = StopKind.label(stopId: stop.id, isStation: stop.station)
         return Button {
             pick(stop)
         } label: {
@@ -279,14 +280,16 @@ struct AddStopSheet: View {
     }
 
     /// Stations first, regional stops outside the county last; 60 without a
-    /// search term, 80 with one.
+    /// search term, 80 with one. A station's platforms and, in the merged
+    /// view, a Volán twin are not separate items.
     private var results: [Stop] {
         let needle = query.trimmingCharacters(in: .whitespaces).normalizedForSearch
-        let ranked = stops.enumerated().sorted { a, b in
-            let ra = Self.regionRank(a.element), rb = Self.regionRank(b.element)
+        let merge = LocalStore.shared.stopMerge
+        let pickable = KioskStops.pickable(stops).filter { !TransitModes.isMergedTwin($0, merge: merge) }
+        let ranked = pickable.enumerated().sorted { a, b in
+            let ra = KioskStops.regionRank(a.element), rb = KioskStops.regionRank(b.element)
             if ra != rb { return ra < rb }
-            let sa = StopKind.isStation(a.element.id), sb = StopKind.isStation(b.element.id)
-            if sa != sb { return sa }
+            if a.element.station != b.element.station { return a.element.station }
             return a.offset < b.offset
         }.map(\.element)
         guard !needle.isEmpty else { return Array(ranked.prefix(60)) }
@@ -295,26 +298,6 @@ struct AddStopSheet: View {
                 || $0.code.normalizedForSearch.contains(needle)
                 || $0.id.lowercased().contains(needle)
         }.prefix(80))
-    }
-
-    private static let regionPolygon: [(Double, Double)] = [
-        (48.3, 20.08), (48.3, 20.36), (48.47, 20.48), (48.56, 20.75), (48.55, 21.1), (48.52, 21.25), (48.57, 21.45),
-        (48.41, 21.7), (48.38, 22.12), (48.25, 21.93), (48.18, 21.7), (48.1, 21.42), (48.0, 21.1), (47.88, 21.09),
-        (47.64, 20.88), (47.7, 20.6), (47.7, 20.35), (47.95, 20.47), (48.08, 20.45), (48.12, 20.2), (48.2, 20.06),
-    ]
-
-    private static func regionRank(_ stop: Stop) -> Int {
-        guard TransitIds.isRegional(stop.id) else { return 0 }
-        var inside = false
-        var j = regionPolygon.count - 1
-        for i in regionPolygon.indices {
-            let (yi, xi) = regionPolygon[i], (yj, xj) = regionPolygon[j]
-            if (yi > stop.lat) != (yj > stop.lat), stop.lon < (xj - xi) * (stop.lat - yi) / (yj - yi) + xi {
-                inside.toggle()
-            }
-            j = i
-        }
-        return inside ? 0 : 1
     }
 
     // MARK: - Trains
