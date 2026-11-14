@@ -246,7 +246,7 @@ enum PlannerFormat {
     /// „az 1653-as busszal” / „a 608-as villamossal” / „a(z) LWA-387 jelű busszal”
     static func vehiclePhrase(_ id: String, mode: String) -> String {
         if let first = id.first, first != "0", id.allSatisfy(\.isNumber) {
-            return "\(article(for: id)) \(HungarianText.withSuffix(id)) \(modeInstrumental(mode))"
+            return "\(article(for: id))\u{00A0}\(HungarianText.withSuffix(id).replacingOccurrences(of: "-", with: "\u{2011}"))\u{00A0}\(modeInstrumental(mode))"
         }
         if mode == "RAIL" { return "a(z) \(TransitIds.displayVehicleId(id)) járművel" }
         return "a(z) \(TransitIds.displayVehicleId(id)) jelű \(modeInstrumental(mode))"

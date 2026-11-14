@@ -92,11 +92,12 @@ struct PlannerForm: View {
             }
             .foregroundStyle(Theme.primaryForeground)
             .frame(maxWidth: .infinity)
-            .frame(height: 40)
+            .frame(height: 36)
+            .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .mvkShadow(Theme.Shadow.sm)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.glassProminent)
-        .tint(Theme.primary)
+        .buttonStyle(PlannerPressStyle())
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.5)
         .sensoryFeedback(.impact(weight: .light), trigger: model.isLoading) { _, loading in loading }
@@ -506,11 +507,13 @@ private struct PlannerTimeField: View {
                 Text(value)
                     .font(.system(size: 14, weight: .semibold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize()
                     .foregroundStyle(Theme.foreground)
-                Spacer(minLength: 0)
             }
             .padding(.horizontal, 12)
-            .frame(width: 88, height: 36)
+            .frame(minWidth: 88, alignment: .leading)
+            .frame(height: 36)
             .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
             .contentShape(Rectangle())
         }

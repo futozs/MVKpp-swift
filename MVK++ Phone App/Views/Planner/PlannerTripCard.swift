@@ -62,7 +62,7 @@ struct PlannerTripCard: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 (Text(PlannerFormat.hm(trip.start))
-                    + Text("  →  ").font(.system(size: 18, weight: .regular)).foregroundColor(Theme.mutedForeground)
+                    + Text(" → ").font(.system(size: 18, weight: .regular)).foregroundColor(Theme.mutedForeground)
                     + Text(PlannerFormat.hm(trip.end)))
                     .font(Theme.mono(18, weight: .bold))
                     .tracking(-0.3)
