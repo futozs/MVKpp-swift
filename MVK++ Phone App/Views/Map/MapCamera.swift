@@ -117,20 +117,21 @@ extension MKMapView {
     }
 
     func fit(_ coordinates: [CLLocationCoordinate2D], maxZoom: Double, padding: CGFloat = 60, animated: Bool = true) {
-        guard !coordinates.isEmpty else { return }
-        if coordinates.count == 1 {
-            setCenter(coordinates[0], zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
-            return
+        guard let first = coordinates.first else { return }
+        var minLat = first.latitude, maxLat = first.latitude, minLon = first.longitude, maxLon = first.longitude
+        for c in coordinates {
+            minLat = min(minLat, c.latitude)
+            maxLat = max(maxLat, c.latitude)
+            minLon = min(minLon, c.longitude)
+            maxLon = max(maxLon, c.longitude)
         }
-        var rect = MKMapRect.null
-        for coordinate in coordinates {
-            let point = MKMapPoint(coordinate)
-            rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 0, height: 0))
-        }
-        guard !rect.isNull else { return }
-        setVisibleMapRect(rect, edgePadding: UIEdgeInsets(top: padding, left: padding, bottom: padding, right: padding), animated: animated)
-        if zoomLevel > maxZoom {
-            setCenter(region.center, zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
-        }
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
+        let width = max(1, zoomReferenceWidth - padding * 2)
+        let height = max(1, (bounds.height > 1 ? bounds.height : 800) - padding * 2)
+        let lonSpan = max(maxLon - minLon, 1e-6)
+        let latSpan = max((maxLat - minLat) / cos(center.latitude * .pi / 180), 1e-6)
+        let zoomForWidth = log2(360 * (width / 256) / lonSpan)
+        let zoomForHeight = log2(360 * (height / 256) / latSpan)
+        setCenter(center, zoomLevel: min(maxZoom, zoomForWidth, zoomForHeight), animated: animated, maxZoom: maxZoom)
     }
 }

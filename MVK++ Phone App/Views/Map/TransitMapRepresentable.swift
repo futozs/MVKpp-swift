@@ -57,6 +57,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         map.showsUserLocation = false
         map.isRotateEnabled = false
         map.isPitchEnabled = false
+        map.layoutMargins = UIEdgeInsets(top: 0, left: 64, bottom: 0, right: 64)
 
         let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
         pan.maximumNumberOfTouches = 1
@@ -157,6 +158,9 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private var zooming = false
         private var holdUntil = Date.distantPast
         private var chaseHeading: Double?
+        private var chaseLead: Double?
+        private var focusLine: ShapeLine?
+        private var focusAlong: Double?
         private var lastHeadingPoint: CLLocationCoordinate2D?
 
         // Layers
@@ -297,6 +301,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
             followPaused = false
             parent.camera.setFollowPaused(false)
             chaseHeading = nil
+            chaseLead = nil
             if is3D {
                 guard parent.focusTripId == nil else { return }
                 let camera = map.camera.copy() as? MKMapCamera ?? MKMapCamera()
@@ -445,6 +450,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 followCentered = false
                 zooming = false
                 chaseHeading = nil
+                chaseLead = nil
                 p.camera.setFollowPaused(false)
             }
             guard p.focusTripId != nil, !p.historyOn else {
@@ -502,11 +508,19 @@ struct TransitMapRepresentable: UIViewRepresentable {
             focusSignature = signature
             map.removeOverlays(focusOverlays)
             focusOverlays = []
+            focusLine = nil
+            focusAlong = nil
             guard let path, parent.focusTripId != nil else { return }
             let coordinates = path.shape.compactMap { point -> CLLocationCoordinate2D? in
                 point.count >= 2 ? CLLocationCoordinate2D(latitude: point[0], longitude: point[1]) : nil
             }
             guard coordinates.count > 1 else { return }
+            var cum: [Double] = [0]
+            for i in 1..<coordinates.count {
+                cum.append(cum[i - 1] + MapChase.meters(coordinates[i - 1], coordinates[i]))
+            }
+            focusLine = ShapeLine(id: nil, pts: coordinates.map { [$0.latitude, $0.longitude] }, cum: cum)
+            focusAlong = nil
             let halo = RouteOverlay(coordinates: coordinates, count: coordinates.count)
             halo.isHalo = true
             halo.isFocus = true
@@ -613,8 +627,21 @@ struct TransitMapRepresentable: UIViewRepresentable {
             let first = !followCentered
             followCentered = true
             let distance = first ? 700 : min(max(map.camera.centerCoordinateDistance, 250), 4000)
-            let coverShare = Double(min(parent.coverBottom, map.bounds.height * 0.8) / max(map.bounds.height, 1))
-            let ahead = MapChase.offset(position, meters: distance * (0.3 + coverShare * 0.6), heading: heading)
+            var lead = chaseLead ?? distance * 0.15
+            if !first {
+                let point = map.convert(position, toPointTo: map)
+                let top = map.safeAreaInsets.top
+                let cover = min(parent.coverBottom, map.bounds.height * 0.8)
+                let targetY = top + (map.bounds.height - cover - top) * 0.7
+                let below = map.convert(CGPoint(x: point.x, y: point.y + 1), toCoordinateFrom: map)
+                let metersPerPx = MapChase.meters(position, below)
+                if metersPerPx.isFinite, metersPerPx < 50 {
+                    lead -= Double(point.y - targetY) * metersPerPx * 0.5
+                }
+            }
+            lead = min(max(lead, 0), distance)
+            chaseLead = lead
+            let ahead = MapChase.offset(position, meters: lead, heading: heading)
             let camera = MKMapCamera(lookingAtCenter: ahead, fromDistance: distance, pitch: 60, heading: heading)
             if first {
                 holdUntil = Date().addingTimeInterval(1.1)
@@ -633,12 +660,30 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 let ahead = LiveMotionEstimator.pointAt(shape, shown.along + 45)
                 if MapChase.meters(position, ahead) > 2 { return MapChase.bearing(position, ahead) }
             }
+            if let line = focusLine {
+                let near = focusAlong ?? Self.nearestAlong(line, position)
+                if let hit = Onboard.projectOnShape(line, lat: position.latitude, lon: position.longitude, near: near), hit.dist < 80 {
+                    focusAlong = hit.along
+                    let ahead = LiveMotionEstimator.pointAt(line, hit.along + 45)
+                    if MapChase.meters(position, ahead) > 2 { return MapChase.bearing(position, ahead) }
+                }
+            }
             if let last = lastHeadingPoint, MapChase.meters(last, position) >= 12 {
                 lastHeadingPoint = position
                 return MapChase.bearing(last, position)
             }
             if lastHeadingPoint == nil { lastHeadingPoint = position }
-            return entry.bearing ?? chaseHeading
+            if let chaseHeading { return chaseHeading }
+            return entry.bearing.flatMap { $0 > 0 ? $0 : nil }
+        }
+
+        private static func nearestAlong(_ line: ShapeLine, _ p: CLLocationCoordinate2D) -> Double {
+            var best = (along: 0.0, d: Double.infinity)
+            for (i, pt) in line.pts.enumerated() where pt.count >= 2 {
+                let d = MapChase.meters(p, CLLocationCoordinate2D(latitude: pt[0], longitude: pt[1]))
+                if d < best.d { best = (line.cum[i], d) }
+            }
+            return best.along
         }
 
         func resumeFollow() {
