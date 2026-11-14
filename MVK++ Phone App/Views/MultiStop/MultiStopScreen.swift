@@ -5,245 +5,431 @@
 
 import SwiftUI
 
-/// The watchlist. Several stops the rider cares about, each showing its next
-/// departure, swipeable one card at a time.
-///
-/// The default ordering is by distance: standing at a stop, the card you want
-/// is the one for where you are, and the app can work that out.
+/// The Figyelő — the web app's `MultiStopDashboard` at phone width: the
+/// watched stops, relations and train numbers as a swipeable row of cards,
+/// the „Szokásos utad” card above them, and the ride log beside.
 struct MultiStopScreen: View {
 
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
+    @ObservedObject private var watches = TransitWatchesStore.shared
+    @Environment(\.openURL) private var openURL
 
+    enum WatchView: String { case stops, rides }
+
+    @AppStorage("mvk_watch_view") private var view: WatchView = .stops
     @State private var isPickerOpen = false
     @State private var isReordering = false
-    @State private var page = 0
+    @State private var page: String?
     /// A deep link has just chosen a card; the next "nearest stop changed"
-    /// nudge must not immediately steal it back. On a cold launch from a
-    /// widget the first location fix arrives seconds later, which is exactly
-    /// when that would happen.
+    /// nudge must not immediately steal it back.
     @State private var holdsDeepLinkPage = false
 
-    /// Junctions worth offering to someone with an empty list — every MVK
-    /// route touches at least one of them.
-    private let quickStops = [
-        ("Tiszai pályaudvar", "Tiszai"),
-        ("Búza tér", "Búza"),
-        ("Villanyrendőr", "Villany"),
-        ("Újgyőri főtér", "Újgyőri"),
-        ("Avas kilátó", "Avas kilátó"),
-        ("Miskolctapolca, Barlangfürdő", "Tapolca"),
+    private static let quickStops: [(label: String, match: String, mode: TransitMode?)] = [
+        ("Tiszai pályaudvar", "Tiszai", nil),
+        ("Miskolc-Tiszai (vasút)", "Miskolc-Tiszai", .rail),
+        ("Autóbusz-állomás (Volán)", "Miskolc, autóbusz-állomás", .coach),
+        ("Búza tér", "Búza", nil),
+        ("Villanyrendőr", "Villany", nil),
+        ("Újgyőri főtér", "Újgyőri", nil),
+        ("Avas kilátó", "Avas kilátó", nil),
+        ("Miskolctapolca, Barlangfürdő", "Tapolca", nil),
     ]
 
     var body: some View {
         NavigationStack {
-            Group {
-                if watchedStops.isEmpty {
-                    emptyState
-                } else {
-                    carousel
+            VStack(spacing: 0) {
+                headerRow
+                HairlineDivider()
+                switch view {
+                case .rides:
+                    ScrollView {
+                        RidesPanelHost()
+                            .padding(12)
+                    }
+                case .stops:
+                    stopsView
                 }
             }
             .background(AppBackground())
             .navigationTitle("Megállófigyelő")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbar }
             .sheet(isPresented: $isPickerOpen) {
                 AddStopSheet(stops: store.stops)
                     .presentationDetents([.large])
+                    .presentationBackground(Theme.background)
             }
             .onChange(of: nearestId) { _, id in
-                // A newly closest stop is the one to be looking at.
                 guard id != nil, !isReordering else { return }
                 guard !holdsDeepLinkPage else {
                     holdsDeepLinkPage = false
                     return
                 }
-                withAnimation(Theme.Motion.normalAnimation) { page = 0 }
+                withAnimation(Theme.Motion.normalAnimation) { page = cardKeys.first }
             }
             .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
-            // The stop catalog may still be loading when the link arrives, so
-            // the request is retried as the watchlist fills in.
             .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
-            .onAppear { applyDeepLinkFocus() }
+            .onAppear {
+                AlertWatchStore.shared.refresh()
+                applyDeepLinkFocus()
+            }
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Header
 
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        if watchedStops.count > 1, location.position != nil {
-            ToolbarItem(placement: .topBarLeading) {
+    private var headerRow: some View {
+        HStack(spacing: 8) {
+            viewSwitcher
+            if view == .stops {
+                if canNearest || canReorder || kioskURL != nil { moreMenu }
+                addButton
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Theme.card.opacity(0.6))
+    }
+
+    private var viewSwitcher: some View {
+        HStack(spacing: 4) {
+            ForEach([(WatchView.stops, "Megállók", "dot.radiowaves.left.and.right"), (WatchView.rides, "Utazásaim", "ticket")], id: \.0) { item in
+                let on = view == item.0
                 Button {
-                    favorites.nearestFirstEnabled.toggle()
+                    withAnimation(Theme.Motion.fastAnimation) { view = item.0 }
                 } label: {
-                    Image(systemName: favorites.nearestFirstEnabled
-                          ? "location.fill"
-                          : "location")
-                }
-                .tint(favorites.nearestFirstEnabled ? Theme.primary : Theme.mutedForeground)
-                .accessibilityLabel("Legközelebbi megálló elöl")
-            }
-        }
-
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                isPickerOpen = true
-            } label: {
-                Label("Megálló felvétele", systemImage: "plus")
-            }
-        }
-    }
-
-    // MARK: - Carousel
-
-    private var carousel: some View {
-        VStack(spacing: 10) {
-            TabView(selection: $page) {
-                ForEach(Array(watchedStops.enumerated()), id: \.element.id) { index, stop in
-                    StopCardView(
-                        stop: stop,
-                        distanceKm: distances[stop.id],
-                        isNearest: stop.id == nearestId,
-                        onRemove: { favorites.remove($0) },
-                        onFocusMap: { stop, tripId, vehicleId in
-                            navigation.focusStopOnMap(stop, tripId: tripId, vehicleId: vehicleId)
+                    HStack(spacing: 6) {
+                        Image(systemName: item.2).font(.system(size: 12, weight: .semibold))
+                        Text(item.1).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    }
+                    .foregroundStyle(on ? Theme.foreground : Theme.mutedForeground)
+                    .frame(maxWidth: .infinity, minHeight: 32)
+                    .background {
+                        if on {
+                            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                                .fill(Theme.card)
+                                .mvkShadow(Theme.Shadow.sm)
                         }
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-                    .tag(index)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-
-            if watchedStops.count > 1 { pageIndicator }
         }
-        .padding(.top, 8)
+        .padding(4)
+        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Figyelő nézet")
     }
 
-    private var pageIndicator: some View {
-        HStack(spacing: 12) {
-            Button {
-                withAnimation(Theme.Motion.normalAnimation) { page = max(0, page - 1) }
-            } label: {
-                Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
+    private var moreMenu: some View {
+        Menu {
+            if canNearest {
+                Toggle(isOn: $favorites.nearestFirstEnabled) {
+                    Label("Legközelebbi elöl", systemImage: "location.viewfinder")
+                }
             }
-            .buttonStyle(.glass)
-            .disabled(page <= 0)
-            .accessibilityLabel("Előző megálló")
+            if canReorder {
+                Button {
+                    withAnimation(Theme.Motion.normalAnimation) { isReordering.toggle() }
+                } label: {
+                    Label(isReordering ? "Sorrend kész" : "Sorrend módosítása", systemImage: isReordering ? "checkmark" : "arrow.left.arrow.right")
+                }
+            }
+            if let kioskURL {
+                Button {
+                    openURL(kioskURL)
+                } label: {
+                    Label("Kijelző tévére", systemImage: "play.tv")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.foreground)
+                .frame(width: 40, height: 40)
+                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        }
+        .accessibilityLabel("További lehetőségek")
+    }
 
-            Spacer(minLength: 8)
+    private var addButton: some View {
+        Button {
+            isPickerOpen = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
+                if totalCount > 0 {
+                    Text("\(totalCount)")
+                        .font(Theme.mono(10, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Theme.primaryForeground.opacity(0.2), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+            }
+            .foregroundStyle(Theme.primaryForeground)
+            .padding(.horizontal, 12)
+            .frame(minWidth: 40, minHeight: 40)
+            .glassEffect(.regular.tint(Theme.primary).interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Megálló felvétele")
+    }
 
-            if watchedStops.count <= 8 {
-                HStack(spacing: 6) {
-                    ForEach(watchedStops.indices, id: \.self) { index in
-                        Capsule()
-                            .fill(index == page ? Theme.primary : Theme.mutedForeground.opacity(0.35))
-                            .frame(width: index == page ? 22 : 8, height: 8)
-                            .animation(Theme.Motion.fastAnimation, value: page)
-                            .onTapGesture {
-                                withAnimation(Theme.Motion.normalAnimation) { page = index }
-                            }
+    // MARK: - Stops view
+
+    @ViewBuilder
+    private var stopsView: some View {
+        if cardKeys.isEmpty {
+            ScrollView {
+                VStack(spacing: 16) {
+                    CommuteCard()
+                    if store.stops.isEmpty && !favorites.stopIds.isEmpty {
+                        Text("Megállók betöltése…")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Theme.mutedForeground)
+                            .padding(.vertical, 40)
+                    } else {
+                        emptyState
                     }
                 }
-                .accessibilityHidden(true)
-            } else {
-                Text("\(page + 1) / \(watchedStops.count)")
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.mutedForeground)
+                .padding(16)
             }
-
-            Spacer(minLength: 8)
-
-            Button {
-                withAnimation(Theme.Motion.normalAnimation) {
-                    page = min(watchedStops.count - 1, page + 1)
-                }
-            } label: {
-                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold))
+        } else {
+            VStack(spacing: 0) {
+                CommuteCard()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                carousel
+                    .padding(.top, 16)
             }
-            .buttonStyle(.glass)
-            .disabled(page >= watchedStops.count - 1)
-            .accessibilityLabel("Következő megálló")
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
+    }
+
+    private var carousel: some View {
+        VStack(spacing: 0) {
+            GeometryReader { proxy in
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 16) {
+                        ForEach(Array(watchedStops.enumerated()), id: \.element.id) { index, stop in
+                            StopCardView(
+                                stop: stop,
+                                distanceKm: distances[stop.id],
+                                isNearest: stop.id == nearestId,
+                                reorder: isReordering ? StopCardReorder(
+                                    onMoveEarlier: { move(stop.id, by: -1) },
+                                    onMoveLater: { move(stop.id, by: 1) },
+                                    canMoveEarlier: index > 0,
+                                    canMoveLater: index < watchedStops.count - 1
+                                ) : nil,
+                                onRemove: { favorites.remove($0) },
+                                onFocusMap: { stop, tripId, vehicleId in
+                                    navigation.focusStopOnMap(stop, tripId: tripId, vehicleId: vehicleId)
+                                }
+                            )
+                            .frame(width: max(0, proxy.size.width - 32))
+                            .id(stop.id)
+                        }
+                        ForEach(shownRelations) { relation in
+                            RelationCard(
+                                relation: relation,
+                                stops: store.stops,
+                                onRemove: { watches.removeRelation(relation) },
+                                onFocusTrip: focusTrip
+                            )
+                            .frame(width: max(0, proxy.size.width - 32))
+                            .id("rel:\(relation.id)")
+                        }
+                        ForEach(shownTrains, id: \.self) { train in
+                            TrainCard(
+                                trainNo: train,
+                                onRemove: { watches.toggleTrain(train) },
+                                onFocusTrip: focusTrip
+                            )
+                            .frame(width: max(0, proxy.size.width - 32))
+                            .id("train:\(train)")
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .frame(height: proxy.size.height)
+                }
+                .scrollIndicators(.hidden)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $page, anchor: .center)
+            }
+
+            if cardKeys.count > 1 { pager }
+        }
+    }
+
+    private var pager: some View {
+        let index = currentIndex
+        return VStack(spacing: 0) {
+            HairlineDivider()
+            HStack(spacing: 12) {
+                OutlineIconButton(systemName: "chevron.left", label: "Előző megálló", size: 40) { step(-1) }
+                    .disabled(index <= 0)
+
+                Group {
+                    if cardKeys.count <= 8 {
+                        HStack(spacing: 6) {
+                            ForEach(Array(cardLabels.enumerated()), id: \.offset) { i, label in
+                                Button {
+                                    withAnimation(Theme.Motion.normalAnimation) { page = cardKeys[i] }
+                                } label: {
+                                    Capsule()
+                                        .fill(i == index ? Theme.primary : Theme.mutedForeground.opacity(0.35))
+                                        .frame(width: i == index ? 24 : 8, height: 8)
+                                        .frame(height: 24)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Ugrás ide: \(label)")
+                                .accessibilityAddTraits(i == index ? .isSelected : [])
+                            }
+                        }
+                        .animation(Theme.Motion.fastAnimation, value: index)
+                    } else {
+                        Text("\(index + 1) / \(cardKeys.count)")
+                            .font(Theme.mono(11))
+                            .foregroundStyle(Theme.mutedForeground)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                OutlineIconButton(systemName: "chevron.right", label: "Következő megálló", size: 40) { step(1) }
+                    .disabled(index >= cardKeys.count - 1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Theme.card)
+        }
+    }
+
+    private var currentIndex: Int {
+        page.flatMap { cardKeys.firstIndex(of: $0) } ?? 0
+    }
+
+    private func step(_ delta: Int) {
+        let target = min(cardKeys.count - 1, max(0, currentIndex + delta))
+        withAnimation(Theme.Motion.normalAnimation) { page = cardKeys[target] }
     }
 
     // MARK: - Empty state
 
     private var emptyState: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Image(systemName: "dot.radiowaves.left.and.right")
-                    .font(.system(size: 30))
-                    .foregroundStyle(Theme.primary)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Theme.primary.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
-                    )
+        VStack(spacing: 0) {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+                .frame(width: 56, height: 56)
+                .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
 
-                Text("A figyelő üres")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Theme.foreground)
-                    .padding(.top, 16)
+            Text("A figyelő üres")
+                .font(.system(size: 18, weight: .bold))
+                .tracking(-0.2)
+                .foregroundStyle(Theme.foreground)
+                .padding(.top, 16)
 
-                Button {
-                    isPickerOpen = true
-                } label: {
-                    Label("Megállók böngészése", systemImage: "plus")
-                        .font(.system(size: 15, weight: .semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(Theme.primary)
+            Button {
+                isPickerOpen = true
+            } label: {
+                Label("Megállók böngészése", systemImage: "plus")
+                    .font(.system(size: 15, weight: .semibold))
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Theme.primary)
+            .padding(.top, 20)
+
+            HairlineDivider()
+                .padding(.top, 32)
+
+            Text("Gyakori csomópontok")
+                .font(.system(size: 11, weight: .semibold))
+                .textCase(.uppercase)
+                .tracking(0.5)
+                .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 20)
 
-                Divider()
-                    .overlay(Theme.border)
-                    .padding(.vertical, 28)
-
-                Text("GYAKORI CSOMÓPONTOK")
-                    .font(.system(size: 11, weight: .semibold))
-                    .tracking(0.5)
-                    .foregroundStyle(Theme.mutedForeground)
-
-                FlowLayout(spacing: 8, alignment: .center) {
-                    ForEach(quickStops, id: \.0) { label, needle in
-                        Button(label) { addByName(needle) }
+            FlowLayout(spacing: 8, lineSpacing: 8, alignment: .center) {
+                ForEach(Self.quickStops.filter { $0.mode.map(enabledModes.contains) ?? true }, id: \.match) { preset in
+                    Button {
+                        addByName(preset.match)
+                    } label: {
+                        Text(preset.label)
                             .font(.system(size: 13, weight: .medium))
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.roundedRectangle(radius: Theme.Radius.md))
-                            .tint(Theme.primary)
+                            .foregroundStyle(Theme.foreground)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 36)
+                            .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                                    .strokeBorder(Theme.input, lineWidth: 1)
+                            )
                     }
+                    .buttonStyle(.plain)
                 }
-                .padding(.top, 12)
             }
-            .padding(24)
-            .frame(maxWidth: 520)
-            .dataCard()
-            .padding(16)
+            .padding(.top, 12)
         }
+        .padding(24)
+        .frame(maxWidth: 576)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: 1)
+        )
+        .mvkShadow(Theme.Shadow.lg)
     }
+
+    // MARK: - Deep links
 
     /// Scrolls to the card a `mvkpp://watch/<stop>` link asked for.
     private func applyDeepLinkFocus() {
         guard let stopId = navigation.watchlistFocusStopId,
-              let index = watchedStops.firstIndex(where: { $0.id == stopId })
+              watchedStops.contains(where: { $0.id == stopId })
         else { return }
-
+        view = .stops
         holdsDeepLinkPage = true
-        withAnimation(Theme.Motion.normalAnimation) { page = index }
+        withAnimation(Theme.Motion.normalAnimation) { page = stopId }
         navigation.watchlistFocusStopId = nil
     }
 
+    private func focusTrip(_ tripId: String, _ vehicleId: String?) {
+        navigation.tab = .map
+        navigation.focusTrip(tripId, vehicleId: vehicleId)
+    }
+
     // MARK: - Derived data
+
+    private var enabledModes: [TransitMode] { TransitMode.enabled() }
+
+    private func feedOn(_ id: String) -> Bool {
+        switch TransitFeed.of(id: id) {
+        case .mvk: return true
+        case .coach: return enabledModes.contains(.coach)
+        case .rail: return enabledModes.contains(.rail)
+        }
+    }
+
+    private var shownRelations: [RelationWatch] {
+        watches.relations.filter { feedOn($0.from) && feedOn($0.to) }
+    }
+
+    private var shownTrains: [String] {
+        enabledModes.contains(.rail) ? watches.trains : []
+    }
 
     private var manualOrder: [Stop] {
         favorites.stopIds.compactMap { store.stop(id: $0) }
@@ -269,8 +455,47 @@ struct MultiStopScreen: View {
         sortsByDistance ? watchedStops.first?.id : nil
     }
 
+    private var cardKeys: [String] {
+        watchedStops.map(\.id) + shownRelations.map { "rel:\($0.id)" } + shownTrains.map { "train:\($0)" }
+    }
+
+    private var cardLabels: [String] {
+        let name = { (id: String) in store.stop(id: id)?.name ?? id }
+        return watchedStops.map(\.name)
+            + shownRelations.map { "\(name($0.from)) → \(name($0.to))" }
+            + shownTrains.map { "\(HungarianText.withSuffix($0)) vonat" }
+    }
+
+    private var totalCount: Int {
+        favorites.stopIds.filter(feedOn).count + shownRelations.count + shownTrains.count
+    }
+
+    private var canNearest: Bool { manualOrder.count > 1 && location.position != nil }
+    private var canReorder: Bool { watchedStops.count > 1 && !sortsByDistance }
+
+    /// The passenger-information display for a TV or tablet (up to 3 stops).
+    private var kioskURL: URL? {
+        guard !watchedStops.isEmpty else { return nil }
+        let ids = watchedStops.prefix(3).map(\.id).joined(separator: ",")
+        var components = URLComponents(url: APIConfig.baseURL.appendingPathComponent("kijelzo"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "m", value: ids)]
+        return components?.url
+    }
+
+    private func move(_ stopId: String, by delta: Int) {
+        guard let from = favorites.stopIds.firstIndex(of: stopId) else { return }
+        let to = from + delta
+        guard to >= 0, to < favorites.stopIds.count else { return }
+        withAnimation(Theme.Motion.normalAnimation) {
+            favorites.move(from: IndexSet(integer: from), to: delta > 0 ? to + 1 : to)
+        }
+    }
+
     private func addByName(_ needle: String) {
-        guard let found = store.stops.first(where: { $0.matches(needle) }) else { return }
+        let query = needle.normalizedForSearch
+        guard let found = store.stops.first(where: {
+            $0.name.normalizedForSearch.contains(query) || $0.id.lowercased().contains(query)
+        }) else { return }
         favorites.toggle(found.id)
     }
 }
