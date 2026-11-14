@@ -65,7 +65,8 @@ struct TransitMapRepresentable: UIViewRepresentable {
         pan.maximumNumberOfTouches = 1
         let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-        for recognizer in [pan, pinch, tap] as [UIGestureRecognizer] {
+        let rotate = UIRotationGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleRotate(_:)))
+        for recognizer in [pan, pinch, tap, rotate] as [UIGestureRecognizer] {
             recognizer.delegate = context.coordinator
             recognizer.cancelsTouchesInView = false
             map.addGestureRecognizer(recognizer)
@@ -158,6 +159,11 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private var followPaused = false
         private var followCentered = false
         private var zooming = false
+        private var rotating = false
+        /// After a manual rotate the rider's heading stays for a while
+        /// (web `follow3d.ts` `USER_BEARING_HOLD_MS`).
+        private var userHeadingUntil = Date.distantPast
+        private static let userHeadingHold: TimeInterval = 5
         private var holdUntil = Date.distantPast
         private var chaseHeading: Double?
         private var chaseLead: Double?
@@ -227,6 +233,18 @@ struct TransitMapRepresentable: UIViewRepresentable {
             switch recognizer.state {
             case .began: zooming = true
             case .ended, .cancelled, .failed: zooming = false
+            default: break
+            }
+        }
+
+        @objc func handleRotate(_ recognizer: UIRotationGestureRecognizer) {
+            switch recognizer.state {
+            case .began, .changed:
+                rotating = true
+            case .ended, .cancelled, .failed:
+                rotating = false
+                userHeadingUntil = Date().addingTimeInterval(Self.userHeadingHold)
+                chaseHeading = map?.camera.heading
             default: break
             }
         }
@@ -451,6 +469,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 followPaused = false
                 followCentered = false
                 zooming = false
+                userHeadingUntil = .distantPast
                 chaseHeading = nil
                 chaseLead = nil
                 p.camera.setFollowPaused(false)
@@ -588,7 +607,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         }
 
         private func follow(_ position: CLLocationCoordinate2D, entry: FocusEntry) {
-            guard let map, !followPaused, !zooming, Date() >= holdUntil else { return }
+            guard let map, !followPaused, !zooming, !rotating, Date() >= holdUntil else { return }
             if parent.is3D {
                 chase(position, entry: entry, in: map)
                 return
@@ -624,7 +643,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private func chase(_ position: CLLocationCoordinate2D, entry: FocusEntry, in map: MKMapView) {
             let target = headingTarget(position, entry: entry)
             let current = chaseHeading ?? target ?? map.camera.heading
-            let heading = target.map { MapChase.approach(current, $0, dt: Self.tick) } ?? current
+            let heading = Date() < userHeadingUntil ? current : target.map { MapChase.approach(current, $0, dt: Self.tick) } ?? current
             chaseHeading = heading
             let first = !followCentered
             followCentered = true
@@ -797,7 +816,6 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 return lastHistory
             }
             setHistoryStale(false, in: map)
-            if zooming { return lastHistory }
             let prev = frames.get(start - MapHistoryData.windowSec)
             let next = frames.get(start + MapHistoryData.windowSec)
             historyFrame += 1
@@ -867,8 +885,11 @@ struct TransitMapRepresentable: UIViewRepresentable {
             }
         }
 
+        /// Nil once the vehicle is no longer drawn (filtered out, or out of the
+        /// recording), so its popup can close.
         func historySample(_ id: String) -> (sample: MapHistorySampler.Sample?, route: String?) {
-            (history[id]?.sample, history[id]?.route)
+            guard let state = history[id], state.shown else { return (nil, nil) }
+            return (state.sample, state.route)
         }
 
         func clearHistory() {

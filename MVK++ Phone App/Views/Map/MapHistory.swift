@@ -57,8 +57,27 @@ enum MapHistoryData {
         return nil
     }
 
+    /// „Előzmény-hiba [503] /engine/history/days: <body>” — the web's
+    /// message, so a report from either app reads the same.
+    struct HistoryError: LocalizedError {
+        let status: Int
+        let path: String
+        let detail: String
+        var errorDescription: String? { "Előzmény-hiba [\(status)] \(path): \(detail)" }
+    }
+
     private static func json(_ path: String, _ query: [URLQueryItem] = []) async throws -> Any {
-        let data = try await APIClient.shared.rawData(path: path, queryItems: query)
+        let url = try APIClient.shared.url(path: path, queryItems: query)
+        let (data, response) = try await APIClient.shared.session.data(from: url)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            let shownPath = url.query.map { "\(path)?\($0)" } ?? path
+            throw HistoryError(
+                status: http.statusCode,
+                path: shownPath,
+                detail: body.isEmpty ? HTTPURLResponse.localizedString(forStatusCode: http.statusCode) : body
+            )
+        }
         return try JSONSerialization.jsonObject(with: data)
     }
 
@@ -356,6 +375,7 @@ final class MapHistoryFrames: ObservableObject {
     private var order: [Double] = []
     private var inflight: [Double: Task<Void, Never>] = [:]
     private var failed: [Double: Failure] = [:]
+    private var retries: [Double: Task<Void, Never>] = [:]
 
     private static func retryDelay(_ count: Int) -> TimeInterval {
         min(30, 2 * pow(2, Double(max(0, count - 1))))
@@ -424,9 +444,20 @@ final class MapHistoryFrames: ObservableObject {
                 let count = (self.failed[start]?.count ?? 0) + 1
                 self.failed[start] = Failure(at: Date(), count: count)
                 self.sync(error: .some("Nem sikerült betölteni az előzményt. \(error.localizedDescription)"))
-                try? await Task.sleep(for: .seconds(Self.retryDelay(count) + 0.05))
-                self.sync()
+                self.scheduleRetry(start, after: Self.retryDelay(count) + 0.05)
             }
+        }
+    }
+
+    /// The version bump re-runs the caller's `ensure`, so the window comes
+    /// again even while nothing else moves (paused playback).
+    private func scheduleRetry(_ start: Double, after delay: TimeInterval) {
+        retries[start]?.cancel()
+        retries[start] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.retries[start] = nil
+            self.sync()
         }
     }
 
@@ -438,6 +469,8 @@ final class MapHistoryFrames: ObservableObject {
     func cancelAll() {
         inflight.values.forEach { $0.cancel() }
         inflight = [:]
+        retries.values.forEach { $0.cancel() }
+        retries = [:]
     }
 }
 
