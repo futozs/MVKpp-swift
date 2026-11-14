@@ -15,6 +15,37 @@ struct ArrivalVehicle: Decodable, Hashable {
     let speed: Double?
     let routeId: String
     let tripId: String
+    var mode: TransitMode?
+    var plate: String?
+    var trainNo: String?
+    var trainName: String?
+    /// MÁV's official delay; for trains this is what the timetable uses.
+    var delaySec: Int?
+}
+
+/// The bus that should run this trip is still on its previous one.
+struct ArrivalStartRisk: Decodable, Hashable {
+    let vehicleId: String
+    let expectedDelayS: Int
+    /// `late` or `likely-missed`.
+    let level: String
+    let prevRoute: String?
+    let prevEndUnix: Double
+    let predicted: Bool
+}
+
+/// Congestion between the bus and the stop.
+struct ArrivalTrafficAhead: Decodable, Hashable {
+    let excessS: Int
+    let level: Int
+    let fromName: String
+    let toName: String
+}
+
+struct PredictedVehicle: Decodable, Hashable {
+    let id: String
+    let confidence: Double
+    let method: String?
 }
 
 struct ArrivalItem: Decodable, Hashable, Identifiable {
@@ -32,6 +63,26 @@ struct ArrivalItem: Decodable, Hashable, Identifiable {
     let currentStopName: String?
     let distanceToStopKm: Double?
     let progressDesc: String?
+    /// v3: our own matcher's measured delay now.
+    var measuredDelaySec: Int?
+    var predictedVehicle: PredictedVehicle?
+    var cancelled: Bool?
+    /// v3: expected delay at this stop and its 85th percentile.
+    var forecastDelaySec: Int?
+    var forecastUpperSec: Int?
+    var schedUnix: Double?
+    var startRisk: ArrivalStartRisk?
+    var trafficAhead: ArrivalTrafficAhead?
+    var mode: TransitMode?
+    var routeKey: String?
+    var `operator`: String?
+    var trainNo: String?
+    var trainName: String?
+    var platform: String?
+    var platformChanged: Bool?
+    var platformPredicted: Bool?
+    var stopId: String?
+    var notices: [String]?
 
     var id: String { "\(tripId)-\(time)" }
 
@@ -79,6 +130,8 @@ struct StopSummary: Decodable, Hashable {
 
 struct StopArrivalsResponse: Decodable {
     let stop: StopSummary
+    /// v3: shared stop — the board lists the departures of all of these.
+    var merged: [String]?
     let now: Double
     let rtError: String?
     let arrivals: [ArrivalItem]

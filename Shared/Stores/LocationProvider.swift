@@ -19,6 +19,10 @@ struct GeoPosition: Codable, Equatable {
     let accuracyM: Double
     /// Unix seconds of the fix.
     let at: Double
+    /// The phone's speed (m/s), when the GPS reports one.
+    var speed: Double? = nil
+    /// Direction of travel (degrees), when the GPS reports one.
+    var course: Double? = nil
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -129,7 +133,9 @@ final class LocationProvider: NSObject, ObservableObject {
             lat: location.coordinate.latitude,
             lon: location.coordinate.longitude,
             accuracyM: location.horizontalAccuracy,
-            at: location.timestamp.timeIntervalSince1970
+            at: location.timestamp.timeIntervalSince1970,
+            speed: location.speed >= 0 ? location.speed : nil,
+            course: location.course >= 0 ? location.course : nil
         )
         position = fix
         isStale = false

@@ -24,6 +24,21 @@ struct LiveVehicle: Decodable, Identifiable, Hashable {
     let speed: Double?
     let tripId: String
     let timestamp: Double?
+    /// v3, WebSocket only: where the vehicle is along its shape, for the
+    /// map's smooth estimate between pushes.
+    var motion: LiveMotion?
+    var mode: TransitMode?
+    var routeKey: String?
+    var plate: String?
+    var trainNo: String?
+    var trainName: String?
+    /// Official delay at the next stop (regional feeds and the fallback source).
+    var delaySec: Int?
+    /// Position estimated from the timetable, not GPS.
+    var estimated: Bool?
+    var source: String?
+    /// Our own matcher's measured delay right now (WebSocket).
+    var liveDelaySec: Int?
 
     var coordinate: CLLocationCoordinate2D? {
         guard let lat, let lon else { return nil }
@@ -41,6 +56,18 @@ struct LiveVehicle: Decodable, Identifiable, Hashable {
     func isTram(routes: [String: Route]) -> Bool {
         routes[routeId]?.type == "900" || label == "TRAM"
     }
+}
+
+/// A vehicle's place on its shape (`s`), pushed over the WebSocket: `a` metres
+/// along, `t` the fix time (unix s), `e` the next stop (m), `v` expected speed
+/// (m/s), and `k` the expected path as `[along m, seconds since fix]` pairs.
+struct LiveMotion: Codable, Hashable {
+    let s: String
+    let a: Double
+    let t: Double
+    let e: Double
+    let v: Double
+    let k: [[Double]]?
 }
 
 struct VehiclePositionsHeader: Decodable, Hashable {
