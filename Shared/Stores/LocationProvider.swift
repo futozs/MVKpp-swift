@@ -212,6 +212,11 @@ extension LocationProvider: CLLocationManagerDelegate {
         Task { @MainActor in
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
+                // Allowed again in the Settings app: the switch works again.
+                if self.status == .denied {
+                    self.status = .idle
+                    self.errorMessage = nil
+                }
                 if self.isWatching { manager.startUpdatingLocation() }
             case .denied, .restricted:
                 self.applyDenied()

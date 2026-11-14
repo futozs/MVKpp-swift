@@ -5,6 +5,7 @@
 
 import Combine
 import SwiftUI
+import UIKit
 
 /// Beállítások (web `SettingsMenu`): transport modes, the Megállófigyelő
 /// features, the header counters, location, and the account row — then what
@@ -187,11 +188,20 @@ struct SettingsSheet: View {
             toggleRow(
                 label: "Helymeghatározás",
                 hint: location.status == .denied
-                    ? "Az iOS letiltotta ehhez az apphoz a Beállítások appban engedélyezheted."
+                    ? "Az iOS letiltotta ehhez az apphoz. A Beállítások appban engedélyezheted."
                     : "Ebből számoljuk a sétát, az „Elérem?”-et és a felszállás felismerését. Csak ezen az eszközön marad.",
                 isOn: Binding(get: { isOn }, set: { $0 ? location.start() : location.stop() }),
                 disabled: location.status == .denied || location.status == .unavailable
             )
+            if location.status == .denied {
+                Button("Beállítások megnyitása") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                .buttonStyle(.mvk(.outline, size: .small))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+            }
         }
         .padding(6)
     }
