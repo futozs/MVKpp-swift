@@ -68,7 +68,8 @@ struct StatsVehiclePanel: View {
                         onChange: { vehicleId = $0 },
                         placeholder: modesKey.contains("coach") || modesKey.contains("rail") ? "Rendszám vagy pályaszám, pl. 1641, LWA387" : "Rendszám, pl. 1641",
                         isFavorite: isFavorite,
-                        onToggleFavorite: toggleFavorite
+                        onToggleFavorite: toggleFavorite,
+                        groupLabel: "Jármű keresése"
                     )
                 }
             }
@@ -248,6 +249,7 @@ struct StatsVehiclePanel: View {
 
             StatsChartFrame(title: "A nap menetei") {
                 StatsRunTimeline(runs: d.runs, label: routeLabel)
+                    .accessibilityLabel("A nap menetei idővonalon")
             }
 
             if !d.runs.isEmpty {
@@ -341,7 +343,7 @@ struct StatsVehiclePanel: View {
         if let first = latest.first {
             StatsDonut(
                 slices: latest.map { StatsDonutSlice(label: "\(routeLabel($0.route_short)) \($0.runs) menet", value: Double($0.runs), color: $0.color) },
-                centerLabel: "\(StatsFormat.plain(first.share_pct))%",
+                centerLabel: "\(StatsFormat.raw(first.share_pct))%",
                 centerSub: "\(latest.reduce(0) { $0 + $1.runs }) menet ebben a hónapban, \(first.days_active) aktív nap"
             )
         } else {

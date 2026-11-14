@@ -58,7 +58,8 @@ struct StatsHeatPanel: View {
                     value: route,
                     onChange: pickRoute,
                     placeholder: "Vonal keresése",
-                    limit: 80
+                    limit: 80,
+                    groupLabel: "Vonal"
                 )
                 routeFrame
             } else {
@@ -97,8 +98,10 @@ struct StatsHeatPanel: View {
                 }
             }
             StatsSegmented(options: [("route", "Vonal"), ("city", "Város")], selection: $view, large: true)
-            StatsPillPicker(items: Self.daytypes, value: daytype, onChange: { daytype = $0 })
-            StatsPillPicker(items: Self.ranges, value: days, onChange: { days = $0 })
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Nézet")
+            StatsPillPicker(items: Self.daytypes, value: daytype, onChange: { daytype = $0 }, groupLabel: "Naptípus")
+            StatsPillPicker(items: Self.ranges, value: days, onChange: { days = $0 }, groupLabel: "Időszak")
         }
     }
 
@@ -318,6 +321,8 @@ struct StatsRouteHeatView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 StatsSegmented(options: [(Metric.delay, "Késés a megállóban"), (.gain, "Hol szedi fel")], selection: $metric)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("Mit mutasson")
                 StatsHeatLegend(metric: metric == .delay ? .delay : .gain)
             }
 
@@ -354,12 +359,20 @@ struct StatsRouteHeatView: View {
 
     private func bestHour(_ solid: [StatsRouteHeat.Cell]) -> (h: Int, avg: Double)? {
         var byH: [Int: (s: Double, n: Int)] = [:]
+        var order: [Int] = []
         for c in solid {
+            if byH[c.h] == nil { order.append(c.h) }
             let cur = byH[c.h] ?? (0, 0)
             byH[c.h] = (cur.s + abs(c.p50) * Double(c.n), cur.n + c.n)
         }
-        let best = byH.filter { $0.value.n >= 40 }.min { $0.value.s / Double($0.value.n) < $1.value.s / Double($1.value.n) }
-        return best.map { ($0.key, ($0.value.s / Double($0.value.n)).rounded()) }
+        // A tie goes to the hour met first, as the web's stable sort does.
+        var best: (h: Int, avg: Double)?
+        for h in order {
+            guard let v = byH[h], v.n >= 40 else { continue }
+            let avg = v.s / Double(v.n)
+            if best == nil || avg < (best?.avg ?? 0) { best = (h, avg) }
+        }
+        return best.map { ($0.h, $0.avg.rounded()) }
     }
 
     private func insight(icon: String, tone: Color, title: String, text: () -> Text) -> some View {
@@ -503,8 +516,9 @@ struct StatsCityHeatMap: View {
                     .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
                     .environment(\.colorScheme, .dark)
                     .onTapGesture { point in
-                        guard let coord = proxy.convert(point, from: .local) else { return }
-                        picked = nearest(to: coord, among: live.map(\.0), proxy: proxy, tap: point)
+                        // Every link is tappable, an hour without data included; only
+                        // „Bezárás” closes the card.
+                        if let hit = nearest(among: data.segments, proxy: proxy, tap: point) { picked = hit }
                     }
                 }
                 .frame(height: 440)
@@ -647,7 +661,7 @@ struct StatsCityHeatMap: View {
     }
 
     /// The link closest to the tap, within a finger's width on screen.
-    private func nearest(to coord: CLLocationCoordinate2D, among segments: [StatsCityHeat.Segment], proxy: MapProxy, tap: CGPoint) -> StatsCityHeat.Segment? {
+    private func nearest(among segments: [StatsCityHeat.Segment], proxy: MapProxy, tap: CGPoint) -> StatsCityHeat.Segment? {
         var best: (StatsCityHeat.Segment, CGFloat)?
         for s in segments {
             let points = s.path.compactMap { p -> CGPoint? in

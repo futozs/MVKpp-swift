@@ -49,8 +49,8 @@ struct StatsIncidentPanel: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
-                StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 })
-                StatsPillPicker(items: Self.kinds, value: kind, onChange: { kind = $0 })
+                StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 }, groupLabel: "Időszak")
+                StatsPillPicker(items: Self.kinds, value: kind, onChange: { kind = $0 }, groupLabel: "Típus")
             }
 
             StatsQueryBoundary(query, empty: { $0.incidents.isEmpty }) { d in
@@ -192,8 +192,17 @@ private struct StatsIncidentBody: View {
         let cancelled = data.incidents.filter { $0.kind == "cancelled" }.count
         let detected = data.incidents.filter { $0.source == "detected" }.count
         var byRoute: [String: Int] = [:]
-        for i in data.incidents { if let r = i.route_short { byRoute[r, default: 0] += 1 } }
-        let top = byRoute.max { $0.value < $1.value }
+        var routeOrder: [String] = []
+        for i in data.incidents {
+            guard let r = i.route_short else { continue }
+            if byRoute[r] == nil { routeOrder.append(r) }
+            byRoute[r, default: 0] += 1
+        }
+        // A tie goes to the route met first, as the web's stable sort does.
+        let top = routeOrder.reduce(nil as (key: String, value: Int)?) { best, r in
+            let n = byRoute[r] ?? 0
+            return n > (best?.value ?? 0) ? (r, n) : best
+        }
         var days: [StatsBarDatum] = []
         var dd = from
         while dd <= to {

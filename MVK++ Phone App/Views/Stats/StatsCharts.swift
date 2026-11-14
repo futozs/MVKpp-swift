@@ -234,11 +234,14 @@ struct StatsBarChart: View {
         let barW = Swift.max(2, Swift.min(24, step - 2))
         let every = Swift.max(labelEvery ?? 1, Int(ceil(34 / step)))
         let selectedIndex = selected.flatMap(Int.init)
+        // A tiny non-zero value still shows as a 3 pt bar (web `hOf`).
+        let span = max - min
+        let minBar = span > 0 ? 3 * span / Double(height - 36) : 0
 
         return Chart {
             ForEach(Array(data.enumerated()), id: \.offset) { i, d in
                 if let v = d.value, v != 0 {
-                    BarMark(x: .value("i", String(i)), y: .value("v", v), width: .fixed(barW))
+                    BarMark(x: .value("i", String(i)), y: .value("v", v < 0 ? Swift.min(v, -minBar) : Swift.max(v, minBar)), width: .fixed(barW))
                         .foregroundStyle(d.tone)
                         .cornerRadius(Swift.min(4, barW / 2))
                         .opacity(selectedIndex == nil || selectedIndex == i ? 1 : 0.4)
@@ -274,7 +277,7 @@ struct StatsBarChart: View {
         }
         .chartXAxis {
             AxisMarks(values: data.indices.map(String.init)) { value in
-                if let raw = value.as(String.self), let i = Int(raw), i % every == 0, every == 1 || i + every / 2 < data.count {
+                if let raw = value.as(String.self), let i = Int(raw), i % every == 0 {
                     AxisValueLabel(centered: true, collisionResolution: .disabled) {
                         Text(data[i].label)
                             .font(.system(size: 10))

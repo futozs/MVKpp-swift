@@ -43,7 +43,7 @@ struct StatsPredictionOverview: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     HStack(spacing: 8) {
-                        StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 })
+                        StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 }, groupLabel: "Időszak")
                         Button(action: query.reload) {
                             Image(systemName: "arrow.clockwise")
                                 .symbolEffect(.rotate, isActive: query.loading)
@@ -289,7 +289,7 @@ struct StatsPredictionOverview: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(chipTint(g).opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .background(g == .none ? Theme.card : chipTint(g).opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .strokeBorder(g == .none ? Theme.border : chipTint(g).opacity(0.4), lineWidth: 1)
@@ -352,8 +352,12 @@ struct StatsPredictionTripList: View {
         let rows = verdict == .all ? searched : searched.filter { verdictOf($0) == verdict }
 
         VStack(alignment: .leading, spacing: 12) {
-            StatsSearchField(text: $query, placeholder: "Rendszám, vonal vagy cél")
-                .onChange(of: query) { _, _ in shown = Self.page }
+            // Only typing starts the list over; a plate picked above keeps it.
+            StatsSearchField(
+                text: Binding(get: { query }, set: { query = $0; shown = Self.page }),
+                placeholder: "Rendszám, vonal vagy cél",
+                fieldLabel: "Jóslatok szűrése rendszámra, vonalra vagy célállomásra"
+            )
             StatsPillPicker(
                 items: [
                     .init(id: Verdict.all, label: "Mind", sub: String(counts.all)),
@@ -365,7 +369,8 @@ struct StatsPredictionTripList: View {
                 onChange: {
                     verdict = $0
                     shown = Self.page
-                }
+                },
+                groupLabel: "Kimenetel szerint"
             )
 
             if rows.isEmpty {
