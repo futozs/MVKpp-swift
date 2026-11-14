@@ -55,6 +55,17 @@ enum ServiceDay {
         return days
     }
 
+    /// Today's service day in Budapest as `yyyy-MM-dd` (it changes at 3:00,
+    /// whatever the device's time zone) — the web's `serviceNow().iso`.
+    static func isoToday(_ date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Europe/Budapest")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date.addingTimeInterval(-3 * 3600))
+    }
+
     static func secondsSinceMidnight(_ date: Date = Date()) -> Int {
         let parts = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
         return (parts.hour ?? 0) * 3600 + (parts.minute ?? 0) * 60 + (parts.second ?? 0)

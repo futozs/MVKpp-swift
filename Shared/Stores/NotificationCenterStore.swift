@@ -26,6 +26,11 @@ struct NotifyWatch: Codable, Hashable {
     var schedMin: Int?
     /// Trips already announced, so one bus is not reported twice as it closes.
     var lastNotifiedTripIds: [String]?
+    /// A one-off trip watch: the service day it is for (the same trip ID is
+    /// another run on another day).
+    var date: String?
+    /// The server delivers this one by push (APNs), so the device stays quiet.
+    var pushRegistered: Bool?
 }
 
 struct NotificationSettings: Codable, Equatable {
@@ -139,6 +144,13 @@ final class NotificationCenterStore: ObservableObject {
         persistWatches()
     }
 
+    func setPushRegistered(stopId: String, _ registered: Bool) {
+        guard var watch = watches[stopId], watch.pushRegistered != registered else { return }
+        watch.pushRegistered = registered
+        watches[stopId] = watch
+        persistWatches()
+    }
+
     func removeWatch(stopId: String) {
         watches.removeValue(forKey: stopId)
         persistWatches()
@@ -158,6 +170,20 @@ final class NotificationCenterStore: ObservableObject {
 
         let center = UNUserNotificationCenter.current()
         let identifier = Self.identifier(stopId: stopId)
+
+        guard watch.pushRegistered != true else {
+            center.removePendingNotificationRequests(withIdentifiers: [identifier])
+            return
+        }
+        // A one-day trip watch expires after its day and is silent before it.
+        if watch.tripId != nil, let date = watch.date {
+            let today = ServiceDay.isoToday()
+            if date < today {
+                removeWatch(stopId: stopId)
+                return
+            }
+            if date != today { return }
+        }
 
         guard let next = arrivals.first(where: { isTargeted($0, watch: watch) }) else {
             center.removePendingNotificationRequests(withIdentifiers: [identifier])
@@ -245,6 +271,8 @@ final class NotificationCenterStore: ObservableObject {
             : "\(stopName) (\(stopId)) — kb. \(minEta) percen belül\(delayNote)"
         content.sound = .default
         content.threadIdentifier = Self.identifier(stopId: stopId)
+        content.interruptionLevel = .timeSensitive
+        content.userInfo = ["stopId": stopId]
         return content
     }
 
