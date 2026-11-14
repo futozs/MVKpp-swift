@@ -5,11 +5,27 @@
 
 import Foundation
 
-/// Turns `FilterState` into the list of vehicles that should be visible.
-///
-/// Lives outside the views because the map draws it and the fleet list counts
-/// it — two surfaces that must never disagree about what "visible" means.
+/// Turns `FilterState` into the list of vehicles that should be visible — the
+/// web's `getVisibleVehicles` and `filter/filterState.ts`. The map draws it,
+/// the fleet list counts it, the timeline replays it.
 enum VehicleFilter {
+
+    /// The official (MÁV+) delay, otherwise our matcher's measurement.
+    static func delay(_ v: LiveVehicle) -> Int? { v.delaySec ?? v.liveDelaySec }
+
+    /// The mode / operator / rail category / delay filters.
+    static func matchesModeFilters(_ v: LiveVehicle, _ f: FilterState, routes: [String: Route]) -> Bool {
+        let r = routes[v.routeId]
+        let mode = v.transitMode(routes: routes)
+        if !f.modes.isEmpty, !f.modes.contains(mode) { return false }
+        if !f.operators.isEmpty, mode == .coach, !f.operators.contains(r?.operatorName ?? "") { return false }
+        if !f.railKinds.isEmpty, mode == .rail, !f.railKinds.contains(r?.short ?? v.routeShort) { return false }
+        if f.delay != .all {
+            guard let d = delay(v) else { return false }
+            if f.delay == .late ? Double(d) < FilterState.lateS : Double(d) >= FilterState.lateS { return false }
+        }
+        return true
+    }
 
     static func apply(
         vehicles: [LiveVehicle],
@@ -17,38 +33,28 @@ enum VehicleFilter {
         routes: [String: Route],
         position: GeoPosition?
     ) -> [LiveVehicle] {
-
         let query = filters.vq.trimmingCharacters(in: .whitespaces).normalizedForSearch
         let watchList = filters.watch.map { $0.normalizedForSearch }
 
-        // Looking for one specific bus overrides every other filter: hiding it
-        // because it happens to be idle, or off the selected route, would be
-        // the wrong answer to the question the rider actually asked.
         if !watchList.isEmpty || !query.isEmpty {
             var targets = watchList
             if !query.isEmpty, !targets.contains(query) { targets.append(query) }
             return vehicles.filter { vehicle in
-                let id = vehicle.id.normalizedForSearch
-                let label = vehicle.label.normalizedForSearch
-                return targets.contains { id.contains($0) || label.contains($0) }
+                let keys = [vehicle.id, vehicle.label, vehicle.plate, vehicle.trainNo]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .map(\.normalizedForSearch)
+                return targets.contains { t in keys.contains { $0.contains(t) } }
             }
         }
 
-        var list = vehicles
-
-        if filters.type != .all {
-            list = list.filter { vehicle in
-                let isTram = vehicle.isTram(routes: routes)
-                return filters.type == .tram ? isTram : !isTram
-            }
-        }
+        var list = vehicles.filter { matchesModeFilters($0, filters, routes: routes) }
 
         if !filters.routes.isEmpty {
             let routeSet = Set(filters.routes)
             list = list.filter { routeSet.contains($0.routeId) }
         }
 
-        // 0.5 m/s is the noise floor of a parked vehicle's GPS, not motion.
         switch filters.speed {
         case .moving: list = list.filter { ($0.speed ?? 0) > 0.5 }
         case .idle: list = list.filter { ($0.speed ?? 0) <= 0.5 }
@@ -65,17 +71,18 @@ enum VehicleFilter {
         return list
     }
 
-    /// Sorted for the fleet list. Route order is the default because that is
-    /// how riders name what they are looking for.
     static func sorted(_ vehicles: [LiveVehicle], by sort: VehicleSort) -> [LiveVehicle] {
+        let hu = Locale(identifier: "hu_HU")
         switch sort {
         case .id:
-            return vehicles.sorted { $0.id < $1.id }
+            return vehicles.sorted { $0.id.compare($1.id, locale: hu) == .orderedAscending }
         case .speed:
             return vehicles.sorted { ($0.speed ?? 0) > ($1.speed ?? 0) }
         case .route:
             return vehicles.sorted {
-                $0.routeShort == $1.routeShort ? $0.id < $1.id : $0.routeShort < $1.routeShort
+                let byRoute = $0.routeShort.compare($1.routeShort, locale: hu)
+                if byRoute != .orderedSame { return byRoute == .orderedAscending }
+                return $0.id.compare($1.id, locale: hu) == .orderedAscending
             }
         }
     }

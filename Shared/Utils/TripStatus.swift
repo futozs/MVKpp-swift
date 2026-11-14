@@ -12,6 +12,9 @@ import Foundation
 enum TripRunState: String {
     case cancelled
     case live
+    /// The live vehicle is still standing at the first stop: MVK assigns the
+    /// run minutes before it leaves, which is not the same as having left.
+    case waiting
     case running
     case finished
     case scheduled
@@ -39,6 +42,7 @@ enum TripStatus {
         let arrivalSec: Int
         let nowSec: Int
         let day: DayRelation
+        var waitingAtStart = false
     }
 
     /// Order matters: a past or future day is decided before anything else,
@@ -47,7 +51,7 @@ enum TripStatus {
         if input.day == .past { return .finished }
         if input.day == .future { return .scheduled }
         if input.cancelled { return .cancelled }
-        if input.hasLiveVehicle { return .live }
+        if input.hasLiveVehicle { return input.waitingAtStart ? .waiting : .live }
         if input.nowSec > input.arrivalSec { return .finished }
         if input.nowSec >= input.departureSec { return .running }
         return .scheduled
@@ -59,12 +63,15 @@ enum TripStatus {
         state == .running || state == .finished
     }
 
-    static func runLabel(_ state: TripRunState, vehicleId: String? = nil) -> String? {
+    static func runLabel(_ state: TripRunState, vehicleId rawVehicleId: String? = nil) -> String? {
+        let vehicleId = rawVehicleId.map { TransitIds.displayVehicleId($0) }
         switch state {
         case .cancelled:
             return "Törölve"
         case .live:
             return vehicleId.map { "Úton · \($0)" } ?? "Úton"
+        case .waiting:
+            return vehicleId.map { "Beállt · \($0), indulásra vár" } ?? "Beállt, indulásra vár"
         case .running:
             return vehicleId.map { "Úton · \($0)" } ?? "Nincs élő jel"
         case .finished:
@@ -88,4 +95,9 @@ enum TripStatus {
     }
 
     enum Kind { case start, end }
+}
+
+extension TripJournalEntry {
+    /// The run is live but the vehicle has not left the first stop yet.
+    var isWaitingAtStart: Bool { status == "running" && actualStart == nil }
 }

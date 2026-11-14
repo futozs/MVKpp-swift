@@ -5,61 +5,68 @@
 
 import SwiftUI
 
-/// One upcoming departure. Used by both the stop sheet and the watchlist
-/// cards, so a departure looks the same wherever the rider meets it.
-///
-/// Only rows backed by a live vehicle are tappable — following a run the feed
-/// cannot locate would open an empty map.
+/// One upcoming departure in a board list — the rows of the web app's
+/// `StopCard` (`.card`) and `StopDetailDrawer` (`.drawer`). Only a run the
+/// feed can locate opens on the map.
 struct ArrivalRowView: View {
+    enum Variant { case card, drawer }
+
     let arrival: ArrivalItem
     var onFocusTrip: ((String, String?) -> Void)?
+    var variant: Variant = .drawer
+    /// The whole list, for finding what runs instead of a cancelled one.
+    var list: [ArrivalItem] = []
+    var verdict: CatchBus.Verdict?
 
-    private var isFocusable: Bool {
-        onFocusTrip != nil && arrival.live && !arrival.tripId.isEmpty
+    @ObservedObject private var features = WatchFeatures.shared
+
+    init(
+        arrival: ArrivalItem,
+        variant: Variant = .drawer,
+        list: [ArrivalItem] = [],
+        verdict: CatchBus.Verdict? = nil,
+        onFocusTrip: ((String, String?) -> Void)? = nil
+    ) {
+        self.arrival = arrival
+        self.variant = variant
+        self.list = list
+        self.verdict = verdict
+        self.onFocusTrip = onFocusTrip
     }
 
     var body: some View {
-        Group {
-            if isFocusable {
-                Button {
-                    onFocusTrip?(arrival.tripId, arrival.vehicle?.id)
-                } label: { content }
-                .buttonStyle(.plain)
-            } else {
-                content
-            }
+        if let onFocusTrip, arrival.isFocusable {
+            Button {
+                onFocusTrip(arrival.tripId, arrival.vehicle?.id)
+            } label: { content }
+            .buttonStyle(RowHighlightStyle())
+        } else {
+            content
         }
     }
 
     private var content: some View {
-        HStack(spacing: 10) {
-            RouteTile(short: arrival.route, colorHex: arrival.color, textHex: arrival.text)
+        HStack(spacing: variant == .card ? 12 : 10) {
+            RouteTile(short: arrival.tileText, colorHex: arrival.color, textHex: arrival.text)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(arrival.headsign)
-                        .font(.system(size: 13, weight: .medium))
+                    Text(arrival.title)
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
-                    if arrival.live { LiveDot(size: 7) }
+                    if variant == .drawer, arrival.live, !arrival.isCancelled || arrival.vehicle != nil {
+                        LiveDot()
+                    }
                 }
 
-                HStack(spacing: 8) {
-                    if let vehicle = arrival.vehicle {
-                        Text(vehicle.id)
-                            .font(Theme.mono(11))
-                            .foregroundStyle(Theme.primary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(
-                                Theme.primary.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            )
+                detailLine
+
+                if insightsVisible {
+                    HStack(spacing: 10) {
+                        if features.isOn(.startRisk) { StartRiskLine(risk: arrival.startRisk, compact: true) }
+                        if features.isOn(.traffic) { TrafficLine(traffic: arrival.trafficAhead, compact: true) }
                     }
-                    Text(arrival.time)
-                        .font(Theme.mono(11, weight: .regular))
-                        .foregroundStyle(Theme.mutedForeground)
-                    DelayBar(delaySec: arrival.delaySec, showLabel: false)
                 }
 
                 if let progress = arrival.progressDesc {
@@ -68,40 +75,114 @@ struct ArrivalRowView: View {
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(1)
                 }
-            }
 
-            Spacer(minLength: 6)
+                NoticeList(notices: arrival.notices, compact: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             etaBadge
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, variant == .card ? 16 : 12)
+        .padding(.vertical, variant == .card ? 10 : 8)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
 
-    @ViewBuilder
-    private var etaBadge: some View {
-        if arrival.etaMin <= 0 {
-            Text("most")
-                .font(Theme.mono(14))
-                .foregroundStyle(Theme.live)
-        } else {
-            let parts = Countdown.parts(minutes: arrival.etaMin)
-            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                Text(parts.value)
-                    .font(Theme.mono(16))
-                    .foregroundStyle(Theme.foreground)
-                Text(parts.unit)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.mutedForeground)
+    private var insightsVisible: Bool {
+        (features.isOn(.startRisk) && arrival.startRisk != nil) || (features.isOn(.traffic) && arrival.trafficAhead != nil)
+    }
+
+    private var detailLine: some View {
+        HStack(spacing: 8) {
+            PlatformBadge(
+                platform: arrival.platform,
+                changed: arrival.platformChanged == true,
+                predicted: arrival.platformPredicted == true,
+                mode: arrival.mode,
+                compact: true
+            )
+
+            if let label = arrival.vehicleLabel {
+                VehicleIdChip(text: label)
+            } else if variant == .card, let predicted = arrival.predictedVehicle,
+                      features.isOn(.predictedVehicle), !arrival.isCancelled, arrival.mode != .rail {
+                PredictedVehicleTag(predicted: predicted)
             }
+
+            if variant == .card, arrival.isCancelled { CancelledTag() }
+
+            Text(arrival.time)
+                .font(Theme.mono(11, weight: .regular))
+                .foregroundStyle(Theme.mutedForeground)
+                .strikethrough(arrival.isCancelled, color: Theme.destructive.opacity(0.7))
+                .fixedSize()
+
+            if arrival.isCancelled {
+                if variant == .drawer {
+                    Text("törölve")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                        .foregroundStyle(Theme.destructive)
+                }
+                if features.isOn(.replacement) {
+                    ReplacementNote(instead: Replacement.instead(of: arrival, in: list), cancelled: arrival, compact: true)
+                }
+            } else {
+                DelayBar(
+                    delaySec: variant == .card
+                        ? arrival.delaySec ?? arrival.measuredDelaySec
+                        : arrival.measuredDelaySec ?? arrival.delaySec,
+                    showLabel: false
+                )
+            }
+
+            if features.isOn(.leaveTimes) { CatchPill(verdict: verdict) }
         }
     }
 
+    @ViewBuilder
+    private var etaBadge: some View {
+        let size: CGFloat = variant == .card ? 16 : 14
+        Group {
+            if arrival.isCancelled && variant == .card {
+                Text("nem jön")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.destructive)
+            } else if arrival.etaMin <= 0 {
+                Text("most")
+                    .font(Theme.mono(size))
+                    .foregroundStyle(Theme.live)
+            } else {
+                let parts = Countdown.parts(minutes: arrival.etaMin)
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(parts.value)
+                        .font(Theme.mono(size))
+                        .foregroundStyle(Theme.foreground)
+                    Text(parts.unit == "perc" ? "p" : parts.unit)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.mutedForeground)
+                }
+            }
+        }
+        .strikethrough(arrival.isCancelled && variant == .drawer)
+        .opacity(arrival.isCancelled && variant == .drawer ? 0.4 : 1)
+        .fixedSize()
+    }
+
     private var accessibilityText: String {
-        let eta = arrival.etaMin <= 0 ? "most érkezik" : Countdown.spoken(minutes: arrival.etaMin)
+        let eta = arrival.isCancelled ? "törölve" : arrival.etaMin <= 0 ? "most érkezik" : Countdown.spoken(minutes: arrival.etaMin)
         let source = arrival.live ? "valós idejű" : "menetrendi"
-        return "\(HungarianText.withSuffix(arrival.route)), \(arrival.headsign), \(eta), \(source)"
+        return "\(HungarianText.withSuffix(arrival.tileText)), \(arrival.title), \(eta), \(source)"
+    }
+}
+
+/// The web's `hover:bg-accent` for a tappable list row, shown while pressed.
+struct RowHighlightStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Theme.accent : Color.clear)
+            .animation(Theme.Motion.fastAnimation, value: configuration.isPressed)
     }
 }

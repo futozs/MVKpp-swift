@@ -3,266 +3,328 @@
 //  MVK++ Phone App
 //
 
-import Combine
 import SwiftUI
 
-/// One route's board: pick a direction, read the hours, tap a departure.
+/// One route's board: the direction chips, the hour rows, and — once a run
+/// is tapped — its details in a panel under the board, as on the web.
 struct RouteTimetableView: View {
-    let route: TimetableRoute
-    let initialDir: String?
     @ObservedObject var model: TimetableModel
 
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
 
-    @State private var dir = ""
-    @State private var table: TimetableResponse?
-    @State private var isTableOffline = false
-    @State private var isLoading = false
-    @State private var selectedTrip: TimetableTrip?
+    @State private var legendOpen = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                Section {
-                    content
-                } header: {
-                    header
-                }
-            }
-        }
-        .background(AppBackground())
-        .navigationTitle(route.short)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    lineFavorites.toggle(routeId: route.id, dir: dir)
-                } label: {
-                    Image(systemName: isFavorite ? "star.fill" : "star")
-                }
-                .tint(isFavorite ? Theme.primary : Theme.mutedForeground)
-                .accessibilityLabel(isFavorite ? "Levétel a kedvencekről" : "Hozzáadás a kedvencekhez")
-            }
-        }
-        .sheet(item: $selectedTrip) { trip in
-            if let table {
-                TripDetailSheet(
-                    trip: trip,
-                    stops: table.stops,
-                    routeShort: route.short,
-                    vehicle: vehicleByTrip[trip.tripId],
-                    isCancelled: model.cancelledTripIds.contains(trip.tripId),
-                    journalEntry: model.journal[trip.tripId],
-                    nowSec: model.nowSec,
-                    day: model.day,
-                    onFocusTrip: { tripId, vehicleId in
-                        navigation.focusTrip(tripId, vehicleId: vehicleId)
-                        navigation.tab = .map
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                if let route = model.selectedRoute {
+                    header(route)
+                    Rectangle().fill(Theme.border).frame(height: 1)
+                    if hasLegend && legendOpen, let table = model.table {
+                        legend(table)
                     }
-                )
-                .presentationDetents([.medium, .large])
+                    board
+                    if let trip = model.selectedTrip, let table = model.table {
+                        TimetableTripPanel(
+                            trip: trip,
+                            variantLabel: trip.variant.flatMap { variantLabels[$0] },
+                            stops: table.stops,
+                            routeShort: route.short,
+                            mode: route.transitMode,
+                            vehicle: selectedVehicle,
+                            cancelled: model.cancelled.ids.contains(trip.tripId),
+                            dateYmd: model.ymd,
+                            journalEntry: model.journal.trips[trip.tripId],
+                            nowSec: model.nowSec,
+                            day: model.day,
+                            maxHeight: geometry.size.height * 0.42,
+                            onClose: { withAnimation(Theme.Motion.normalAnimation) { model.chooseTrip(nil) } },
+                            onFocusTrip: { tripId, vehicleId in
+                                navigation.focusTrip(tripId, vehicleId: vehicleId)
+                                navigation.tab = .map
+                            }
+                        )
+                        .id(trip.tripId)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
             }
+            .animation(Theme.Motion.normalAnimation, value: model.selectedTrip?.tripId)
         }
-        .task {
-            if dir.isEmpty { dir = initialDir ?? defaultDir }
-            await loadTable()
-        }
-        .onChange(of: dir) { _, _ in Task { await loadTable() } }
-        .onChange(of: model.date) { _, _ in Task { await loadTable() } }
+        .background(Theme.background.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: - Header
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func header(_ route: TimetableRoute) -> some View {
+        let isFavorite = lineFavorites.contains(routeId: route.id, dir: model.selectedDir)
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Vissza a járatlistához")
+
                 RouteTile(short: route.short, colorHex: route.color, textHex: route.text, size: .large)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(route.long)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
+                        .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
-
-                    HStack(spacing: 10) {
-                        Text(table.map { "\($0.trips.count) menet" } ?? "betöltés…")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.mutedForeground)
-
-                        // Live decoration — which run has left, which is
-                        // cancelled — needs the network. Offline the board is
-                        // complete but static, and saying so is the difference
-                        // between "nothing is cancelled" and "we cannot know".
-                        if isTableOffline { OfflineTag(compact: true) }
-
-                        if liveTripCount > 0 {
-                            HStack(spacing: 5) {
-                                LiveDot(size: 7)
-                                Text("\(liveTripCount) elindult")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Theme.live)
-                            }
-                        }
-
-                        if cancelledTripCount > 0 {
-                            Label("\(cancelledTripCount) törölve", systemImage: "nosign")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.destructive)
-                        }
-                    }
+                    countsLine
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    lineFavorites.toggle(routeId: route.id, dir: model.selectedDir)
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(isFavorite ? Theme.primaryForeground : Theme.foreground)
+                        .frame(width: 36, height: 36)
+                        .background(isFavorite ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                .strokeBorder(isFavorite ? Theme.primary : Theme.input, lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TimetablePressStyle())
+                .sensoryFeedback(.selection, trigger: isFavorite)
+                .accessibilityLabel(isFavorite ? "Levétel a kedvencekről" : "Hozzáadás a kedvencekhez")
             }
 
-            if route.directions.count > 1 || !route.directions.isEmpty {
-                FlowLayout(spacing: 6) {
-                    ForEach(route.directions) { direction in
-                        directionChip(direction)
+            FlowLayout(spacing: 6, lineSpacing: 6) {
+                ForEach(route.directions) { direction in
+                    directionChip(direction)
+                }
+                if hasLegend {
+                    Button {
+                        withAnimation(Theme.Motion.fastAnimation) { legendOpen.toggle() }
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(legendOpen ? Theme.primary : Theme.mutedForeground)
+                            .frame(width: 30, height: 30)
+                            .background(legendOpen ? Theme.primary.opacity(0.12) : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                    .strokeBorder(legendOpen ? Theme.primary.opacity(0.6) : Theme.border, lineWidth: 1)
+                            )
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Jelmagyarázat")
+                    .accessibilityHint("Mit jelentenek a pöttyök?")
                 }
             }
+            .padding(.top, 12)
 
-            legend
+            TimetableDayPicker(
+                value: model.date,
+                minIso: model.minIso,
+                maxIso: model.maxIso,
+                todayIso: TimetableModel.todayIso(),
+                onShift: model.shiftDate(by:),
+                onPick: model.setDate
+            )
+            .padding(.top, 10)
+
+            if model.selectedTrip == nil {
+                HereChip(stops: store.stops)
+                    .padding(.top, 10)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
+        .padding(12)
+        .background(Theme.card.opacity(0.7))
+    }
+
+    private var countsLine: some View {
+        HStack(spacing: 8) {
+            Text(model.table.map { "\($0.trips.count) menet" } ?? "betöltés…")
+                .foregroundStyle(Theme.mutedForeground)
+
+            if model.isTableOffline { OfflineTag(compact: true) }
+
+            if liveTripCount > 0 {
+                HStack(spacing: 6) {
+                    LiveDot(size: 7)
+                    Text("\(liveTripCount) elindult")
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(Theme.live)
+            }
+
+            if cancelledTripCount > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "nosign").font(.system(size: 9, weight: .bold))
+                    Text("\(cancelledTripCount) törölve")
+                }
+                .fontWeight(.semibold)
+                .foregroundStyle(Theme.destructive)
+            }
+        }
+        .font(.system(size: 11))
+        .lineLimit(1)
     }
 
     private func directionChip(_ direction: TimetableDirection) -> some View {
-        let isOn = direction.dir == dir
+        let isOn = direction.dir == model.selectedDir
         return Button {
-            dir = direction.dir
+            model.selectDir(direction.dir)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text(direction.headsign.isEmpty ? "Irány \(direction.dir)" : direction.headsign)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
+                    .frame(maxWidth: 220, alignment: .leading)
                 Text("\(direction.tripsToday)")
                     .font(Theme.mono(10))
                     .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
                     .background(
-                        isOn ? Color.black.opacity(0.2) : Theme.muted,
+                        isOn ? Theme.primaryForeground.opacity(0.2) : Theme.muted,
                         in: RoundedRectangle(cornerRadius: 4, style: .continuous)
                     )
             }
             .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
-            .padding(.horizontal, 10)
-            .frame(height: 34)
-            .background(
-                isOn ? Theme.primary : Theme.secondary,
-                in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isOn ? Theme.primary : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
                     .strokeBorder(isOn ? Theme.primary : Theme.border, lineWidth: 1)
             )
+            .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.Level(radius: 0, y: 0, opacity: 0))
+            .animation(Theme.Motion.fastAnimation, value: isOn)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isOn ? [.isSelected] : [])
     }
 
-    /// Explains the two dots the grid puts on chips, but only when this board
-    /// actually has runs carrying them.
-    @ViewBuilder
-    private var legend: some View {
-        let hasHeadsignDiff = table?.trips.contains(where: \.headsignDiffers) ?? false
-        let hasDeviation = table?.trips.contains(where: \.deviates) ?? false
-
-        if hasHeadsignDiff || hasDeviation {
-            VStack(alignment: .leading, spacing: 3) {
-                if hasHeadsignDiff, let headsign = table?.headsign {
+    /// Only on request: on a phone the legend would cost the board two rows.
+    private func legend(_ table: TimetableResponse) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let variants = table.variants, !variants.isEmpty {
+                TimetableVariantLegend(variants: variants)
+            } else {
+                if table.trips.contains(where: \.headsignDiffers) {
                     HStack(spacing: 6) {
                         Circle().fill(Theme.early).frame(width: 6, height: 6)
-                        Text("más célállomás, mint a viszonylat szokásos iránya (\(headsign))")
+                        Text("más célállomás, mint a viszonylat szokásos iránya (\(table.headsign))")
                     }
                 }
-                if hasDeviation {
+                if table.trips.contains(where: \.deviates) {
                     HStack(spacing: 6) {
                         Circle().fill(Theme.mutedForeground).frame(width: 4, height: 4)
                         Text("a szokásos útvonalon kívüli megállót is érint (betérő)")
                     }
                 }
             }
-            .font(.system(size: 11))
-            .foregroundStyle(Theme.mutedForeground)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(Theme.mutedForeground)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+        .transition(.opacity)
+    }
+
+    // MARK: - Board
+
+    private var board: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    boardContent(proxy: proxy)
+                    if !model.tableLoading, !model.tableError, let variants = model.table?.variants, !variants.isEmpty {
+                        TimetableVariantLegend(variants: variants)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .overlay(alignment: .top) { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
+                    }
+                }
+            }
         }
     }
 
-    // MARK: - Content
-
     @ViewBuilder
-    private var content: some View {
-        if isLoading {
+    private func boardContent(proxy: ScrollViewProxy) -> some View {
+        if model.tableLoading {
             Text("Menetrend betöltése…")
                 .font(Theme.mono(12, weight: .regular))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
-        } else if let table, !table.trips.isEmpty {
+        } else if model.tableError {
+            VStack(spacing: 12) {
+                Text("A menetrend most nem tölthető be.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.mutedForeground)
+                Button {
+                    model.retryTable()
+                } label: {
+                    Text("Újra")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
+                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 40)
+        } else if let table = model.table, !table.trips.isEmpty {
             TimetableGridView(
                 trips: table.trips,
                 vehicleByTrip: vehicleByTrip,
-                cancelledTripIds: model.cancelledTripIds,
-                selectedTripId: selectedTrip?.tripId,
+                cancelledTripIds: model.cancelled.ids,
+                journal: model.journal.trips,
+                selectedTripId: model.selectedTrip?.tripId,
                 nowSec: model.nowSec,
                 day: model.day,
-                onSelectTrip: { trip in selectedTrip = trip }
+                directionHeadsign: table.headsign,
+                variantLabels: variantLabels,
+                proxy: proxy,
+                onSelectTrip: { trip in
+                    withAnimation(Theme.Motion.normalAnimation) { model.toggleTrip(trip) }
+                }
             )
         } else {
-            Text(emptyMessage)
-                .font(.subheadline)
+            Text(model.table?.note ?? "Ezen az irányon ezen a napon nem közlekedik járat.")
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 40)
         }
     }
 
-    /// "Nem közlekedik" and "we could not find out" look identical on an empty
-    /// board, so they are never worded the same.
-    private var emptyMessage: String {
-        if let note = table?.note { return note }
-        if table == nil {
-            return OfflineScheduleStore.hasSchedule(for: TimetableModel.isoToYmd(model.date))
-                ? "Ezen az irányon ezen a napon nem közlekedik járat."
-                : "Nincs kapcsolat, és erre a napra nincs letöltött menetrend."
-        }
-        return "Ezen az irányon ezen a napon nem közlekedik járat."
+    // MARK: - Derived
+
+    private var hasLegend: Bool {
+        model.table?.trips.contains { $0.deviates || $0.headsignDiffers } ?? false
     }
 
-    // MARK: - Data
-
-    private func loadTable() async {
-        guard !dir.isEmpty else { return }
-        isLoading = true
-        selectedTrip = nil
-        defer { isLoading = false }
-
-        let ymd = TimetableModel.isoToYmd(model.date)
-        do {
-            table = try await APIClient.shared.timetable(routeId: route.id, dir: dir, date: ymd)
-            isTableOffline = false
-        } catch {
-            // Stored verbatim at download time, so this is the same board the
-            // gateway would have sent — decoded by the same type.
-            table = OfflineScheduleStore.timetable(routeId: route.id, dir: dir, ymd: ymd)
-            isTableOffline = table != nil
-        }
-    }
-
-    /// Opens on a direction that actually runs today rather than a dead one.
-    private var defaultDir: String {
-        (route.directions.first { $0.tripsToday > 0} ?? route.directions.first)?.dir ?? ""
-    }
-
-    private var isFavorite: Bool {
-        lineFavorites.contains(routeId: route.id, dir: dir)
+    private var variantLabels: [String: String] {
+        Dictionary((model.table?.variants ?? []).map { ($0.code, $0.label) }, uniquingKeysWith: { first, _ in first })
     }
 
     private var vehicleByTrip: [String: LiveVehicle] {
@@ -272,14 +334,48 @@ struct RouteTimetableView: View {
         }
     }
 
+    /// Trip ids repeat daily: a live bus can only belong to today's run.
+    private var selectedVehicle: LiveVehicle? {
+        guard model.day == .today, let trip = model.selectedTrip, !model.cancelled.ids.contains(trip.tripId) else { return nil }
+        return vehicleByTrip[trip.tripId]
+    }
+
     private var cancelledTripCount: Int {
-        table?.trips.filter { model.cancelledTripIds.contains($0.tripId) }.count ?? 0
+        model.table?.trips.filter { model.cancelled.ids.contains($0.tripId) }.count ?? 0
     }
 
     private var liveTripCount: Int {
         guard model.day == .today else { return 0 }
-        return table?.trips.filter {
-            vehicleByTrip[$0.tripId] != nil && !model.cancelledTripIds.contains($0.tripId)
+        let vehicles = vehicleByTrip
+        return model.table?.trips.filter {
+            vehicles[$0.tripId] != nil
+                && !model.cancelled.ids.contains($0.tripId)
+                && !(model.journal.trips[$0.tripId]?.isWaitingAtStart ?? false)
         }.count ?? 0
+    }
+}
+
+/// The lettered route variants explained: „A = Avas városközpont érintésével · 18 menet”.
+struct TimetableVariantLegend: View {
+    let variants: [TimetableVariant]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(variants) { variant in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(variant.code)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.background)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .padding(.horizontal, 4)
+                        .background(Theme.early, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    (Text(variant.label).font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.foreground)
+                        + Text("  · \(variant.trips) menet").font(Theme.mono(10.5, weight: .regular)).foregroundColor(Theme.mutedForeground))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Betűjelek magyarázata")
     }
 }

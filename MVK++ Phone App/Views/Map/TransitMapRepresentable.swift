@@ -2,68 +2,70 @@
 //  TransitMapRepresentable.swift
 //  MVK++ Phone App
 //
+//  The map itself — the web's `TransitMap` layers on an `MKMapView`: stops,
+//  live vehicles moved every 250 ms along their expected path, the followed
+//  trip with its bus, live congestion, the rider's position, the timeline's
+//  replayed vehicles, and the 3D city with a chase camera behind the bus.
+//
+//  The base map is Apple's own renderer (`MKMapConfiguration`) rather than
+//  raster tiles: panning and zooming are smooth by construction, at the cost
+//  of an exact match with the web's colour-filtered OSM layers.
+//
 
 import MapKit
 import SwiftUI
 
-/// The map itself. Wraps `MKMapView` rather than SwiftUI's `Map` for one
-/// reason the ported design depends on: annotation-view reuse for a
-/// thousand-odd stops plus a live fleet, which SwiftUI's `Map` does not give
-/// enough control over.
-///
-/// The base map itself is native Apple Maps (`MKMapConfiguration`), not a
-/// custom raster tile pipeline. A hand-rolled `MKTileOverlay` — fetch, decode,
-/// colour-filter, cache, and paper over every gap with a placeholder — was
-/// tried and repeatedly fought back: real devices kept showing a blank or
-/// flickering frame right at the start or end of a pinch, because the
-/// pipeline could not answer fast enough at the exact moment MapKit needed a
-/// new tile. Apple's own renderer has no fetch step to be late — it is the
-/// same one Maps.app uses — so panning and zooming are smooth by
-/// construction. The cost is real and was a deliberate trade, not an
-/// oversight: no offline base-map download (`MKMapConfiguration` has no
-/// public bulk-tile API), and the base map styles are the closest native
-/// equivalent to the old colour-filtered OSM layers, not a pixel match.
 struct TransitMapRepresentable: UIViewRepresentable {
 
     let stops: [Stop]
     let routes: [String: Route]
+    /// Every live vehicle (the followed one is found here).
     let vehicles: [LiveVehicle]
+    /// The filtered, visible ones.
+    let visibleVehicles: [LiveVehicle]
     let filters: FilterState
     let tileLayer: TileLayerOption
     let selectedStopId: String?
     let monitoredStopIds: [String]
     let focusTripId: String?
-    /// Path of the trip being followed, refetched by the screen every few
-    /// seconds while focus is active.
+    let focusVehicleId: String?
     let focusPath: TripPathResponse?
     let routeShapes: [String: [[CLLocationCoordinate2D]]]
-    let showsUserLocation: Bool
+    let traffic: [MapTrafficSegment]
+    let userPosition: GeoPosition?
+    /// The phone's live fix while riding: the ridden bus follows it.
+    let ridePosition: GeoPosition?
+    let riddenVehicleId: String?
+    let is3D: Bool
+    let historyOn: Bool
+    /// The map tab is on screen; the motion tick idles otherwise.
+    var isActive = true
+    /// Height of the panel covering the bottom of the map (focus card, ride).
+    let coverBottom: CGFloat
 
     @ObservedObject var camera: MapCameraController
 
     var onSelectStop: (String) -> Void
-    var onSelectVehicle: (VehicleAnnotation) -> Void
-    /// Fired the moment the rider pans or zooms, so automatic recentring can
-    /// get out of the way — nothing is more annoying than a map that snaps
-    /// back while you are looking at something.
-    var onUserMovedMap: () -> Void
-
-    // MARK: - Lifecycle
+    var onSelectVehicle: (String) -> Void
+    var onSelectHistoryVehicle: (String) -> Void
+    var onSelectTraffic: (MapTrafficSegment) -> Void
+    var onTapMap: () -> Void
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
         map.delegate = context.coordinator
         map.showsCompass = false
         map.showsScale = false
+        map.showsUserLocation = false
         map.isRotateEnabled = false
         map.isPitchEnabled = false
+        map.layoutMargins = UIEdgeInsets(top: 0, left: 64, bottom: 0, right: 64)
 
-        // Observe-only recognizers: they never claim the touch, they just tell
-        // us the rider has taken the wheel.
-        for recognizer in [
-            UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleUserGesture(_:))),
-            UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleUserGesture(_:))),
-        ] as [UIGestureRecognizer] {
+        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        pan.maximumNumberOfTouches = 1
+        let pinch = UIPinchGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePinch(_:)))
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        for recognizer in [pan, pinch, tap] as [UIGestureRecognizer] {
             recognizer.delegate = context.coordinator
             recognizer.cancelsTouchesInView = false
             map.addGestureRecognizer(recognizer)
@@ -71,345 +73,812 @@ struct TransitMapRepresentable: UIViewRepresentable {
 
         map.register(StopAnnotationView.self, forAnnotationViewWithReuseIdentifier: StopAnnotationView.reuseIdentifier)
         map.register(VehicleAnnotationView.self, forAnnotationViewWithReuseIdentifier: VehicleAnnotationView.reuseIdentifier)
+        map.register(UserDotAnnotationView.self, forAnnotationViewWithReuseIdentifier: UserDotAnnotationView.reuseIdentifier)
 
-        // Miskolc city centre is the fallback when nothing was saved.
         let saved = ViewStateStore.initialMapView()
         map.setCenter(
-            CLLocationCoordinate2D(
-                latitude: saved?.lat ?? 48.104,
-                longitude: saved?.lon ?? 20.79
-            ),
+            CLLocationCoordinate2D(latitude: saved?.lat ?? 48.104, longitude: saved?.lon ?? 20.79),
             zoomLevel: saved?.zoom ?? 13,
             animated: false
         )
-
-        context.coordinator.applyTileLayer(tileLayer, to: map)
+        context.coordinator.attach(map)
+        context.coordinator.applyTileLayer(tileLayer, is3D: is3D, to: map)
         return map
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        camera.coordinator = coordinator
 
-        coordinator.applyTileLayer(tileLayer, to: map)
-        coordinator.applyStops(stops, filters: filters, selectedStopId: selectedStopId,
-                               monitoredStopIds: monitoredStopIds, focusTripId: focusTripId, to: map)
-        coordinator.applyVehicles(visibleVehicles(), filters: filters, focusTripId: focusTripId, to: map)
-        coordinator.applyRouteShapes(routeShapes, filters: filters, routes: routes, to: map)
+        coordinator.applyTileLayer(tileLayer, is3D: is3D, to: map)
+        coordinator.applyStops(to: map)
+        coordinator.applyVehicles(to: map)
+        coordinator.applyFocus(to: map)
         coordinator.applyFocusPath(focusPath, to: map)
-
-        if map.showsUserLocation != showsUserLocation {
-            map.showsUserLocation = showsUserLocation
-        }
+        coordinator.applyRouteShapes(to: map)
+        coordinator.applyTraffic(to: map)
+        coordinator.applyUserPosition(userPosition, to: map)
 
         if let command = camera.consume() {
             coordinator.run(command, on: map)
         }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    // MARK: - Filtering
-
-    private func visibleVehicles() -> [LiveVehicle] {
-        VehicleFilter.apply(
-            vehicles: vehicles,
-            filters: filters,
-            routes: routes,
-            position: userPosition
-        )
+    static func dismantleUIView(_ map: MKMapView, coordinator: Coordinator) {
+        coordinator.detach()
     }
 
-    /// Set by the screen so the near-me radius can be applied here.
-    var userPosition: GeoPosition?
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    /// The id under the tile: a train's number, otherwise the plate / fleet number.
+    static func vehicleIdText(id: String, plate: String?, trainNo: String?, trainName: String?, mode: TransitMode?) -> String? {
+        mode == .rail ? (trainNo ?? trainName) : TransitIds.displayVehicleId(id, plate: plate)
+    }
 
     // MARK: - Coordinator
 
+    @MainActor
     final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: TransitMapRepresentable
+        private weak var map: MKMapView?
 
-        private var currentTileLayerId: String?
-
+        private var currentTileKey: String?
         private var persistWork: DispatchWorkItem?
 
+        // Stops
         private var stopAnnotations: [String: StopAnnotation] = [:]
         private var stopSignature = ""
-        private var vehicleAnnotations: [String: VehicleAnnotation] = [:]
+        private var stopZoom: Double = 13
+        private var stopBounds: MKMapRect?
+
+        // Live vehicles
+        private struct LiveEntry {
+            let annotation: VehicleAnnotation
+            var vehicle: LiveVehicle
+            var shown: ShownMotion?
+        }
+        private var live: [String: LiveEntry] = [:]
+
+        // The followed vehicle
+        private struct FocusEntry {
+            let annotation: VehicleAnnotation
+            var id: String?
+            var motion: LiveMotion?
+            var shown: ShownMotion?
+            var raw: CLLocationCoordinate2D
+            var bearing: Double?
+        }
+        private var focus: FocusEntry?
+        private var focusKey = ""
+        private var focusOverlays: [RouteOverlay] = []
+        private var focusSignature = ""
+
+        // Follow
+        private var followPaused = false
+        private var followCentered = false
+        private var zooming = false
+        private var holdUntil = Date.distantPast
+        private var chaseHeading: Double?
+        private var chaseLead: Double?
+        private var focusLine: ShapeLine?
+        private var focusAlong: Double?
+        private var lastHeadingPoint: CLLocationCoordinate2D?
+
+        // Layers
         private var shapeOverlays: [RouteOverlay] = []
         private var shapeSignature = ""
-        private var focusOverlays: [RouteOverlay] = []
-        private var focusVehicle: VehicleAnnotation?
-        private var focusSignature = ""
+        private var trafficOverlays: [TrafficOverlay] = []
+        private var trafficSignature = ""
+        private var userDot: UserDotAnnotation?
+        private var accuracy: AccuracyCircle?
+        private var accuracySignature = ""
+
+        // Timeline
+        private struct HistoryState {
+            let annotation: VehicleAnnotation
+            var iconKey: String
+            var shown: Bool
+            var hint: Int
+            var windowStart: Double
+            var frame: Int
+            var route: String?
+            var sample: MapHistorySampler.Sample?
+        }
+        private var history: [String: HistoryState] = [:]
+        private var historyFrame = 0
+        private var historyStale = false
+        private var lastHistory = MapHistoryRenderResult(ready: false, visible: 0)
+
+        private var timer: Timer?
+        private static let tick: TimeInterval = 0.25
+        private static let regionalMotionZoom: Double = 11
+        private static let coachStopsZoom: Double = 14
+        private static let focusZoom: Double = 15
+        private static let glidePx: CGFloat = 40
+        private static let recenterHold: TimeInterval = 0.45
 
         init(parent: TransitMapRepresentable) {
             self.parent = parent
         }
 
-        // MARK: User gestures
-
-        @objc func handleUserGesture(_ recognizer: UIGestureRecognizer) {
-            guard recognizer.state == .began else { return }
-            let handler = parent.onUserMovedMap
-            MainActor.assumeIsolated { handler() }
+        func attach(_ map: MKMapView) {
+            self.map = map
+            parent.camera.coordinator = self
+            timer = Timer.scheduledTimer(withTimeInterval: Self.tick, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.tickMotion() }
+            }
         }
 
-        func gestureRecognizer(
-            _ gestureRecognizer: UIGestureRecognizer,
-            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
-        ) -> Bool {
+        func detach() {
+            timer?.invalidate()
+            timer = nil
+        }
+
+        // MARK: Gestures
+
+        @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
+            guard recognizer.state == .began, parent.focusTripId != nil else { return }
+            followPaused = true
+            parent.camera.setFollowPaused(true)
+        }
+
+        @objc func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+            switch recognizer.state {
+            case .began: zooming = true
+            case .ended, .cancelled, .failed: zooming = false
+            default: break
+            }
+        }
+
+        @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
+            guard let map, recognizer.state == .ended else { return }
+            let point = recognizer.location(in: map)
+            if let hit = map.hitTest(point, with: nil), hit is MKAnnotationView || hit.superview is MKAnnotationView {
+                return
+            }
+            if let segment = trafficSegment(at: point, in: map) {
+                parent.onSelectTraffic(segment)
+            } else {
+                parent.onTapMap()
+            }
+        }
+
+        nonisolated func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
             true
+        }
+
+        private func trafficSegment(at point: CGPoint, in map: MKMapView) -> MapTrafficSegment? {
+            var best: (MapTrafficSegment, CGFloat)?
+            for overlay in trafficOverlays where !overlay.isHalo {
+                guard let segment = overlay.segment else { continue }
+                let points = (0..<overlay.pointCount).map { map.convert(overlay.points()[$0].coordinate, toPointTo: map) }
+                for i in 0..<max(0, points.count - 1) {
+                    let d = Self.distance(point, points[i], points[i + 1])
+                    if d <= 16, d < (best?.1 ?? .infinity) { best = (segment, d) }
+                }
+            }
+            return best?.0
+        }
+
+        private static func distance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len2 = dx * dx + dy * dy
+            let t = len2 > 0 ? max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0
+            return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
         }
 
         // MARK: Base map
 
-        /// Picks the native `MKMapConfiguration` for the chosen style and
-        /// forces the map's own appearance to match it, independent of the
-        /// system's actual light/dark setting — "Sötét" has to look dark even
-        /// on a phone set to light mode, since it is the rider's choice, not
-        /// iOS's.
-        ///
-        /// `pointOfInterestFilter` is set again here, per configuration, even
-        /// though `makeUIView` already sets it on the map view once: assigning
-        /// `preferredConfiguration` replaces the active configuration
-        /// wholesale, POI filter included, so without this every base-map
-        /// switch quietly turned every shop and restaurant icon back on.
-        func applyTileLayer(_ option: TileLayerOption, to map: MKMapView) {
-            guard currentTileLayerId != option.id else { return }
-            currentTileLayerId = option.id
+        func applyTileLayer(_ option: TileLayerOption, is3D: Bool, to map: MKMapView) {
+            let key = "\(option.id)|\(is3D)"
+            guard currentTileKey != key else { return }
+            let wasSet = currentTileKey != nil
+            let was3D = currentTileKey?.hasSuffix("|true") == true
+            currentTileKey = key
 
+            let elevation: MKMapConfiguration.ElevationStyle = is3D || option.style == .standardTerrain ? .realistic : .flat
             switch option.style {
-            case .standard:
+            case .standard, .standardTerrain:
                 map.overrideUserInterfaceStyle = .light
-                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
-                configuration.pointOfInterestFilter = .excludingAll
-                map.preferredConfiguration = configuration
+                map.preferredConfiguration = standard(elevation, .default)
             case .standardDark:
                 map.overrideUserInterfaceStyle = .dark
-                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
-                configuration.pointOfInterestFilter = .excludingAll
-                map.preferredConfiguration = configuration
+                map.preferredConfiguration = standard(elevation, .default)
             case .standardMuted:
                 map.overrideUserInterfaceStyle = .light
-                let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
-                configuration.pointOfInterestFilter = .excludingAll
-                map.preferredConfiguration = configuration
+                map.preferredConfiguration = standard(elevation, .muted)
             case .hybrid:
                 map.overrideUserInterfaceStyle = .unspecified
                 let configuration = MKHybridMapConfiguration(elevationStyle: .realistic)
                 configuration.pointOfInterestFilter = .excludingAll
                 map.preferredConfiguration = configuration
-            case .standardTerrain:
-                map.overrideUserInterfaceStyle = .light
-                let configuration = MKStandardMapConfiguration(elevationStyle: .realistic, emphasisStyle: .default)
-                configuration.pointOfInterestFilter = .excludingAll
-                map.preferredConfiguration = configuration
             }
+            map.isPitchEnabled = is3D
+            map.isRotateEnabled = is3D
+            map.showsBuildings = true
+
+            guard wasSet, was3D != is3D else { return }
+            followCentered = false
+            followPaused = false
+            parent.camera.setFollowPaused(false)
+            chaseHeading = nil
+            chaseLead = nil
+            if is3D {
+                guard parent.focusTripId == nil else { return }
+                let camera = map.camera.copy() as? MKMapCamera ?? MKMapCamera()
+                camera.pitch = 55
+                camera.heading = 342
+                camera.centerCoordinateDistance = min(camera.centerCoordinateDistance, 1800)
+                map.setCamera(camera, animated: true)
+            } else {
+                let camera = map.camera.copy() as? MKMapCamera ?? MKMapCamera()
+                camera.pitch = 0
+                camera.heading = 0
+                map.setCamera(camera, animated: true)
+            }
+        }
+
+        private func standard(_ elevation: MKMapConfiguration.ElevationStyle, _ emphasis: MKStandardMapConfiguration.EmphasisStyle) -> MKStandardMapConfiguration {
+            let configuration = MKStandardMapConfiguration(elevationStyle: elevation, emphasisStyle: emphasis)
+            configuration.pointOfInterestFilter = .excludingAll
+            configuration.showsTraffic = false
+            return configuration
         }
 
         // MARK: Stops
 
-        func applyStops(
-            _ stops: [Stop],
-            filters: FilterState,
-            selectedStopId: String?,
-            monitoredStopIds: [String],
-            focusTripId: String?,
-            to map: MKMapView
-        ) {
-            // While a trip is being followed the stop layer is hidden, exactly
-            // as on the web — the followed path is the whole story then.
-            let hidden = !filters.stops || focusTripId != nil
-            let watched = Set(monitoredStopIds)
-            let visible = hidden
-                ? []
-                : (filters.onlyWatched ? stops.filter { watched.contains($0.id) } : stops)
-
-            let signature = "\(hidden)|\(filters.onlyWatched)|\(stops.count)|\(watched.sorted().joined(separator: ","))|\(selectedStopId ?? "")"
+        func applyStops(to map: MKMapView) {
+            let p = parent
+            let filters = p.filters
+            let hidden = !filters.stops || p.focusTripId != nil
+            let watched = Set(p.monitoredStopIds)
+            let close = stopZoom >= Self.coachStopsZoom
+            let boundsKey = close ? stopBounds.map { "\(Int($0.origin.x / 2000)),\(Int($0.origin.y / 2000)),\(Int($0.size.width / 2000))" } ?? "" : ""
+            let signature = "\(hidden)|\(filters.onlyWatched)|\(p.stops.count)|\(watched.sorted().joined(separator: ","))|\(p.selectedStopId ?? "")|\(close)|\(boundsKey)"
             guard signature != stopSignature else { return }
             stopSignature = signature
 
-            map.removeAnnotations(Array(stopAnnotations.values))
-            stopAnnotations = [:]
-            guard !visible.isEmpty else { return }
-
-            let created = visible.map {
-                StopAnnotation(
-                    stop: $0,
-                    isWatched: watched.contains($0.id),
-                    isSelected: selectedStopId == $0.id
-                )
+            var wanted: [String: StopAnnotation] = [:]
+            if !hidden {
+                let ids = Set(p.stops.map(\.id))
+                let source = filters.onlyWatched ? p.stops.filter { watched.contains($0.id) } : p.stops
+                for s in source {
+                    if let parentId = s.parent, !parentId.isEmpty, ids.contains(parentId) { continue }
+                    let coach = (s.feed ?? TransitFeed.of(id: s.id).rawValue) == "coach"
+                    if coach, s.station != true, !watched.contains(s.id), p.selectedStopId != s.id {
+                        guard close else { continue }
+                        if let bounds = stopBounds, !bounds.contains(MKMapPoint(CLLocationCoordinate2D(latitude: s.lat, longitude: s.lon))) { continue }
+                    }
+                    let isWatched = watched.contains(s.id)
+                    let isSelected = p.selectedStopId == s.id
+                    if let existing = stopAnnotations[s.id], existing.isWatched == isWatched, existing.isSelected == isSelected, existing.isClose == close {
+                        wanted[s.id] = existing
+                    } else {
+                        wanted[s.id] = StopAnnotation(stop: s, isWatched: isWatched, isSelected: isSelected, isClose: close)
+                    }
+                }
             }
-            created.forEach { stopAnnotations[$0.stopId] = $0 }
-            map.addAnnotations(created)
+            let remove = stopAnnotations.compactMap { id, a in wanted[id] === a ? nil : a }
+            let add = wanted.compactMap { id, a in stopAnnotations[id] === a ? nil : a }
+            if !remove.isEmpty { map.removeAnnotations(remove) }
+            if !add.isEmpty { map.addAnnotations(add) }
+            stopAnnotations = wanted
         }
 
-        // MARK: Vehicles
+        // MARK: Live vehicles
 
-        /// Vehicles move every few seconds, so annotations are updated in
-        /// place: only genuinely new or changed ones are added, and the rest
-        /// just get a new coordinate. Replacing all of them each tick would
-        /// make the fleet flicker.
-        func applyVehicles(
-            _ vehicles: [LiveVehicle],
-            filters: FilterState,
-            focusTripId: String?,
-            to map: MKMapView
-        ) {
-            guard focusTripId == nil else {
-                if !vehicleAnnotations.isEmpty {
-                    map.removeAnnotations(Array(vehicleAnnotations.values))
-                    vehicleAnnotations = [:]
+        private func isFocused(_ v: LiveVehicle) -> Bool {
+            guard let tripId = parent.focusTripId else { return false }
+            if let vehicleId = parent.focusVehicleId { return v.id == vehicleId }
+            return v.tripId == tripId
+        }
+
+        func applyVehicles(to map: MKMapView) {
+            let p = parent
+            if p.historyOn || (p.focusTripId != nil && !p.filters.others) {
+                if !live.isEmpty {
+                    map.removeAnnotations(live.values.map(\.annotation))
+                    live = [:]
                 }
                 return
             }
+            let dim = p.focusTripId != nil
+            let watchSet = Set(p.filters.watch.map { $0.lowercased() })
+            let query = p.filters.vq.trimmingCharacters(in: .whitespaces).lowercased()
+            var seen = Set<String>()
+            var add: [VehicleAnnotation] = []
 
-            let watchSet = Set(filters.watch.map { $0.lowercased() })
-            let query = filters.vq.trimmingCharacters(in: .whitespaces).lowercased()
-
-            var next: [String: VehicleAnnotation] = [:]
-            var toAdd: [VehicleAnnotation] = []
-            var toRemove: [VehicleAnnotation] = []
-
-            for vehicle in vehicles {
-                guard let coordinate = vehicle.coordinate else { continue }
-                // The feed can report one vehicle twice — the same bus handed
-                // over between two trips. Keying off `next` as well as the
-                // live map means the second copy updates the first instead of
-                // adding an annotation nothing is tracking, which is how a
-                // marker used to end up on the map with no way to remove it.
-                guard next[vehicle.id] == nil else { continue }
-
-                let tracked = watchSet.contains(vehicle.id.lowercased())
-                    || (!query.isEmpty && vehicle.id.lowercased().contains(query))
-
+            for v in p.visibleVehicles where !isFocused(v) {
+                guard let coordinate = v.coordinate, !seen.contains(v.id) else { continue }
+                seen.insert(v.id)
+                let lower = v.id.lowercased()
+                let tracked = watchSet.contains(lower) || (!query.isEmpty && lower.contains(query))
+                let mode = v.transitMode(routes: p.routes)
+                let label = p.filters.labels || tracked
+                    ? TransitMapRepresentable.vehicleIdText(id: v.id, plate: v.plate, trainNo: v.trainNo, trainName: v.trainName, mode: mode)
+                    : nil
                 let candidate = VehicleAnnotation(
-                    vehicle: vehicle,
-                    tracked: tracked,
-                    showLabel: filters.labels
+                    vehicleId: v.id, tripId: v.tripId, routeShort: v.routeShort, routeColor: v.routeColor.isEmpty ? "1FB574" : v.routeColor,
+                    routeText: v.routeText.isEmpty ? "FFFFFF" : v.routeText, headsign: v.headsign, coordinate: coordinate,
+                    tracked: tracked, labelText: label, mode: mode, estimated: v.estimated == true, dimmed: dim
                 )
-
-                if let existing = vehicleAnnotations[vehicle.id] {
-                    // Update in place. Removing and re-adding the annotation
-                    // made markers blink out for a frame on every poll, which
-                    // read as vehicles randomly vanishing from the map.
-                    if existing.renderKey != candidate.renderKey {
-                        existing.absorb(candidate)
-                        map.view(for: existing)?.annotation = existing
+                if var entry = live[v.id] {
+                    entry.vehicle = v
+                    if entry.annotation.renderKey != candidate.renderKey {
+                        entry.annotation.absorb(candidate)
+                        (map.view(for: entry.annotation) as? VehicleAnnotationView)?.apply()
                     }
-                    if existing.coordinate.latitude != coordinate.latitude
-                        || existing.coordinate.longitude != coordinate.longitude {
-                        // `coordinate` is KVO-observed by MapKit, so this both
-                        // moves the marker and keeps MapKit's own index in
-                        // step; the animation block makes it glide.
-                        UIView.animate(withDuration: Theme.Motion.normal) {
-                            existing.coordinate = coordinate
-                        }
+                    if v.motion == nil {
+                        entry.shown = nil
+                        move(entry.annotation, to: coordinate, animated: true)
                     }
-                    next[vehicle.id] = existing
+                    live[v.id] = entry
                 } else {
-                    next[vehicle.id] = candidate
-                    toAdd.append(candidate)
+                    live[v.id] = LiveEntry(annotation: candidate, vehicle: v, shown: nil)
+                    add.append(candidate)
                 }
             }
-
-            for (id, annotation) in vehicleAnnotations where next[id] == nil {
-                toRemove.append(annotation)
+            let gone = live.filter { !seen.contains($0.key) }
+            if !gone.isEmpty {
+                map.removeAnnotations(gone.values.map(\.annotation))
+                for id in gone.keys { live[id] = nil }
             }
-
-            // Anything on the map this coordinator is no longer tracking is a
-            // leak by definition. Sweeping here means a stray marker survives
-            // at most one poll instead of until the app is killed.
-            let tracked = Set(next.values.map(ObjectIdentifier.init))
-            for annotation in map.annotations {
-                guard let vehicle = annotation as? VehicleAnnotation,
-                      vehicle !== focusVehicle,
-                      !tracked.contains(ObjectIdentifier(vehicle))
-                else { continue }
-                toRemove.append(vehicle)
-            }
-
-            if !toRemove.isEmpty { map.removeAnnotations(toRemove) }
-            if !toAdd.isEmpty { map.addAnnotations(toAdd) }
-            vehicleAnnotations = next
+            if !add.isEmpty { map.addAnnotations(add) }
         }
 
-        // MARK: Route shapes
+        private func move(_ annotation: VehicleAnnotation, to coordinate: CLLocationCoordinate2D, animated: Bool) {
+            let current = annotation.coordinate
+            guard current.latitude != coordinate.latitude || current.longitude != coordinate.longitude else { return }
+            if animated {
+                UIView.animate(withDuration: Self.tick, delay: 0, options: [.curveLinear, .beginFromCurrentState, .allowUserInteraction]) {
+                    annotation.coordinate = coordinate
+                }
+            } else {
+                annotation.coordinate = coordinate
+            }
+        }
 
-        func applyRouteShapes(
-            _ shapes: [String: [[CLLocationCoordinate2D]]],
-            filters: FilterState,
-            routes: [String: Route],
-            to map: MKMapView
-        ) {
-            let active = (filters.shape && !filters.routes.isEmpty) ? filters.routes : []
-            let signature = active.sorted().joined(separator: ",") + "|" + active.compactMap { shapes[$0] != nil ? $0 : nil }.joined(separator: ",")
+        // MARK: The followed vehicle
+
+        func applyFocus(to map: MKMapView) {
+            let p = parent
+            let key = "\(p.focusTripId ?? "")|\(p.focusVehicleId ?? "")"
+            if key != focusKey {
+                focusKey = key
+                if let focus { map.removeAnnotation(focus.annotation) }
+                focus = nil
+                followPaused = false
+                followCentered = false
+                zooming = false
+                chaseHeading = nil
+                chaseLead = nil
+                p.camera.setFollowPaused(false)
+            }
+            guard p.focusTripId != nil, !p.historyOn else {
+                if let focus { map.removeAnnotation(focus.annotation) }
+                focus = nil
+                return
+            }
+            let liveVehicle = p.vehicles.first { isFocused($0) && $0.coordinate != nil }
+            let last = p.focusPath?.vehicle
+            guard let raw = liveVehicle?.coordinate ?? last.map({ CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }) else { return }
+
+            let route = liveVehicle?.routeShort.isEmpty == false ? liveVehicle?.routeShort ?? "?" : p.focusPath?.route ?? "?"
+            let color = liveVehicle?.routeColor.isEmpty == false ? liveVehicle?.routeColor ?? "1FB574" : p.focusPath?.color ?? "1FB574"
+            let text = liveVehicle?.routeText.isEmpty == false ? liveVehicle?.routeText ?? "FFFFFF" : p.focusPath?.text ?? "FFFFFF"
+            let id = liveVehicle?.id ?? last?.id ?? p.focusVehicleId
+            let mode = liveVehicle?.transitMode(routes: p.routes)
+            let shownId = id.flatMap {
+                TransitMapRepresentable.vehicleIdText(id: $0, plate: liveVehicle?.plate, trainNo: liveVehicle?.trainNo, trainName: liveVehicle?.trainName, mode: mode)
+            }
+            let candidate = VehicleAnnotation(
+                vehicleId: id ?? "focus", tripId: p.focusTripId ?? "", routeShort: route, routeColor: color, routeText: text,
+                headsign: liveVehicle?.headsign ?? p.focusPath?.headsign ?? "", coordinate: raw, tracked: true, labelText: shownId,
+                mode: mode, estimated: liveVehicle?.estimated == true, dimmed: false, isFocus: true
+            )
+
+            if var entry = focus {
+                guard let liveVehicle else {
+                    entry.motion = nil
+                    focus = entry
+                    return
+                }
+                entry.motion = liveVehicle.motion
+                entry.raw = raw
+                entry.id = id
+                entry.bearing = liveVehicle.bearing
+                if entry.annotation.renderKey != candidate.renderKey {
+                    entry.annotation.absorb(candidate)
+                    (map.view(for: entry.annotation) as? VehicleAnnotationView)?.apply()
+                }
+                if liveVehicle.motion == nil {
+                    entry.shown = nil
+                    move(entry.annotation, to: raw, animated: true)
+                }
+                focus = entry
+                return
+            }
+            focus = FocusEntry(annotation: candidate, id: id, motion: liveVehicle?.motion, shown: nil, raw: raw, bearing: liveVehicle?.bearing ?? last?.bearing)
+            map.addAnnotation(candidate)
+            tickFocus(now: RealtimeClient.shared.serverNow)
+        }
+
+        func applyFocusPath(_ path: TripPathResponse?, to map: MKMapView) {
+            let signature = path.map { "\($0.trip)|\($0.shape.count)|\($0.color)" } ?? ""
+            guard signature != focusSignature else { return }
+            focusSignature = signature
+            map.removeOverlays(focusOverlays)
+            focusOverlays = []
+            focusLine = nil
+            focusAlong = nil
+            guard let path, parent.focusTripId != nil else { return }
+            let coordinates = path.shape.compactMap { point -> CLLocationCoordinate2D? in
+                point.count >= 2 ? CLLocationCoordinate2D(latitude: point[0], longitude: point[1]) : nil
+            }
+            guard coordinates.count > 1 else { return }
+            var cum: [Double] = [0]
+            for i in 1..<coordinates.count {
+                cum.append(cum[i - 1] + MapChase.meters(coordinates[i - 1], coordinates[i]))
+            }
+            focusLine = ShapeLine(id: nil, pts: coordinates.map { [$0.latitude, $0.longitude] }, cum: cum)
+            focusAlong = nil
+            let halo = RouteOverlay(coordinates: coordinates, count: coordinates.count)
+            halo.isHalo = true
+            halo.isFocus = true
+            halo.colorHex = path.color
+            let stroke = RouteOverlay(coordinates: coordinates, count: coordinates.count)
+            stroke.isFocus = true
+            stroke.colorHex = path.color
+            focusOverlays = [halo, stroke]
+            map.addOverlays(focusOverlays, level: .aboveLabels)
+            if focus == nil, path.vehicle == nil {
+                map.fit(coordinates, maxZoom: 16)
+            }
+        }
+
+        // MARK: Motion tick
+
+        private func tickMotion() {
+            guard let map, !parent.historyOn, parent.isActive else { return }
+            let now = RealtimeClient.shared.serverNow
+            let ridden = parent.riddenVehicleId
+            let gps = ridden != nil ? parent.ridePosition : nil
+            let view: MKMapRect? = map.zoomLevel >= Self.regionalMotionZoom
+                ? map.visibleMapRect.insetBy(dx: -map.visibleMapRect.width * 0.3, dy: -map.visibleMapRect.height * 0.3)
+                : nil
+            for (id, entry) in live {
+                let v = entry.vehicle
+                guard let raw = v.coordinate else { continue }
+                if TransitIds.isRegional(v.id), v.id != ridden, view.map({ !$0.contains(MKMapPoint(raw)) }) ?? true {
+                    live[id]?.shown = nil
+                    move(entry.annotation, to: raw, animated: false)
+                    continue
+                }
+                guard let est = LiveMotionEstimator.estimate(v.motion, nowServer: now, shown: entry.shown, onboard: v.id == ridden ? gps : nil) else {
+                    move(entry.annotation, to: raw, animated: false)
+                    continue
+                }
+                live[id]?.shown = est.shown
+                move(entry.annotation, to: est.coordinate, animated: true)
+            }
+            tickFocus(now: now)
+        }
+
+        private func tickFocus(now: Double) {
+            guard var entry = focus else { return }
+            let ridden = parent.riddenVehicleId
+            let gps = ridden != nil && entry.id == ridden ? parent.ridePosition : nil
+            if let est = LiveMotionEstimator.estimate(entry.motion, nowServer: now, shown: entry.shown, onboard: gps) {
+                entry.shown = est.shown
+                move(entry.annotation, to: est.coordinate, animated: true)
+            } else {
+                move(entry.annotation, to: entry.raw, animated: true)
+            }
+            focus = entry
+            follow(entry.annotation.coordinate, entry: entry)
+        }
+
+        // MARK: Follow
+
+        private func visibleCenterPoint(in map: MKMapView) -> CGPoint {
+            let top = map.safeAreaInsets.top
+            let cover = min(parent.coverBottom, map.bounds.height * 0.8)
+            return CGPoint(x: map.bounds.midX, y: top + (map.bounds.height - cover - top) / 2)
+        }
+
+        private func follow(_ position: CLLocationCoordinate2D, entry: FocusEntry) {
+            guard let map, !followPaused, !zooming, Date() >= holdUntil else { return }
+            if parent.is3D {
+                chase(position, entry: entry, in: map)
+                return
+            }
+            let first = !followCentered
+            if first {
+                followCentered = true
+                map.setCenter(position, zoomLevel: max(map.zoomLevel, Self.focusZoom), animated: false)
+            }
+            let point = map.convert(position, toPointTo: map)
+            let target = visibleCenterPoint(in: map)
+            let off = CGPoint(x: point.x - target.x, y: point.y - target.y)
+            guard abs(off.x) >= 1 || abs(off.y) >= 1 else { return }
+            let center = map.convert(CGPoint(x: map.bounds.midX + off.x, y: map.bounds.midY + off.y), toCoordinateFrom: map)
+            let camera = map.camera.copy() as? MKMapCamera ?? MKMapCamera()
+            camera.centerCoordinate = center
+            if !first, hypot(off.x, off.y) > Self.glidePx {
+                holdUntil = Date().addingTimeInterval(Self.recenterHold)
+                UIView.animate(withDuration: Self.recenterHold - 0.05, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+                    map.camera = camera
+                }
+            } else if first {
+                map.camera = camera
+            } else {
+                UIView.animate(withDuration: Self.tick, delay: 0, options: [.curveLinear, .beginFromCurrentState, .allowUserInteraction]) {
+                    map.camera = camera
+                }
+            }
+        }
+
+        /// 3D: from behind the bus, looking where it is heading; the bus in the
+        /// lower part of the view, the road ahead above it.
+        private func chase(_ position: CLLocationCoordinate2D, entry: FocusEntry, in map: MKMapView) {
+            let target = headingTarget(position, entry: entry)
+            let current = chaseHeading ?? target ?? map.camera.heading
+            let heading = target.map { MapChase.approach(current, $0, dt: Self.tick) } ?? current
+            chaseHeading = heading
+            let first = !followCentered
+            followCentered = true
+            let distance = first ? 700 : min(max(map.camera.centerCoordinateDistance, 250), 4000)
+            var lead = chaseLead ?? distance * 0.15
+            if !first {
+                let point = map.convert(position, toPointTo: map)
+                let top = map.safeAreaInsets.top
+                let cover = min(parent.coverBottom, map.bounds.height * 0.8)
+                let targetY = top + (map.bounds.height - cover - top) * 0.7
+                let below = map.convert(CGPoint(x: point.x, y: point.y + 1), toCoordinateFrom: map)
+                let metersPerPx = MapChase.meters(position, below)
+                if metersPerPx.isFinite, metersPerPx < 50 {
+                    lead -= Double(point.y - targetY) * metersPerPx * 0.5
+                }
+            }
+            lead = min(max(lead, 0), distance)
+            chaseLead = lead
+            let ahead = MapChase.offset(position, meters: lead, heading: heading)
+            let camera = MKMapCamera(lookingAtCenter: ahead, fromDistance: distance, pitch: 60, heading: heading)
+            if first {
+                holdUntil = Date().addingTimeInterval(1.1)
+                UIView.animate(withDuration: 1.05, delay: 0, options: [.curveEaseInOut, .allowUserInteraction]) {
+                    map.camera = camera
+                }
+            } else {
+                UIView.animate(withDuration: Self.tick, delay: 0, options: [.curveLinear, .beginFromCurrentState, .allowUserInteraction]) {
+                    map.camera = camera
+                }
+            }
+        }
+
+        private func headingTarget(_ position: CLLocationCoordinate2D, entry: FocusEntry) -> Double? {
+            if let motion = entry.motion, let shown = entry.shown, let shape = ShapeStore.shared.shape(motion.s) {
+                let ahead = LiveMotionEstimator.pointAt(shape, shown.along + 45)
+                if MapChase.meters(position, ahead) > 2 { return MapChase.bearing(position, ahead) }
+            }
+            if let line = focusLine {
+                let near = focusAlong ?? Self.nearestAlong(line, position)
+                if let hit = Onboard.projectOnShape(line, lat: position.latitude, lon: position.longitude, near: near), hit.dist < 80 {
+                    focusAlong = hit.along
+                    let ahead = LiveMotionEstimator.pointAt(line, hit.along + 45)
+                    if MapChase.meters(position, ahead) > 2 { return MapChase.bearing(position, ahead) }
+                }
+            }
+            if let last = lastHeadingPoint, MapChase.meters(last, position) >= 12 {
+                lastHeadingPoint = position
+                return MapChase.bearing(last, position)
+            }
+            if lastHeadingPoint == nil { lastHeadingPoint = position }
+            if let chaseHeading { return chaseHeading }
+            return entry.bearing.flatMap { $0 > 0 ? $0 : nil }
+        }
+
+        private static func nearestAlong(_ line: ShapeLine, _ p: CLLocationCoordinate2D) -> Double {
+            var best = (along: 0.0, d: Double.infinity)
+            for (i, pt) in line.pts.enumerated() where pt.count >= 2 {
+                let d = MapChase.meters(p, CLLocationCoordinate2D(latitude: pt[0], longitude: pt[1]))
+                if d < best.d { best = (line.cum[i], d) }
+            }
+            return best.along
+        }
+
+        func resumeFollow() {
+            followPaused = false
+            guard let map, let focus else { return }
+            if parent.is3D {
+                followCentered = false
+                return
+            }
+            holdUntil = Date().addingTimeInterval(Self.recenterHold)
+            let point = map.convert(focus.annotation.coordinate, toPointTo: map)
+            let target = visibleCenterPoint(in: map)
+            let center = map.convert(CGPoint(x: map.bounds.midX + point.x - target.x, y: map.bounds.midY + point.y - target.y), toCoordinateFrom: map)
+            let camera = map.camera.copy() as? MKMapCamera ?? MKMapCamera()
+            camera.centerCoordinate = center
+            UIView.animate(withDuration: Self.recenterHold - 0.05, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
+                map.camera = camera
+            }
+        }
+
+        func zoom(by delta: Double) {
+            guard let map else { return }
+            map.setCenter(map.centerCoordinate, zoomLevel: map.zoomLevel + delta, animated: true)
+        }
+
+        // MARK: Route shapes, traffic, position
+
+        func applyRouteShapes(to map: MKMapView) {
+            let p = parent
+            let active = p.filters.shape ? p.filters.routes : []
+            let signature = active.sorted().joined(separator: ",") + "|" + active.filter { p.routeShapes[$0] != nil }.joined(separator: ",")
             guard signature != shapeSignature else { return }
             shapeSignature = signature
-
             map.removeOverlays(shapeOverlays)
             shapeOverlays = []
-            guard !active.isEmpty else { return }
-
             var created: [RouteOverlay] = []
             for routeId in active {
-                guard let lines = shapes[routeId] else { continue }
-                let colorHex = routes[routeId]?.color ?? "1FB574"
+                guard let lines = p.routeShapes[routeId] else { continue }
+                let colorHex = p.routes[routeId]?.color ?? "1FB574"
                 for line in lines where line.count > 1 {
                     let halo = RouteOverlay(coordinates: line, count: line.count)
                     halo.isHalo = true
                     halo.colorHex = colorHex
                     let stroke = RouteOverlay(coordinates: line, count: line.count)
                     stroke.colorHex = colorHex
-                    created.append(halo)
-                    created.append(stroke)
+                    created.append(contentsOf: [halo, stroke])
                 }
             }
             shapeOverlays = created
-            // Above the tiles, below the annotations.
-            map.addOverlays(created, level: .aboveLabels)
+            map.addOverlays(created, level: .aboveRoads)
         }
 
-        // MARK: Followed trip
-
-        func applyFocusPath(_ path: TripPathResponse?, to map: MKMapView) {
-            let signature = path.map { "\($0.trip)|\($0.shape.count)|\($0.vehicle?.id ?? "")|\($0.vehicle?.lat ?? 0)|\($0.vehicle?.lon ?? 0)" } ?? ""
-            guard signature != focusSignature else { return }
-            focusSignature = signature
-
-            map.removeOverlays(focusOverlays)
-            focusOverlays = []
-            if let focusVehicle {
-                map.removeAnnotation(focusVehicle)
-                self.focusVehicle = nil
-            }
-
-            guard let path else { return }
-
-            let coordinates = path.shape.compactMap { point -> CLLocationCoordinate2D? in
-                guard point.count >= 2 else { return nil }
-                return CLLocationCoordinate2D(latitude: point[0], longitude: point[1])
-            }
-
-            if coordinates.count > 1 {
-                let halo = RouteOverlay(coordinates: coordinates, count: coordinates.count)
+        func applyTraffic(to map: MKMapView) {
+            let segments = parent.filters.traffic && !parent.historyOn ? parent.traffic : []
+            let signature = segments.map { "\($0.id):\($0.level)" }.joined(separator: ";")
+            guard signature != trafficSignature else { return }
+            trafficSignature = signature
+            map.removeOverlays(trafficOverlays)
+            trafficOverlays = []
+            for segment in segments {
+                let coordinates = segment.path.compactMap { $0.count >= 2 ? CLLocationCoordinate2D(latitude: $0[0], longitude: $0[1]) : nil }
+                guard coordinates.count > 1 else { continue }
+                let halo = TrafficOverlay(coordinates: coordinates, count: coordinates.count)
                 halo.isHalo = true
-                halo.isFocus = true
-                halo.colorHex = path.color
-                let stroke = RouteOverlay(coordinates: coordinates, count: coordinates.count)
-                stroke.isFocus = true
-                stroke.colorHex = path.color
-                focusOverlays = [halo, stroke]
-                map.addOverlays(focusOverlays, level: .aboveLabels)
+                halo.level = segment.level
+                let line = TrafficOverlay(coordinates: coordinates, count: coordinates.count)
+                line.level = segment.level
+                line.segment = segment
+                trafficOverlays.append(contentsOf: [halo, line])
             }
+            map.addOverlays(trafficOverlays, level: .aboveRoads)
+        }
 
-            if let vehicle = path.vehicle {
-                let annotation = VehicleAnnotation(tripPath: path, vehicle: vehicle)
-                focusVehicle = annotation
-                map.addAnnotation(annotation)
+        func applyUserPosition(_ position: GeoPosition?, to map: MKMapView) {
+            guard let position else {
+                if let userDot { map.removeAnnotation(userDot) }
+                if let accuracy { map.removeOverlay(accuracy) }
+                userDot = nil
+                accuracy = nil
+                accuracySignature = ""
+                return
+            }
+            let coordinate = position.coordinate
+            if let userDot {
+                userDot.coordinate = coordinate
+            } else {
+                let dot = UserDotAnnotation(coordinate: coordinate)
+                userDot = dot
+                map.addAnnotation(dot)
+            }
+            let radius = max(position.accuracyM, 12)
+            let signature = "\(coordinate.latitude),\(coordinate.longitude),\(radius)"
+            guard signature != accuracySignature else { return }
+            accuracySignature = signature
+            if let accuracy { map.removeOverlay(accuracy) }
+            let circle = AccuracyCircle(center: coordinate, radius: radius)
+            accuracy = circle
+            map.addOverlay(circle, level: .aboveRoads)
+        }
+
+        // MARK: Timeline
+
+        func renderHistory(_ t: Double, frames: MapHistoryFrames, options: MapHistoryRenderOptions) -> MapHistoryRenderResult {
+            guard let map else { return lastHistory }
+            let start = MapHistoryData.windowStart(of: t)
+            guard let current = frames.get(start) else {
+                setHistoryStale(true, in: map)
+                lastHistory = MapHistoryRenderResult(ready: false, visible: lastHistory.visible)
+                return lastHistory
+            }
+            setHistoryStale(false, in: map)
+            if zooming { return lastHistory }
+            let prev = frames.get(start - MapHistoryData.windowSec)
+            let next = frames.get(start + MapHistoryData.windowSec)
+            historyFrame += 1
+            let frame = historyFrame
+            var visible = 0
+            var add: [VehicleAnnotation] = []
+
+            for (id, track) in current.tracks {
+                let existing = history[id]
+                let hint = existing?.windowStart == start ? existing?.hint ?? -1 : -1
+                guard let sample = MapHistorySampler.sample(track, t, hint: hint, prev: prev?.tracks[id], next: next?.tracks[id]) else { continue }
+                let ref = sample.a ?? sample.b
+                let routeShort = ref.map { $0.track.routeAt($0.i) } ?? track.route
+                guard options.isVisible(id, routeShort) else { continue }
+                let coordinate = CLLocationCoordinate2D(latitude: sample.lat, longitude: sample.lon)
+                let tracked = options.isTracked(id)
+                let route = routeShort.flatMap { options.routeByShort[$0] }
+                let iconKey = "\(routeShort ?? "")|\(route?.color ?? "")|\(route?.text ?? "")|\(tracked)|\(options.showIds)"
+                var state = existing ?? HistoryState(
+                    annotation: VehicleAnnotation(
+                        vehicleId: id, tripId: track.trip ?? "", routeShort: "?", routeColor: "1FB574", routeText: "FFFFFF",
+                        headsign: "", coordinate: coordinate, tracked: false, labelText: nil, mode: nil, estimated: false,
+                        dimmed: false, isHistory: true
+                    ),
+                    iconKey: "", shown: false, hint: -1, windowStart: start, frame: 0, route: nil, sample: nil
+                )
+                state.hint = sample.index
+                state.windowStart = start
+                state.frame = frame
+                state.route = routeShort
+                state.sample = sample
+                if iconKey != state.iconKey {
+                    state.iconKey = iconKey
+                    let a = state.annotation
+                    a.routeShort = route?.short ?? routeShort ?? "?"
+                    a.routeColor = route?.color ?? "1FB574"
+                    a.routeText = route?.text ?? "FFFFFF"
+                    a.tracked = tracked
+                    a.mode = TransitIds.vehicleMode(id: id, mode: nil, routeType: route?.type)
+                    a.labelText = options.showIds || tracked ? TransitIds.displayVehicleId(id) : nil
+                    (map.view(for: a) as? VehicleAnnotationView)?.apply()
+                }
+                state.annotation.coordinate = coordinate
+                if !state.shown {
+                    add.append(state.annotation)
+                    state.shown = true
+                }
+                history[id] = state
+                visible += 1
+            }
+            var remove: [VehicleAnnotation] = []
+            for (id, state) in history where state.frame != frame && state.shown {
+                remove.append(state.annotation)
+                history[id]?.shown = false
+            }
+            if !remove.isEmpty { map.removeAnnotations(remove) }
+            if !add.isEmpty { map.addAnnotations(add) }
+            lastHistory = MapHistoryRenderResult(ready: true, visible: visible)
+            return lastHistory
+        }
+
+        private func setHistoryStale(_ stale: Bool, in map: MKMapView) {
+            guard historyStale != stale else { return }
+            historyStale = stale
+            for state in history.values where state.shown {
+                map.view(for: state.annotation)?.alpha = stale ? 0.35 : 1
             }
         }
 
-        // MARK: Camera
+        func historySample(_ id: String) -> (sample: MapHistorySampler.Sample?, route: String?) {
+            (history[id]?.sample, history[id]?.route)
+        }
+
+        func clearHistory() {
+            guard let map else { return }
+            map.removeAnnotations(history.values.map(\.annotation))
+            history = [:]
+            lastHistory = MapHistoryRenderResult(ready: false, visible: 0)
+        }
+
+        // MARK: Camera commands
 
         func run(_ command: MapCommand, on map: MKMapView) {
             switch command {
@@ -418,7 +887,7 @@ struct TransitMapRepresentable: UIViewRepresentable {
             case .jump(let coordinate, let zoom):
                 map.setCenter(coordinate, zoomLevel: zoom, animated: false)
             case .fit(let coordinates, let maxZoom):
-                map.fit(coordinates, maxZoom: maxZoom)
+                map.fit(coordinates, maxZoom: maxZoom, padding: 80)
             case .flyAtLeast(let coordinate, let minZoom):
                 map.setCenter(coordinate, zoomLevel: max(map.zoomLevel, minZoom), animated: true)
             }
@@ -440,65 +909,129 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 }
                 return renderer
             }
-
+            if let traffic = overlay as? TrafficOverlay {
+                let renderer = MKPolylineRenderer(polyline: traffic)
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+                let weight = 5 + (traffic.level * 3).rounded()
+                if traffic.isHalo {
+                    renderer.strokeColor = UIColor(Theme.background).withAlphaComponent(0.55)
+                    renderer.lineWidth = weight + 4
+                } else {
+                    renderer.strokeColor = TrafficColor.uiColor(traffic.level).withAlphaComponent(0.95)
+                    renderer.lineWidth = weight
+                }
+                return renderer
+            }
+            if let circle = overlay as? AccuracyCircle {
+                let renderer = MKCircleRenderer(circle: circle)
+                renderer.fillColor = UIColor(Theme.early).withAlphaComponent(0.12)
+                renderer.strokeColor = UIColor(Theme.early).withAlphaComponent(0.5)
+                renderer.lineWidth = 1
+                return renderer
+            }
             return MKOverlayRenderer(overlay: overlay)
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            if annotation is MKUserLocation { return nil }
-
-            if annotation is StopAnnotation {
-                let view = mapView.dequeueReusableAnnotationView(
-                    withIdentifier: StopAnnotationView.reuseIdentifier,
-                    for: annotation
-                )
+            switch annotation {
+            case is StopAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: StopAnnotationView.reuseIdentifier, for: annotation)
                 view.annotation = annotation
                 return view
-            }
-
-            if annotation is VehicleAnnotation {
-                let view = mapView.dequeueReusableAnnotationView(
-                    withIdentifier: VehicleAnnotationView.reuseIdentifier,
-                    for: annotation
-                )
+            case let vehicle as VehicleAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: VehicleAnnotationView.reuseIdentifier, for: annotation)
                 view.annotation = annotation
+                view.isEnabled = !vehicle.isFocus
+                if vehicle.isHistory { view.alpha = historyStale ? 0.35 : 1 }
                 return view
+            case is UserDotAnnotation:
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: UserDotAnnotationView.reuseIdentifier, for: annotation)
+                view.annotation = annotation
+                view.isEnabled = false
+                return view
+            default:
+                return nil
             }
-
-            return nil
         }
 
         func mapView(_ mapView: MKMapView, didSelect annotation: MKAnnotation) {
-            // Selection is a one-shot signal here; the app drives its own
-            // sheets, so the pin must not stay latched.
             mapView.deselectAnnotation(annotation, animated: false)
-
             if let stop = annotation as? StopAnnotation {
                 parent.onSelectStop(stop.stopId)
-            } else if let vehicle = annotation as? VehicleAnnotation {
-                parent.onSelectVehicle(vehicle)
+            } else if let vehicle = annotation as? VehicleAnnotation, !vehicle.isFocus {
+                UISelectionFeedbackGenerator().selectionChanged()
+                if vehicle.isHistory {
+                    parent.onSelectHistoryVehicle(vehicle.vehicleId)
+                } else {
+                    parent.onSelectVehicle(vehicle.vehicleId)
+                }
             }
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            let region = mapView.region
             let zoom = mapView.zoomLevel
+            let center = mapView.centerCoordinate
+            parent.camera.updateZoom(zoom)
 
-            MainActor.assumeIsolated { self.parent.camera.updateZoom(zoom) }
-            schedulePersist(center: region.center, zoom: zoom)
-        }
+            let previous = stopZoom
+            if !(zoom < Self.coachStopsZoom && previous < Self.coachStopsZoom) {
+                let rect = mapView.visibleMapRect
+                let padded = rect.insetBy(dx: -rect.width * 0.35, dy: -rect.height * 0.35)
+                let moved = stopBounds.map { !$0.contains(MKMapPoint(x: rect.minX, y: rect.minY)) || !$0.contains(MKMapPoint(x: rect.maxX, y: rect.maxY)) } ?? true
+                if moved || (zoom >= Self.coachStopsZoom) != (previous >= Self.coachStopsZoom) {
+                    stopBounds = padded
+                }
+            }
+            stopZoom = zoom
+            applyStops(to: mapView)
 
-        // MARK: Debounced side effects
-
-        private func schedulePersist(center: CLLocationCoordinate2D, zoom: Double) {
             persistWork?.cancel()
             let work = DispatchWorkItem {
-                ViewStateStore.save(
-                    ViewStateStore.MapView(lat: center.latitude, lon: center.longitude, zoom: zoom)
-                )
+                ViewStateStore.save(ViewStateStore.MapView(lat: center.latitude, lon: center.longitude, zoom: zoom))
             }
             persistWork = work
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.6, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
         }
+    }
+}
+
+/// The 3D chase camera's maths (`map3d/chaseCam.ts`).
+enum MapChase {
+    private static let mPerDegLat = 110_540.0
+    private static let mPerDegLon = 111_320.0
+
+    static func meters(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let kx = mPerDegLon * cos((a.latitude + b.latitude) / 2 * .pi / 180)
+        return hypot((b.longitude - a.longitude) * kx, (b.latitude - a.latitude) * mPerDegLat)
+    }
+
+    static func bearing(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let kx = mPerDegLon * cos((a.latitude + b.latitude) / 2 * .pi / 180)
+        let deg = atan2((b.longitude - a.longitude) * kx, (b.latitude - a.latitude) * mPerDegLat) * 180 / .pi
+        return (deg + 360).truncatingRemainder(dividingBy: 360)
+    }
+
+    static func delta(_ from: Double, _ to: Double) -> Double {
+        let d = ((to - from).truncatingRemainder(dividingBy: 360) + 540).truncatingRemainder(dividingBy: 360) - 180
+        return d == -180 ? 180 : d
+    }
+
+    /// Turns towards `target` with time constant `tau`, never faster than `maxDegPerS`.
+    static func approach(_ current: Double, _ target: Double, dt: Double, tau: Double = 0.9, maxDegPerS: Double = 75) -> Double {
+        let d = delta(current, target)
+        let share = 1 - exp(-max(0, dt) / tau)
+        let limit = maxDegPerS * max(0, dt)
+        let step = max(-limit, min(limit, d * share))
+        return (current + step + 360).truncatingRemainder(dividingBy: 360)
+    }
+
+    static func offset(_ c: CLLocationCoordinate2D, meters: Double, heading: Double) -> CLLocationCoordinate2D {
+        let rad = heading * .pi / 180
+        let kx = mPerDegLon * cos(c.latitude * .pi / 180)
+        return CLLocationCoordinate2D(
+            latitude: c.latitude + meters * cos(rad) / mPerDegLat,
+            longitude: c.longitude + meters * sin(rad) / kx
+        )
     }
 }

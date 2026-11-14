@@ -19,6 +19,10 @@ struct GeoPosition: Codable, Equatable {
     let accuracyM: Double
     /// Unix seconds of the fix.
     let at: Double
+    /// The phone's speed (m/s), when the GPS reports one.
+    var speed: Double? = nil
+    /// Direction of travel (degrees), when the GPS reports one.
+    var course: Double? = nil
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -54,11 +58,16 @@ final class LocationProvider: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
     private var isWatching = false
+    /// A ride is running: keep high-accuracy fixes coming in the background.
+    private(set) var isRideTracking = false
+    #if os(iOS)
+    private var backgroundSession: CLBackgroundActivitySession?
+    #endif
 
     override init() {
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = 10
     }
 
@@ -92,6 +101,33 @@ final class LocationProvider: NSObject, ObservableObject {
         isWatching = true
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
+    }
+
+    /// While a ride runs the phone keeps reporting with the screen off, so the
+    /// ride can close itself at the rider's stop and the Live Activity stays
+    /// current. Uses the When In Use permission with the background indicator.
+    func setRideTracking(_ on: Bool) {
+        guard on != isRideTracking else { return }
+        isRideTracking = on
+        #if os(iOS)
+        if on {
+            backgroundSession = CLBackgroundActivitySession()
+            manager.allowsBackgroundLocationUpdates = true
+            manager.showsBackgroundLocationIndicator = true
+            manager.pausesLocationUpdatesAutomatically = false
+            manager.activityType = .otherNavigation
+            manager.distanceFilter = kCLDistanceFilterNone
+            if !isWatching { start() }
+        } else {
+            manager.allowsBackgroundLocationUpdates = false
+            manager.showsBackgroundLocationIndicator = false
+            manager.pausesLocationUpdatesAutomatically = true
+            manager.activityType = .other
+            manager.distanceFilter = 10
+            backgroundSession?.invalidate()
+            backgroundSession = nil
+        }
+        #endif
     }
 
     func stop() {
@@ -129,7 +165,9 @@ final class LocationProvider: NSObject, ObservableObject {
             lat: location.coordinate.latitude,
             lon: location.coordinate.longitude,
             accuracyM: location.horizontalAccuracy,
-            at: location.timestamp.timeIntervalSince1970
+            at: location.timestamp.timeIntervalSince1970,
+            speed: location.speed >= 0 ? location.speed : nil,
+            course: location.course >= 0 ? location.course : nil
         )
         position = fix
         isStale = false

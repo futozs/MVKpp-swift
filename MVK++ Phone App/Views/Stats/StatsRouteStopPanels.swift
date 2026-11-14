@@ -36,7 +36,7 @@ struct StatsRoutePanel: View {
     /// Under the pill: the town or depot for Volán, the line for rail.
     private static func sub(_ r: Route) -> String? {
         switch TransitModes.routeMode(r) {
-        case .coach: return r.operator_.flatMap { $0.isEmpty ? nil : $0 }
+        case .coach: return r.operatorName.flatMap { $0.isEmpty ? nil : $0 }
         case .rail:
             guard let colon = r.long.firstIndex(of: ":") else { return r.long }
             return r.long[r.long.index(after: colon)...].trimmingCharacters(in: .whitespaces)
@@ -49,7 +49,7 @@ struct StatsRoutePanel: View {
         routes.sorted { a, b in
             let ma = Self.modeOrder(a), mb = Self.modeOrder(b)
             if ma != mb { return ma < mb }
-            let oa = a.operator_ ?? "", ob = b.operator_ ?? ""
+            let oa = a.operatorName ?? "", ob = b.operatorName ?? ""
             if oa != ob { return oa.localizedStandardCompare(ob) == .orderedAscending }
             return a.short.localizedStandardCompare(b.short) == .orderedAscending
         }
@@ -66,7 +66,7 @@ struct StatsRoutePanel: View {
                 StatsHeading("Vonalak")
                 StatsSearchablePicker(
                     items: sorted.map { r in
-                        StatsPillItem(id: Self.key(r), label: r.short, sub: Self.sub(r), color: r.color, search: "\(r.long) \(r.operator_ ?? "")")
+                        StatsPillItem(id: Self.key(r), label: r.short, sub: Self.sub(r), color: r.color, search: "\(r.long) \(r.operatorName ?? "")")
                     },
                     value: current,
                     onChange: { short = $0 },

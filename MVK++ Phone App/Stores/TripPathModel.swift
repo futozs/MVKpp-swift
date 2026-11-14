@@ -41,12 +41,10 @@ final class TripPathModel: ObservableObject {
 
         task?.cancel()
         task = nil
+        path = nil
+        isLost = false
 
-        guard let tripId else {
-            path = nil
-            isLost = false
-            return
-        }
+        guard let tripId else { return }
 
         task = Task { [weak self] in
             guard let self else { return }
@@ -60,9 +58,11 @@ final class TripPathModel: ObservableObject {
     private func load(tripId: String, vehicleId: String?) async {
         do {
             let response = try await APIClient.shared.tripPath(tripId: tripId, vehicleId: vehicleId)
+            guard !Task.isCancelled else { return }
             path = response
             isLost = response.vehicle == nil
         } catch {
+            guard !Task.isCancelled else { return }
             isLost = true
         }
     }

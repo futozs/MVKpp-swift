@@ -3,12 +3,11 @@
 //  MVK++ Phone App
 //
 
-import Combine
 import SwiftUI
 
-/// What is coming to one stop. Opened by tapping a dot on the map, and kept
-/// deliberately short — it sits over the map, and the rider still needs to see
-/// where the bus is.
+/// What is coming to one stop, over the map — the web app's
+/// `stops/StopDetailDrawer`. Kept short: the rider still needs to see where
+/// the bus is.
 struct StopDetailSheet: View {
     let stop: Stop
     let isMonitored: Bool
@@ -16,173 +15,151 @@ struct StopDetailSheet: View {
     var onFocusTrip: (String, String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var location: LocationProvider
     @StateObject private var model = StopArrivalsModel()
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let error = model.errorMessage {
-                    ScrollView { ErrorNotice(message: error).padding(16) }
-                } else if model.isLoading && model.arrivals.isEmpty {
-                    ProgressView("Indulások lekérése…")
-                        .font(Theme.mono(12, weight: .regular))
-                        .tint(Theme.primary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if model.arrivals.isEmpty {
-                    ContentUnavailableView(
-                        "Nincs közelgő indulás",
-                        systemImage: "clock.badge.xmark",
-                        description: Text("Erről a megállóról jelenleg nincs ismert indulás.")
-                    )
-                } else {
-                    List(model.arrivals) { arrival in
-                        ArrivalRowView(arrival: arrival) { tripId, vehicleId in
-                            onFocusTrip(tripId, vehicleId)
-                            dismiss()
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(Theme.border)
-                    }
-                    .listStyle(.plain)
-                    .mvkBackground()
-                }
-            }
-            .background(AppBackground())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) { header }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        onToggleMonitor(stop.id)
-                    } label: {
-                        Image(systemName: isMonitored ? "checkmark" : "plus")
-                    }
-                    .tint(isMonitored ? Theme.primary : Theme.foreground)
-                    .accessibilityLabel(isMonitored ? "Levétel a figyelőről" : "Felvétel a figyelőre")
-                }
-            }
-            .task(id: stop.id) { await model.start(stopId: stop.id, stopName: stop.name) }
-            .onDisappear { model.stop() }
+        VStack(spacing: 0) {
+            header
+            Rectangle().fill(Theme.border).frame(height: 1)
+            content
         }
+        .background(Theme.card.ignoresSafeArea())
+        .task(id: stop.id) { await model.start(stopId: stop.id, stopName: stop.name, limit: 16) }
+        .onDisappear { model.stop() }
+        .accessibilityLabel("\(stop.name) indulásai")
     }
 
     private var header: some View {
-        VStack(spacing: 1) {
-            Text(stop.name)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Theme.foreground)
-                .lineLimit(1)
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(stop.name)
+                    .font(.system(size: 14, weight: .bold))
+                    .tracking(-0.2)
+                    .foregroundStyle(Theme.foreground)
+                    .lineLimit(1)
 
-            HStack(spacing: 5) {
-                Text(stop.id)
-                    .font(Theme.mono(10, weight: .regular))
-                    .foregroundStyle(Theme.mutedForeground)
-                Text("·").foregroundStyle(Theme.mutedForeground)
-                if model.isOffline {
-                    OfflineTag(compact: true)
-                } else {
-                    LiveTag(live: model.hasLiveData)
+                HStack(spacing: 6) {
+                    Text(StopKind.label(stopId: stop.id))
+                        .font(Theme.mono(11, weight: .regular))
+                    Text("·")
+                    if let merged = model.response?.merged, merged.count >= 2 {
+                        SharedStopTag(merged: merged)
+                        Text("·")
+                    }
+                    if model.isOffline {
+                        OfflineTag(compact: true)
+                    } else if model.response?.rtError != nil {
+                        Text("menetrendi")
+                            .font(Theme.mono(11, weight: .regular))
+                    } else {
+                        HStack(spacing: 6) {
+                            LiveDot()
+                            Text("valós idejű")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.live)
+                    }
+                }
+                .font(Theme.mono(11, weight: .regular))
+                .foregroundStyle(Theme.mutedForeground)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 4) {
+                Button {
+                    onToggleMonitor(stop.id)
+                } label: {
+                    Image(systemName: isMonitored ? "checkmark" : "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 32, height: 32)
+                        .foregroundStyle(isMonitored ? Theme.primaryForeground : Theme.foreground)
+                        .background(
+                            isMonitored ? Theme.primary : Theme.background,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                                .strokeBorder(isMonitored ? Theme.primary : Theme.input, lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isMonitored ? "\(stop.name) levétele a figyelőről" : "\(stop.name) felvétele a figyelőre")
+
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Panel bezárása")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let error = model.error, model.arrivals.isEmpty {
+            ScrollView {
+                Text(error.reason)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.destructive)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                            .strokeBorder(Theme.destructive.opacity(0.30), lineWidth: 1)
+                    )
+                    .padding(16)
+            }
+        } else if model.isLoading && model.arrivals.isEmpty {
+            Text("Indulások lekérése…")
+                .font(Theme.mono(12, weight: .regular))
+                .foregroundStyle(Theme.mutedForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+            Spacer(minLength: 0)
+        } else if model.arrivals.isEmpty {
+            Text("Nincs közelgő indulás erről a megállóról.")
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.mutedForeground)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .padding(.horizontal, 16)
+            Spacer(minLength: 0)
+        } else {
+            TimelineView(.periodic(from: .now, by: 10)) { _ in
+                let catchFor = CatchFor(stopLat: stop.lat, stopLon: stop.lon, position: location.position, now: RealtimeClient.shared.serverNow)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(model.arrivals.enumerated()), id: \.offset) { index, arrival in
+                            if index > 0 {
+                                Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1)
+                            }
+                            ArrivalRowView(
+                                arrival: arrival,
+                                variant: .drawer,
+                                list: model.arrivals,
+                                verdict: catchFor.verdict(arrival)
+                            ) { tripId, vehicleId in
+                                onFocusTrip(tripId, vehicleId)
+                                dismiss()
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-}
-
-/// Departures for one stop, refreshed every four seconds while visible.
-@MainActor
-final class StopArrivalsModel: ObservableObject {
-    @Published private(set) var arrivals: [ArrivalItem] = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var errorMessage: String?
-    @Published private(set) var hasLiveData = false
-    /// The list came out of the downloaded timetable because the gateway
-    /// could not be reached. Different from `hasLiveData == false`, which only
-    /// means no vehicle is reporting on an otherwise live board.
-    @Published private(set) var isOffline = false
-
-    private let pollInterval: TimeInterval = 4
-    private var task: Task<Void, Never>?
-    /// A single dropped poll on a moving phone is normal; the last good list
-    /// is better than an immediate downgrade to schedule times. Past this the
-    /// connection is genuinely gone.
-    private let staleAfter: TimeInterval = 45
-    private var lastSuccessAt: Date?
-
-    func start(stopId: String, stopName: String = "", limit: Int = 16) async {
-        stop()
-        isLoading = true
-
-        task = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                await self.load(stopId: stopId, stopName: stopName, limit: limit)
-                try? await Task.sleep(for: .seconds(self.pollInterval))
-            }
-        }
-    }
-
-    func stop() {
-        task?.cancel()
-        task = nil
-    }
-
-    private func load(stopId: String, stopName: String, limit: Int) async {
-        do {
-            let response = try await APIClient.shared.arrivals(stopId: stopId, limit: limit)
-            arrivals = response.arrivals
-            // `rtError` set means the gateway fell back to the timetable.
-            hasLiveData = response.rtError == nil
-            isOffline = false
-            errorMessage = nil
-            lastSuccessAt = Date()
-
-            // Every refresh also re-aims the stop's alarm at the latest
-            // prediction.
-            NotificationCenterStore.shared.scheduleAlarm(
-                stopId: stopId,
-                stopName: stopName.isEmpty ? (response.stop.name ?? stopId) : stopName,
-                arrivals: response.arrivals
-            )
-        } catch {
-            fallBackToSchedule(stopId: stopId, stopName: stopName, limit: limit, error: error)
-        }
-        isLoading = false
-    }
-
-    /// No gateway. The downloaded timetable knows when the bus is *supposed*
-    /// to come, which is the honest answer and a far better one than a blank
-    /// card — every row is marked schedule-only so nobody reads a prediction
-    /// into it.
-    private func fallBackToSchedule(stopId: String, stopName: String, limit: Int, error: Error) {
-        let isStale = lastSuccessAt.map { Date().timeIntervalSince($0) > staleAfter } ?? true
-        // Keep the last good list rather than blanking the sheet mid-poll.
-        guard isStale || arrivals.isEmpty else { return }
-
-        let scheduled = OfflineDepartures.arrivals(stopId: stopId, limit: limit)
-        guard !scheduled.isEmpty else {
-            if arrivals.isEmpty || isOffline {
-                arrivals = []
-                isOffline = OfflineDepartures.isAvailable
-                errorMessage = isOffline
-                    ? "Nincs kapcsolat, és a letöltött menetrend szerint innen ma már nem indul járat."
-                    : error.localizedDescription
-            }
-            return
-        }
-
-        arrivals = scheduled
-        hasLiveData = false
-        isOffline = true
-        errorMessage = nil
-
-        // The alarm is still worth setting: a menetrend szerinti idő is what
-        // the rider is planning around when there is nothing better.
-        NotificationCenterStore.shared.scheduleAlarm(
-            stopId: stopId,
-            stopName: stopName.isEmpty ? stopId : stopName,
-            arrivals: scheduled
-        )
-    }
-
-    deinit { task?.cancel() }
 }

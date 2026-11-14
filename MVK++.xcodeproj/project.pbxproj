@@ -652,7 +652,8 @@
 				INFOPLIST_FILE = "MVK++ Phone App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, és megmondja, mikor ér oda hozzád a busz.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, megmondja, mikor ér oda hozzád a busz, és felismeri, ha felszálltál. Utazás közben a háttérben is figyeli, hogy a leszállóhelyeden magától lezárja az utat.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "A mozgásérzékelőből tudja, hogy járműben ülsz-e, így pontosabban ismeri fel, ha felszálltál egy buszra.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -688,7 +689,8 @@
 				INFOPLIST_FILE = "MVK++ Phone App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MVK++";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, és megmondja, mikor ér oda hozzád a busz.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "A helyzeted alapján rendezi a figyelt megállókat, mutatja a közeli járműveket, megmondja, mikor ér oda hozzád a busz, és felismeri, ha felszálltál. Utazás közben a háttérben is figyeli, hogy a leszállóhelyeden magától lezárja az utat.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "A mozgásérzékelőből tudja, hogy járműben ülsz-e, így pontosabban ismeri fel, ha felszálltál egy buszra.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";

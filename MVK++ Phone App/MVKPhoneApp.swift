@@ -48,6 +48,7 @@ struct AppRoot: View {
             }
             .task {
                 CloudSync.shared.start()
+                RideController.shared.attach(location: location, transit: store)
                 PushService.shared.start()
                 if let pending = PhoneAppDelegate.pendingLink {
                     PhoneAppDelegate.pendingLink = nil

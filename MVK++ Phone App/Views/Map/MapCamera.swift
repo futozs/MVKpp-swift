@@ -11,12 +11,11 @@ import MapKit
 enum MapCommand: Equatable {
     /// Animated move to a point at a Leaflet-style zoom level.
     case fly(CLLocationCoordinate2D, zoom: Double)
-    /// Immediate move, no animation — used when following a vehicle so the
-    /// view is already correct by the time the next position arrives.
+    /// Immediate move, no animation.
     case jump(CLLocationCoordinate2D, zoom: Double)
     /// Frame all points, never zooming in past `maxZoom`.
     case fit([CLLocationCoordinate2D], maxZoom: Double)
-    /// Move only if the current zoom is further out than `minZoom`.
+    /// Move, never zooming out from where the map already is.
     case flyAtLeast(CLLocationCoordinate2D, minZoom: Double)
 
     static func == (lhs: MapCommand, rhs: MapCommand) -> Bool {
@@ -24,27 +23,24 @@ enum MapCommand: Equatable {
     }
 }
 
-/// Holds at most one pending camera move.
-///
-/// The queue is deliberately *not* `@Published`: the map drains it from inside
-/// `updateUIView`, and clearing a published property there would republish
-/// mid-update and spin the view loop. `generation` is the only observable
-/// part, and it only ever changes from an event handler.
+/// The SwiftUI side's handle on the map: one pending camera move, the follow
+/// state the controls show, and direct calls into the map for the things
+/// that run every frame (the timeline) and must not go through a re-render.
 @MainActor
 final class MapCameraController: ObservableObject {
     @Published private(set) var generation = 0
+    /// The rider dragged the map while following: it no longer chases the bus.
+    @Published private(set) var followPaused = false
 
     private(set) var pending: MapCommand?
-    /// Latest known zoom, updated by the map. Read-only bookkeeping — nothing
-    /// observes it, so it stays unpublished.
     private(set) var zoom: Double = 13
+    weak var coordinator: TransitMapRepresentable.Coordinator?
 
     func send(_ command: MapCommand) {
         pending = command
         generation &+= 1
     }
 
-    /// Takes the pending command, if any. Safe to call during a view update.
     func consume() -> MapCommand? {
         defer { pending = nil }
         return pending
@@ -53,33 +49,63 @@ final class MapCameraController: ObservableObject {
     func updateZoom(_ value: Double) {
         zoom = value
     }
+
+    func setFollowPaused(_ paused: Bool) {
+        guard followPaused != paused else { return }
+        followPaused = paused
+    }
+
+    /// „Busz középre”.
+    func resumeFollow() {
+        setFollowPaused(false)
+        coordinator?.resumeFollow()
+    }
+
+    func zoom(by delta: Double) {
+        coordinator?.zoom(by: delta)
+    }
+
+    /// Draws the timeline at `t`; returns whether data was there and how many vehicles.
+    func renderHistory(_ t: Double, frames: MapHistoryFrames, options: MapHistoryRenderOptions) -> MapHistoryRenderResult {
+        coordinator?.renderHistory(t, frames: frames, options: options) ?? MapHistoryRenderResult(ready: false, visible: 0)
+    }
+
+    func historySample(_ id: String) -> (sample: MapHistorySampler.Sample?, route: String?) {
+        coordinator?.historySample(id) ?? (nil, nil)
+    }
+
+    func clearHistory() {
+        coordinator?.clearHistory()
+    }
+}
+
+struct MapHistoryRenderOptions {
+    let routeByShort: [String: Route]
+    let isVisible: (String, String?) -> Bool
+    let isTracked: (String) -> Bool
+    let showIds: Bool
+}
+
+struct MapHistoryRenderResult: Equatable {
+    let ready: Bool
+    let visible: Int
 }
 
 extension MKMapView {
 
-    /// The view width the zoom maths needs. Before the first layout pass
-    /// `bounds` is zero, and using it would put the camera at an absurd zoom —
-    /// the screen width is the right stand-in until layout happens.
     private var zoomReferenceWidth: CGFloat {
         bounds.width > 1 ? bounds.width : 390
     }
 
-    /// Leaflet-style zoom levels, so the ported view logic ("zoom 16 on me",
-    /// "at least 17 when a stop is selected") keeps its original numbers.
+    /// Leaflet-style zoom levels, so the ported logic keeps its numbers.
     var zoomLevel: Double {
         log2(360 * (zoomReferenceWidth / 256) / region.span.longitudeDelta)
     }
 
-    /// `maxZoom` keeps callers like `.fit` from zooming in absurdly close for
-    /// two nearby points — the base map itself (native Apple Maps) has no
-    /// zoom ceiling of its own to respect.
-    func setCenter(_ coordinate: CLLocationCoordinate2D, zoomLevel: Double, animated: Bool, maxZoom: Double = 18) {
+    func setCenter(_ coordinate: CLLocationCoordinate2D, zoomLevel: Double, animated: Bool, maxZoom: Double = 19) {
         let clamped = min(max(zoomLevel, 2), maxZoom)
         let longitudeDelta = 360 * (zoomReferenceWidth / 256) / pow(2, clamped)
-        // Latitude degrees cover less ground away from the equator; without
-        // the cosine the vertical span would be too wide this far north.
         let latitudeDelta = longitudeDelta * cos(coordinate.latitude * .pi / 180)
-
         let region = MKCoordinateRegion(
             center: coordinate,
             span: MKCoordinateSpan(
@@ -91,30 +117,21 @@ extension MKMapView {
     }
 
     func fit(_ coordinates: [CLLocationCoordinate2D], maxZoom: Double, padding: CGFloat = 60, animated: Bool = true) {
-        guard !coordinates.isEmpty else { return }
-
-        if coordinates.count == 1 {
-            setCenter(coordinates[0], zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
-            return
+        guard let first = coordinates.first else { return }
+        var minLat = first.latitude, maxLat = first.latitude, minLon = first.longitude, maxLon = first.longitude
+        for c in coordinates {
+            minLat = min(minLat, c.latitude)
+            maxLat = max(maxLat, c.latitude)
+            minLon = min(minLon, c.longitude)
+            maxLon = max(maxLon, c.longitude)
         }
-
-        var rect = MKMapRect.null
-        for coordinate in coordinates {
-            let point = MKMapPoint(coordinate)
-            rect = rect.union(MKMapRect(x: point.x, y: point.y, width: 0, height: 0))
-        }
-        guard !rect.isNull else { return }
-
-        setVisibleMapRect(
-            rect,
-            edgePadding: UIEdgeInsets(top: padding, left: padding, bottom: padding, right: padding),
-            animated: animated
-        )
-
-        // `setVisibleMapRect` happily zooms to street level for two adjacent
-        // points; the cap keeps the surroundings in frame.
-        if zoomLevel > maxZoom {
-            setCenter(region.center, zoomLevel: maxZoom, animated: animated, maxZoom: maxZoom)
-        }
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
+        let width = max(1, zoomReferenceWidth - padding * 2)
+        let height = max(1, (bounds.height > 1 ? bounds.height : 800) - padding * 2)
+        let lonSpan = max(maxLon - minLon, 1e-6)
+        let latSpan = max((maxLat - minLat) / cos(center.latitude * .pi / 180), 1e-6)
+        let zoomForWidth = log2(360 * (width / 256) / lonSpan)
+        let zoomForHeight = log2(360 * (height / 256) / latSpan)
+        setCenter(center, zoomLevel: min(maxZoom, zoomForWidth, zoomForHeight), animated: animated, maxZoom: maxZoom)
     }
 }

@@ -5,90 +5,99 @@
 
 import SwiftUI
 
-/// The panel shown while the map is following one vehicle: which run it is,
-/// which bus, how fast, and how far it still has to come to reach the rider.
-///
-/// It floats over the map as Liquid Glass rather than sitting flush against
-/// the bottom edge — the map keeps running underneath, and the card reads as
-/// what it is: a control hovering above the content, not a second screen.
+/// The followed vehicle's card (`VehicleFocusCard.tsx`): which run, which
+/// vehicle, how fast, whether the map follows it, „Felszálltam”, and how far
+/// it still has to come to reach the rider.
 struct VehicleFocusCard: View {
     let tripId: String
     let vehicleId: String?
     let stops: [Stop]
+    let routes: [String: Route]
     @ObservedObject var model: TripPathModel
+    let followPaused: Bool
     var onClose: () -> Void
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
+    @ObservedObject private var rides = RideStore.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-            Divider().overlay(.white.opacity(0.15))
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+            if let shownId, let data = model.path, rides.active == nil {
+                Button {
+                    RideBoarding.board(
+                        BoardInfo(tripId: data.trip.isEmpty ? tripId : data.trip, vehicleId: shownId, route: data.route, color: data.color, text: data.text, headsign: data.headsign),
+                        detected: .manual
+                    )
+                } label: {
+                    Label("Felszálltam erre a \(tripMode.words.ra)", systemImage: "ticket")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.primary)
+                .foregroundStyle(Theme.primaryForeground)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
 
             ApproachStripView(
                 tripId: model.path?.trip ?? tripId,
                 shape: model.shape,
                 vehicle: model.vehicleFix,
                 stops: stops,
-                deviationSec: model.path?.scheduleDeviationSec,
-                isTransparent: true
+                deviationSec: model.path?.vehicle?.delaySec ?? model.path?.scheduleDeviationSec
             )
         }
-        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .floatingGlass(cornerRadius: Theme.Radius.xxl)
+        .background(Theme.card)
+        .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+        .mvkShadow(Theme.Shadow.xl)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Követett jármű")
     }
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            RouteTile(
-                short: model.path?.route ?? "…",
-                colorHex: model.path?.color,
-                textHex: model.path?.text,
-                size: .large
-            )
+            RouteTile(short: tileText, colorHex: model.path?.color, textHex: model.path?.text, size: .large)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(model.path?.headsign ?? "Menet betöltése…")
+                    Text(title ?? "Menet betöltése…")
                         .font(.system(size: 14, weight: .bold))
-                        // White throughout: this card sits on glass over live
-                        // map tiles, where the muted palette disappears.
-                        .foregroundStyle(.white)
+                        .tracking(-0.2)
+                        .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
-                    if model.path?.vehicle != nil { LiveDot(size: 7) }
+                    if model.path?.vehicle != nil { LiveDot() }
                 }
 
-                FlowLayout(spacing: 10, lineSpacing: 4) {
-                    if let shownId {
-                        Text(shownId)
+                FlowLayout(spacing: 12, lineSpacing: 4) {
+                    if let idLabel {
+                        Text(idLabel)
                             .font(Theme.mono(14))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(
-                                .white.opacity(0.18),
-                                in: RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            )
+                            .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .accessibilityLabel(shownId.map { TransitIds.vehicleIdTitle($0, plate: model.path?.vehicle?.plate) } ?? idLabel)
                     }
-
                     if let speedKmh {
                         HStack(spacing: 4) {
-                            Image(systemName: "gauge.with.dots.needle.33percent")
-                                .font(.system(size: 11))
+                            Image(systemName: "gauge.with.dots.needle.33percent").font(.system(size: 12))
                             Text("\(speedKmh) km/h").font(Theme.mono(12, weight: .semibold))
                         }
-                        .foregroundStyle(.white.opacity(isMoving ? 1 : 0.65))
+                        .foregroundStyle(speedKmh > 2 ? Theme.foreground : Theme.mutedForeground)
                     }
-
-                    if model.isLost {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 10))
-                            Text("A jármű kiesett a jelentésből")
-                                .font(.system(size: 11))
-                        }
-                        .foregroundStyle(.white.opacity(0.8))
+                    HStack(spacing: 4) {
+                        Image(systemName: "location.north.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.primary)
+                        Text(status)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.mutedForeground)
                     }
                 }
             }
@@ -97,27 +106,73 @@ struct VehicleFocusCard: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    // A generous target: this is the only way out of follow
-                    // mode, and the tab bar is hidden while it is on.
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.mutedForeground)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .padding(.trailing, -10)
+            .padding(.top, -8)
             .accessibilityLabel("Menetkövetés vége")
         }
-        .padding(.horizontal, 14)
     }
 
-    /// Falls back to the registration the rider tapped through with, so the
-    /// card is not blank while the first path response is in flight.
-    private var shownId: String? { model.path?.vehicle?.id ?? vehicleId }
+    private var vehicle: ArrivalVehicle? { model.path?.vehicle }
+    private var shownId: String? { vehicle?.id ?? vehicleId }
 
-    private var speedKmh: Int? {
-        guard let speed = model.path?.vehicle?.speed else { return nil }
-        return Int((speed * 3.6).rounded())
+    private var tripMode: TransitMode {
+        guard let shownId else { return .bus }
+        let feed = TransitIds.rideMode(vehicleId: shownId, tripId: model.path?.trip ?? tripId)
+        guard feed == .bus, let route = model.path?.route else { return feed }
+        let type = routes.values.first { $0.short == route || $0.id == route }?.type
+        return TransitIds.vehicleMode(id: shownId, mode: nil, routeType: type)
     }
 
-    private var isMoving: Bool { (speedKmh ?? 0) > 2 }
+    private var trainNo: String? { tripMode == .rail ? vehicle?.trainNo : nil }
+
+    private var tileText: String {
+        guard let path = model.path else { return "…" }
+        return trainNo.map { "\(path.route) \($0)" } ?? path.route
+    }
+
+    private var title: String? {
+        guard let path = model.path else { return nil }
+        return vehicle?.trainName.map { "\($0) → \(path.headsign)" } ?? path.headsign
+    }
+
+    private var idLabel: String? { shownId.map { TransitIds.displayVehicleId($0, plate: vehicle?.plate) } }
+
+    private var speedKmh: Int? { vehicle?.speed.map { Int(($0 * 3.6).rounded()) } }
+
+    private var status: String {
+        if model.isLost { return "A jármű kiesett a jelentésből" }
+        return followPaused ? "Követés szünetel" : "A térkép követi"
+    }
+}
+
+/// The followed vehicle's panel at the bottom of the map (`FocusDock.tsx`):
+/// on a phone the card, with a train's timetable folded above it.
+struct FocusDock: View {
+    let tripId: String
+    let vehicleId: String?
+    let stops: [Stop]
+    let routes: [String: Route]
+    @ObservedObject var model: TripPathModel
+    let followPaused: Bool
+    var onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if TransitFeed.of(id: tripId) == .rail {
+                TripTimetable(tripId: tripId)
+                    .id(tripId)
+            }
+            VehicleFocusCard(
+                tripId: tripId, vehicleId: vehicleId, stops: stops, routes: routes,
+                model: model, followPaused: followPaused, onClose: onClose
+            )
+        }
+        .mapCover()
+    }
 }
