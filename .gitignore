@@ -2,3 +2,6 @@
 # App Store Connect API credentials
 .env.local
 build/
+
+# Claude Code agent worktrees
+.claude/worktrees/
