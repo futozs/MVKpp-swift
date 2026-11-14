@@ -117,7 +117,10 @@ final class UsageReporter {
         views[view, default: 0] += 1
     }
 
-    func flush() { send(open: false) }
+    func flush() {
+        guard let request = send(open: false) else { return }
+        BackgroundWork.run("mvk-usage-flush") { await request.value }
+    }
 
     private func favoritesSnapshot() -> [String: Any] {
         var out: [String: Any] = [:]
@@ -129,11 +132,12 @@ final class UsageReporter {
         return out
     }
 
-    private func send(open: Bool) {
+    @discardableResult
+    private func send(open: Bool) -> Task<Void, Never>? {
         let favorites = favoritesSnapshot()
         let favJSON = (try? JSONSerialization.data(withJSONObject: favorites, options: .sortedKeys)).flatMap { String(data: $0, encoding: .utf8) }
         let favChanged = favJSON != lastFavorites
-        if !open, !favChanged, views.isEmpty { return }
+        if !open, !favChanged, views.isEmpty { return nil }
 
         let screen = UIScreen.main.bounds.size
         var body: [String: Any] = [
@@ -150,12 +154,33 @@ final class UsageReporter {
         lastFavorites = favJSON
 
         guard let url = try? APIClient.shared.url(path: "/v3/usage"),
-              let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+              let data = try? JSONSerialization.data(withJSONObject: body) else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         if open, let session = AccountSession.current { request.setValue(session.sessionToken, forHTTPHeaderField: "x-account-session") }
         request.httpBody = data
-        Task { _ = try? await APIClient.shared.session.data(for: request) }
+        return Task { _ = try? await APIClient.shared.session.data(for: request) }
+    }
+}
+
+/// Work that must finish after the app leaves the screen (the last sync push,
+/// the usage beacon): iOS suspends it within seconds otherwise.
+@MainActor
+enum BackgroundWork {
+    static func run(_ name: String, _ work: @escaping @MainActor () async -> Void) {
+        let app = UIApplication.shared
+        var task = UIBackgroundTaskIdentifier.invalid
+        task = app.beginBackgroundTask(withName: name) {
+            app.endBackgroundTask(task)
+            task = .invalid
+        }
+        Task { @MainActor in
+            await work()
+            if task != .invalid {
+                app.endBackgroundTask(task)
+                task = .invalid
+            }
+        }
     }
 }

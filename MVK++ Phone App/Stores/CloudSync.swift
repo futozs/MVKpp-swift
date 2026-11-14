@@ -262,7 +262,7 @@ final class CloudSync: ObservableObject {
 
     func didBecomeActive() { Task { await refresh() } }
 
-    func didEnterBackground() { Task { await push() } }
+    func didEnterBackground() { BackgroundWork.run("mvk-sync-push") { await self.push() } }
 
     private func refresh() async {
         let changed = await pull()
