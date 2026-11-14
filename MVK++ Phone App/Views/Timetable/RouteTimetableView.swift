@@ -15,7 +15,6 @@ struct RouteTimetableView: View {
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
 
     @State private var legendOpen = false
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         GeometryReader { geometry in
@@ -55,7 +54,12 @@ struct RouteTimetableView: View {
             .animation(Theme.Motion.normalAnimation, value: model.selectedTrip?.tripId)
         }
         .background(Theme.background.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .gesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    if value.startLocation.x < 32, value.translation.width > 80 { model.closeRoute() }
+                }
+        )
     }
 
     // MARK: - Header
@@ -65,7 +69,7 @@ struct RouteTimetableView: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Button {
-                    dismiss()
+                    model.closeRoute()
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 15, weight: .semibold))

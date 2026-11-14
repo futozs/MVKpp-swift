@@ -18,30 +18,33 @@ struct TimetableScreen: View {
     @State private var query = ""
     @FocusState private var searchFocused: Bool
 
+    /// A chosen route slides over the list in place: a `NavigationStack`
+    /// would lay its root out under the shell's glass header.
     var body: some View {
-        NavigationStack {
+        ZStack {
             VStack(spacing: 0) {
                 header
                 Rectangle().fill(Theme.border).frame(height: 1)
                 list
             }
             .background(Theme.card.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(isPresented: routeOpen) {
+            if model.selectedRoute != nil {
                 RouteTimetableView(model: model)
+                    .transition(.move(edge: .trailing))
+                    .zIndex(1)
             }
-            .task {
-                model.setRange(minIso: minIso, maxIso: maxIso)
-                model.start()
-                openPendingTrip()
-            }
-            .onChange(of: navigation.pendingTimetableTrip) { _, _ in openPendingTrip() }
-            .onChange(of: isTabActive) { _, active in
-                if active { model.start() } else { model.stop() }
-            }
-            .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
-            .onDisappear { model.stop() }
         }
+        .animation(Theme.Motion.normalAnimation, value: model.selectedRoute != nil)
+        .task {
+            model.setRange(minIso: minIso, maxIso: maxIso)
+            model.start()
+            openPendingTrip()
+        }
+        .onChange(of: navigation.pendingTimetableTrip) { _, _ in openPendingTrip() }
+        .onChange(of: isTabActive) { _, active in
+            if active { model.start() } else { model.stop() }
+        }
+        .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
     }
 
     /// A trip picked in "Mai zavarok" (here or on the Statisztika).
@@ -49,13 +52,6 @@ struct TimetableScreen: View {
         guard let request = navigation.pendingTimetableTrip else { return }
         navigation.pendingTimetableTrip = nil
         model.openTrip(tripId: request.tripId, routeId: request.routeId, dir: request.dir)
-    }
-
-    private var routeOpen: Binding<Bool> {
-        Binding(
-            get: { model.selectedRoute != nil },
-            set: { open in if !open { model.closeRoute() } }
-        )
     }
 
     // MARK: - Header
