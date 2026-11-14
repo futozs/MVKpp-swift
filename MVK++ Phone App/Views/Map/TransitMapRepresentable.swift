@@ -154,6 +154,16 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private var focusKey = ""
         private var focusOverlays: [RouteOverlay] = []
         private var focusSignature = ""
+        /// 3D: glow plus the passed / remaining split replacing the plain stroke
+        /// (web `setFocusProgress`), refreshed once a second.
+        private var focusStroke: RouteOverlay?
+        private var focusCoordinates: [CLLocationCoordinate2D] = []
+        private var progressOverlays: [RouteOverlay] = []
+        private var progressAlong: Double?
+        private var progressKey = ""
+        private var progressAt = Date.distantPast
+        private static let progressInterval: TimeInterval = 1
+        private static let offLineM: Double = 80
 
         // Follow
         private var followPaused = false
@@ -527,8 +537,14 @@ struct TransitMapRepresentable: UIViewRepresentable {
             let signature = path.map { "\($0.trip)|\($0.shape.count)|\($0.color)" } ?? ""
             guard signature != focusSignature else { return }
             focusSignature = signature
-            map.removeOverlays(focusOverlays)
+            map.removeOverlays(focusOverlays + progressOverlays)
             focusOverlays = []
+            progressOverlays = []
+            focusStroke = nil
+            focusCoordinates = []
+            progressAlong = nil
+            progressKey = ""
+            progressAt = .distantPast
             focusLine = nil
             focusAlong = nil
             guard let path, parent.focusTripId != nil else { return }
@@ -550,7 +566,10 @@ struct TransitMapRepresentable: UIViewRepresentable {
             stroke.isFocus = true
             stroke.colorHex = path.color
             focusOverlays = [halo, stroke]
+            focusStroke = stroke
+            focusCoordinates = coordinates
             map.addOverlays(focusOverlays, level: .aboveLabels)
+            updateFocusProgress(at: focus?.annotation.coordinate)
             if focus == nil, path.vehicle == nil {
                 map.fit(coordinates, maxZoom: 16)
             }
@@ -596,6 +615,64 @@ struct TransitMapRepresentable: UIViewRepresentable {
             }
             focus = entry
             follow(entry.annotation.coordinate, entry: entry)
+            updateFocusProgress(at: entry.annotation.coordinate)
+        }
+
+        private func updateFocusProgress(at position: CLLocationCoordinate2D?) {
+            guard let map, let line = focusLine, let stroke = focusStroke, focusCoordinates.count > 1 else { return }
+            guard parent.is3D else {
+                guard !progressOverlays.isEmpty else { return }
+                map.removeOverlays(progressOverlays)
+                progressOverlays = []
+                progressKey = ""
+                map.addOverlay(stroke, level: .aboveLabels)
+                return
+            }
+            let now = Date()
+            guard progressOverlays.isEmpty || now.timeIntervalSince(progressAt) >= Self.progressInterval else { return }
+            progressAt = now
+
+            var along: Double?
+            if let position {
+                let near = progressAlong ?? Self.nearestAlong(line, position)
+                if let hit = Onboard.projectOnShape(line, lat: position.latitude, lon: position.longitude, near: near), hit.dist <= Self.offLineM {
+                    along = hit.along
+                }
+            }
+            progressAlong = along
+            let key = along.map { String(Int($0 / 5)) } ?? "-"
+            guard key != progressKey else { return }
+            progressKey = key
+
+            let color = stroke.colorHex
+            func overlay(_ points: [CLLocationCoordinate2D], glow: Bool = false, passed: Bool = false) -> RouteOverlay {
+                let o = RouteOverlay(coordinates: points, count: points.count)
+                o.isFocus = true
+                o.isGlow = glow
+                o.isPassed = passed
+                o.colorHex = color
+                return o
+            }
+            var next = [overlay(focusCoordinates, glow: true)]
+            if let along, along > 0, let split = Self.split(focusCoordinates, cum: line.cum, at: along) {
+                if split.passed.count > 1 { next.append(overlay(split.passed, passed: true)) }
+                if split.remaining.count > 1 { next.append(overlay(split.remaining)) }
+            } else {
+                next.append(overlay(focusCoordinates))
+            }
+            if progressOverlays.isEmpty { map.removeOverlay(stroke) }
+            map.removeOverlays(progressOverlays)
+            progressOverlays = next
+            map.addOverlays(next, level: .aboveLabels)
+        }
+
+        private static func split(_ points: [CLLocationCoordinate2D], cum: [Double], at along: Double) -> (passed: [CLLocationCoordinate2D], remaining: [CLLocationCoordinate2D])? {
+            guard cum.count == points.count, let i = cum.lastIndex(where: { $0 <= along }), i + 1 < points.count else { return nil }
+            let a = points[i], b = points[i + 1]
+            let span = cum[i + 1] - cum[i]
+            let f = span > 0 ? (along - cum[i]) / span : 0
+            let cut = CLLocationCoordinate2D(latitude: a.latitude + (b.latitude - a.latitude) * f, longitude: a.longitude + (b.longitude - a.longitude) * f)
+            return (Array(points[...i]) + [cut], [cut] + Array(points[(i + 1)...]))
         }
 
         // MARK: Follow
@@ -924,6 +1001,12 @@ struct TransitMapRepresentable: UIViewRepresentable {
                 if route.isHalo {
                     renderer.strokeColor = UIColor(Theme.background).withAlphaComponent(route.isFocus ? 0.6 : 0.55)
                     renderer.lineWidth = route.isFocus ? 8 : 6
+                } else if route.isGlow {
+                    renderer.strokeColor = UIColor(Theme.hex(route.colorHex)).withAlphaComponent(0.28)
+                    renderer.lineWidth = 20
+                } else if route.isPassed {
+                    renderer.strokeColor = UIColor(Theme.mutedForeground).withAlphaComponent(0.98)
+                    renderer.lineWidth = 4
                 } else {
                     renderer.strokeColor = UIColor(Theme.hex(route.colorHex)).withAlphaComponent(0.95)
                     renderer.lineWidth = route.isFocus ? 4 : 3
