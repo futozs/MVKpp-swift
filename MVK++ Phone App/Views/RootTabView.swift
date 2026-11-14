@@ -75,6 +75,7 @@ struct RootTabView: View {
         .fullScreenCover(isPresented: kioskBinding) {
             KioskScreen(stopIds: navigation.kioskStopIds ?? []) { navigation.kioskStopIds = nil }
         }
+        .onChange(of: navigation.kioskStopIds != nil) { _, shown in PhoneAppDelegate.allowLandscape(shown) }
         .onAppear { visited.insert(navigation.tab) }
         .onChange(of: navigation.tab) { _, tab in
             visited.insert(tab)

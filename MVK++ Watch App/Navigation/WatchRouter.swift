@@ -116,7 +116,7 @@ final class WatchRouter: ObservableObject {
             show(WatchLink.shared.ride.map { $0.ended ? .boardPicker : .ride } ?? .boardPicker)
         case .disruptions:
             show(.disruptions)
-        case .home:
+        case .home, .kiosk:
             popToRoot()
         case .tab(let tab):
             switch tab {

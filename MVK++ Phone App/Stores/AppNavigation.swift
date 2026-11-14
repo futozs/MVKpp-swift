@@ -162,6 +162,20 @@ final class AppNavigation: ObservableObject {
             NotificationCenter.default.post(name: .mvkRideCommand, object: WatchRideCommand.start(nil))
         case .disruptions:
             isDisruptionsOpen = true
+        case .kiosk(let stopIds):
+            kioskStopIds = stopIds
+        }
+    }
+
+    /// A universal link or a push's `url` (web `applyLink`): the tab, and a
+    /// stop for the Megállófigyelő to bring forward once it is shown.
+    func open(_ link: WebLink) {
+        switch link {
+        case .app(let target, let stopId):
+            if let target { tab = target }
+            if let stopId { watchlistFocusStopId = stopId }
+        case .kiosk(let stopIds):
+            kioskStopIds = stopIds
         }
     }
 }
