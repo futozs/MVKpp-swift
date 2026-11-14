@@ -195,6 +195,14 @@ enum TransitModes {
         "\(param(modes))~\(merge.rawValue)"
     }
 
+    /// A board key back as `?modes=&merge=`.
+    static func boardQueryItems(_ key: String) -> [URLQueryItem] {
+        let parts = key.split(separator: "~", maxSplits: 1).map(String.init)
+        var items = [URLQueryItem(name: "modes", value: parts.first ?? TransitMode.param())]
+        if parts.count > 1 { items.append(URLQueryItem(name: "merge", value: parts[1])) }
+        return items
+    }
+
     static func hasRegional(_ modes: [TransitMode]) -> Bool {
         TransitMode.hasRegional(modes)
     }

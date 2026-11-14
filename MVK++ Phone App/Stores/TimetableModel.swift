@@ -81,7 +81,7 @@ final class TimetableModel: ObservableObject {
     @Published private(set) var selectedTrip: TimetableTrip?
 
     @Published var group: TimetableGroup {
-        didSet { UserDefaults.standard.set(group.rawValue, forKey: TimetableGroup.preferenceKey) }
+        didSet { LocalStore.shared.setJSON(TimetableGroup.preferenceKey, group.rawValue) }
     }
 
     /// Seconds since the service day's midnight (24:xx after midnight), ticked every 15 s.
@@ -107,9 +107,7 @@ final class TimetableModel: ObservableObject {
         date = today
         mountDay = today
         nowSec = Self.serviceNow().secOfDay
-        let stored = UserDefaults.standard.string(forKey: TimetableGroup.preferenceKey)?
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        group = stored.flatMap(TimetableGroup.init(rawValue:)) ?? .all
+        group = LocalStore.shared.json(TimetableGroup.preferenceKey, as: String.self).flatMap(TimetableGroup.init(rawValue:)) ?? .all
 
         let restored = ViewStateStore.initialTimetableView()
         selectedRouteId = restored?.routeId

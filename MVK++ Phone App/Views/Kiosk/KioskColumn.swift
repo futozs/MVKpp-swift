@@ -26,7 +26,7 @@ struct KioskColumn: View {
         _board = StateObject(wrappedValue: KioskBoardModel(stopId: stopId, boardKey: boardKey))
     }
 
-    private var showPredicted: Bool { local.bool(Preferences.predictedVehicleKey) }
+    private var showPredicted: Bool { local.bool(WatchFeatures.Feature.predictedVehicle.key) }
 
     var body: some View {
         let arrivals = board.data?.arrivals ?? []

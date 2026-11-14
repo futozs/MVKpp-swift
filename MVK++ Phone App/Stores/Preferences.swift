@@ -53,18 +53,17 @@ enum Preferences {
 
     // MARK: - Megállófigyelő features
 
-    static let predictedVehicleKey = "mvk_pref_predicted_vehicle"
 
     static let watchFeatures: [PrefItem] = [
-        PrefItem(id: "catch", key: "mvk_pref_watch_catch", label: "„Elérem?” indulj most", hint: "A következő indulásnál: a helyzetedből mikor indulj el, hogy elérd, és a „Szólj” gomb."),
-        PrefItem(id: "leaveTimes", key: "mvk_pref_watch_leave_times", label: "Indulási idők a sorokban", hint: "Minden indulás mellett az idő, amikorra el kell indulnod hozzá."),
-        PrefItem(id: "startRisk", key: "mvk_pref_watch_start_risk", label: "Késve indulás előrejelzése", hint: "Ha a menet busza még az előző menetén késik még mielőtt az MVK kihúzná."),
-        PrefItem(id: "traffic", key: "mvk_pref_watch_traffic", label: "Dugó a busz előtt", hint: "Ha az ide tartó busz előtt beállt a forgalom, mennyi pluszidőt hoz."),
-        PrefItem(id: "forecast", key: "mvk_pref_watch_forecast", label: "„Legrosszabb esetben” becslés", hint: "A következő busz várható legnagyobb késése ennél a megállónál."),
-        PrefItem(id: "predictedVehicle", key: predictedVehicleKey, label: "Rendszám-előrejelzés", hint: "Mielőtt a busz élőben megjelenne, a várható rendszámát ~ jellel mutatjuk a korábbi fordák alapján. Ahol a busz a végállomáson visszafordul, ott ~ nélkül: azt már tudjuk."),
-        PrefItem(id: "replacement", key: "mvk_pref_watch_replacement", label: "Kihúzott menet helyett", hint: "A törölt menet mellett, mikor jön helyette a következő ugyanazzal a vonallal."),
-        PrefItem(id: "vehicleTrack", key: "mvk_pref_watch_vehicle_track", label: "A következő busz doboza", hint: "Jármű, sebesség, hol jár most, és követés a térképen."),
-        PrefItem(id: "commute", key: "mvk_pref_watch_commute", label: "„Szokásos utad” kártya", hint: "Az utazásnaplódból felismert rendszeres út a Figyelő tetején, a szokásos idő előtt."),
+        PrefItem(id: "catch", key: WatchFeatures.Feature.catchBus.key, label: "„Elérem?” indulj most", hint: "A következő indulásnál: a helyzetedből mikor indulj el, hogy elérd, és a „Szólj” gomb."),
+        PrefItem(id: "leaveTimes", key: WatchFeatures.Feature.leaveTimes.key, label: "Indulási idők a sorokban", hint: "Minden indulás mellett az idő, amikorra el kell indulnod hozzá."),
+        PrefItem(id: "startRisk", key: WatchFeatures.Feature.startRisk.key, label: "Késve indulás előrejelzése", hint: "Ha a menet busza még az előző menetén késik még mielőtt az MVK kihúzná."),
+        PrefItem(id: "traffic", key: WatchFeatures.Feature.traffic.key, label: "Dugó a busz előtt", hint: "Ha az ide tartó busz előtt beállt a forgalom, mennyi pluszidőt hoz."),
+        PrefItem(id: "forecast", key: WatchFeatures.Feature.forecast.key, label: "„Legrosszabb esetben” becslés", hint: "A következő busz várható legnagyobb késése ennél a megállónál."),
+        PrefItem(id: "predictedVehicle", key: WatchFeatures.Feature.predictedVehicle.key, label: "Rendszám-előrejelzés", hint: "Mielőtt a busz élőben megjelenne, a várható rendszámát ~ jellel mutatjuk a korábbi fordák alapján. Ahol a busz a végállomáson visszafordul, ott ~ nélkül: azt már tudjuk."),
+        PrefItem(id: "replacement", key: WatchFeatures.Feature.replacement.key, label: "Kihúzott menet helyett", hint: "A törölt menet mellett, mikor jön helyette a következő ugyanazzal a vonallal."),
+        PrefItem(id: "vehicleTrack", key: WatchFeatures.Feature.vehicleTrack.key, label: "A következő busz doboza", hint: "Jármű, sebesség, hol jár most, és követés a térképen."),
+        PrefItem(id: "commute", key: WatchFeatures.Feature.commute.key, label: "„Szokásos utad” kártya", hint: "Az utazásnaplódból felismert rendszeres út a Figyelő tetején, a szokásos idő előtt."),
     ]
 
     static let tabBadgesKey = "mvk_pref_tab_badges"
@@ -77,10 +76,7 @@ enum Preferences {
 extension LocalStore {
 
     /// The enabled modes; at least one always stays (`useEnabledModes`).
-    var enabledModes: [TransitMode] {
-        let on = Preferences.modeItems.filter { bool($0.key) }.map(\.id)
-        return on.isEmpty ? [.tram, .bus] : on
-    }
+    var enabledModes: [TransitMode] { TransitMode.enabled(defaults) }
 
     var modesParam: String { TransitModes.param(enabledModes) }
 
@@ -93,11 +89,6 @@ extension LocalStore {
     }
 
     var boardKey: String { TransitModes.boardKey(enabledModes, merge: stopMerge) }
-
-    func feature(_ id: String) -> Bool {
-        guard let item = Preferences.watchFeatures.first(where: { $0.id == id }) else { return true }
-        return bool(item.key)
-    }
 
     var showsTabBadges: Bool { bool(Preferences.tabBadgesKey) }
 }

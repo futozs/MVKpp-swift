@@ -56,7 +56,6 @@ final class RoutePlannerModel: ObservableObject {
 
     private static let coachKey = "mvk_pref_plan_coach"
     private static let railKey = "mvk_pref_plan_rail"
-    private static let mergeKey = "mvk_pref_stop_merge"
 
     @Published var form: PlanFormValue
     @Published private(set) var result: Result = .idle
@@ -105,16 +104,16 @@ final class RoutePlannerModel: ObservableObject {
 
     private func resolvedTravel() -> PlanTravel {
         let enabled = TransitMode.enabled()
-        let defaults = UserDefaults.standard
+        let local = LocalStore.shared
         return PlanTravel(
-            coach: defaults.object(forKey: Self.coachKey) as? Bool ?? enabled.contains(.coach),
-            rail: defaults.object(forKey: Self.railKey) as? Bool ?? enabled.contains(.rail)
+            coach: local.json(Self.coachKey, as: Bool.self) ?? enabled.contains(.coach),
+            rail: local.json(Self.railKey, as: Bool.self) ?? enabled.contains(.rail)
         )
     }
 
     func setTravel(coach: Bool? = nil, rail: Bool? = nil) {
-        if let coach { UserDefaults.standard.set(coach, forKey: Self.coachKey) }
-        if let rail { UserDefaults.standard.set(rail, forKey: Self.railKey) }
+        if let coach { LocalStore.shared.setBool(Self.coachKey, coach) }
+        if let rail { LocalStore.shared.setBool(Self.railKey, rail) }
         travel = resolvedTravel()
         travelChanged()
     }
@@ -144,7 +143,7 @@ final class RoutePlannerModel: ObservableObject {
 
     private func rebuildPlaces() {
         let source = ownStops?.key == modes ? ownStops?.places ?? [] : catalog.map(PlannerPlace.init(stop:))
-        let merge = UserDefaults.standard.string(forKey: Self.mergeKey).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) } ?? "all"
+        let merge = LocalStore.shared.stopMerge
         let ids = Set(source.map(\.id))
         var byName: [String: PlannerPlace] = [:]
         var order: [String] = []
@@ -153,7 +152,7 @@ final class RoutePlannerModel: ObservableObject {
             let feed = place.resolvedFeed
             let allowed = feed == .mvk || (feed == .coach ? travel.coach : travel.rail)
             guard allowed else { continue }
-            if place.twinOf != nil && merge != "off" { continue }
+            if place.twinOf != nil && merge != .off { continue }
             guard byName[place.name] == nil else { continue }
             byName[place.name] = place
             order.append(place.name)

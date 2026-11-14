@@ -88,6 +88,6 @@ final class TransitWatchesStore: ObservableObject {
 
     private func write<T: Encodable>(_ value: T, key: String) {
         guard let data = try? JSONEncoder().encode(value) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        UserDefaults.standard.set(String(decoding: data, as: UTF8.self), forKey: key)
     }
 }

@@ -88,20 +88,6 @@ struct RetryNotice: View {
     }
 }
 
-/// A preference saved under the web app's `mvk_pref_*` keys. The web stores
-/// JSON in localStorage, so a synced value may arrive as a Bool, a number or
-/// the string "true"/"false"; anything unreadable counts as on.
-enum PreferenceFlag {
-    static func isOn(_ key: String, defaults: UserDefaults = .standard) -> Bool {
-        switch defaults.object(forKey: key) {
-        case let flag as Bool: return flag
-        case let number as NSNumber: return number.boolValue
-        case let text as String: return text != "false" && text != "0"
-        default: return true
-        }
-    }
-}
-
 /// The Figyelő's switchable features (Beállítások → Megállófigyelő), each its
 /// own `mvk_pref_*` key — the web app's `lib/watchPrefs`. All default to on.
 @MainActor
@@ -140,29 +126,8 @@ final class WatchFeatures: ObservableObject {
     func isOn(_ feature: Feature) -> Bool { enabled.contains(feature) }
 
     private func reload() {
-        let next = Set(Feature.allCases.filter { PreferenceFlag.isOn($0.key) })
+        let next = Set(Feature.allCases.filter { LocalStore.shared.bool($0.key) })
         if next != enabled { enabled = next }
-    }
-}
-
-/// The departure board's key: enabled modes and how shared stops are merged
-/// (`tram,bus,coach,rail~all`). Goes into `?modes=&merge=` and the
-/// `stop:<id>@<key>` WebSocket topic — the web app's `boardKey`.
-enum StopBoardKey {
-    /// `mvk_pref_stop_merge`: `all`, `mvk`, `coach` or `off`.
-    static func merge(_ defaults: UserDefaults = .standard) -> String {
-        let raw = (defaults.string(forKey: "mvk_pref_stop_merge") ?? "all")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        return ["all", "mvk", "coach", "off"].contains(raw) ? raw : "all"
-    }
-
-    static func now() -> String { "\(TransitMode.param())~\(merge())" }
-
-    static func queryItems(_ key: String) -> [URLQueryItem] {
-        let parts = key.split(separator: "~", maxSplits: 1).map(String.init)
-        var items = [URLQueryItem(name: "modes", value: parts.first ?? TransitMode.param())]
-        if parts.count > 1 { items.append(URLQueryItem(name: "merge", value: parts[1])) }
-        return items
     }
 }
 

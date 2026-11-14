@@ -165,7 +165,7 @@ struct RidesPanel: View {
                 if let loopEnd { ride.loopEnd = loopEnd }
             }
         }
-        if let data = try? JSONEncoder().encode(Array(tried).suffix(3000)) { defaults.set(data, forKey: Self.triedKey) }
+        if let data = try? JSONEncoder().encode(Array(tried).suffix(3000)) { defaults.set(String(decoding: data, as: UTF8.self), forKey: Self.triedKey) }
         if !patches.isEmpty { store.patchRides(patches) }
     }
 }

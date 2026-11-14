@@ -8,14 +8,14 @@ import Foundation
 
 extension APIClient {
     /// A stop's board in the enabled modes, with shared stops merged as set
-    /// (`board` is the `StopBoardKey`).
+    /// (`board` is the `LocalStore.boardKey`).
     func boardArrivals(stopId: String, limit: Int, board: String) async throws -> StopArrivalsResponse {
         try await request(
             path: "/live/arrivals",
             queryItems: [
                 URLQueryItem(name: "stop", value: stopId),
                 URLQueryItem(name: "limit", value: String(limit)),
-            ] + StopBoardKey.queryItems(board)
+            ] + TransitModes.boardQueryItems(board)
         )
     }
 }
@@ -58,7 +58,7 @@ final class StopArrivalsModel: ObservableObject {
     private var observers: Set<AnyCancellable> = []
 
     func start(stopId: String, stopName: String = "", limit: Int = 16) async {
-        let board = StopBoardKey.now()
+        let board = LocalStore.shared.boardKey
         if self.stopId == stopId, self.board == board, self.limit == limit, subscription != nil { return }
         stop()
         if self.stopId != stopId {
@@ -103,7 +103,7 @@ final class StopArrivalsModel: ObservableObject {
     }
 
     private func boardMaybeChanged() {
-        guard !stopId.isEmpty, StopBoardKey.now() != board else { return }
+        guard !stopId.isEmpty, LocalStore.shared.boardKey != board else { return }
         let id = stopId, name = stopName, limit = limit
         Task { await start(stopId: id, stopName: name, limit: limit) }
     }

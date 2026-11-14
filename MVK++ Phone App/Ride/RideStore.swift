@@ -7,8 +7,8 @@
 //  they stay on the device; signed in every ride is uploaded to `/v3/rides`
 //  and the other devices' rides come down.
 //
-//  Storage keys and JSON match the web's localStorage exactly, so the account
-//  sync can move them verbatim:
+//  Storage keys and JSON match the web's localStorage exactly. Like on the
+//  web they are device-only for `/v3/sync`; rides travel through `/v3/rides`:
 //   · `mvk_rides`        — [Ride & { synced?: boolean }], newest first, ≤ 5000
 //   · `mvk_ride_active`  — ActiveRide | null
 //   · `mvk_ride_deleted` — [String], deletions the server has not confirmed
@@ -27,17 +27,8 @@ final class RideStore: ObservableObject {
     private static let maxLocal = 5000
     private static let batch = 200
 
-    /// The signed-in account's session token. Defaults to the web's
-    /// `mvk_account` shape (`{ email, sessionToken }`) in UserDefaults; the
-    /// account feature may replace it.
-    static var sessionProvider: () -> String? = {
-        guard let data = UserDefaults.standard.data(forKey: "mvk_account")
-                ?? UserDefaults.standard.string(forKey: "mvk_account").map({ Data($0.utf8) }),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let token = object["sessionToken"] as? String, !token.isEmpty
-        else { return nil }
-        return token
-    }
+    /// The signed-in account's session token (Keychain).
+    static var sessionProvider: @MainActor () -> String? = { AccountSession.current?.sessionToken }
 
     @Published private(set) var rides: [Ride]
     @Published private(set) var active: ActiveRide?
@@ -45,29 +36,24 @@ final class RideStore: ObservableObject {
     private var deleted: [String]
     private let defaults: UserDefaults
     private var syncing: Task<Void, Never>?
+    private var observers: [NSObjectProtocol] = []
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         rides = Self.read([LossyRide].self, Self.ridesKey, defaults)?.compactMap(\.ride) ?? []
         active = Self.read(ActiveRide.self, Self.activeKey, defaults)
         deleted = Self.read([String].self, Self.deletedKey, defaults) ?? []
-    }
-
-    // MARK: - JSON in the web's shape
-
-    /// The ride log as the web stores it under `mvk_rides`.
-    func encodedRides() -> Data? { try? JSONEncoder().encode(rides) }
-
-    /// Replaces the ride log from the web's `mvk_rides` JSON (account restore).
-    func importRides(_ data: Data) {
-        guard let decoded = try? JSONDecoder().decode([LossyRide].self, from: data) else { return }
-        setRides(decoded.compactMap(\.ride).sorted { $0.boardedAt > $1.boardedAt })
-    }
-
-    func encodedActive() -> Data? { active.flatMap { try? JSONEncoder().encode($0) } }
-
-    func importActive(_ data: Data?) {
-        setActive(data.flatMap { try? JSONDecoder().decode(ActiveRide.self, from: $0) })
+        // Signing in syncs at once; signing out drops the account's uploaded
+        // rides (they stay in the cloud), keeping the ones not yet uploaded.
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(forName: .mvkSessionChange, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.syncRides() }
+            },
+            center.addObserver(forName: .mvkRidesReset, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.resetAfterSignOut() }
+            },
+        ]
     }
 
     private static func read<T: Decodable>(_ type: T.Type, _ key: String, _ defaults: UserDefaults) -> T? {
