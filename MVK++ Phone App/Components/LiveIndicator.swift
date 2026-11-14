@@ -15,15 +15,11 @@ struct LiveDot: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(Theme.live)
-                .scaleEffect(pulsing ? 0.75 : 1)
-                .opacity(pulsing ? 0.4 : 1)
-            Circle()
-                .fill(Theme.live)
-        }
-        .frame(width: size, height: size)
+        Circle()
+            .fill(Theme.live)
+            .scaleEffect(pulsing ? 0.75 : 1)
+            .opacity(pulsing ? 0.4 : 1)
+            .frame(width: size, height: size)
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.1).repeatForever(autoreverses: true)) {

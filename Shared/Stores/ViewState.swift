@@ -112,7 +112,11 @@ enum ViewStateStore {
         guard let raw = UserDefaults.standard.data(forKey: filterKey),
               let decoded = try? JSONDecoder().decode(FilterState.self, from: raw)
         else { return .default }
-        return decoded
+        // The old as-you-type plate search has no field any more; a saved
+        // value would filter the map invisibly.
+        var filters = decoded
+        filters.vq = ""
+        return filters
     }
 
     static func save(_ filters: FilterState) {
