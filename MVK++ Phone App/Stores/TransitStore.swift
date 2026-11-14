@@ -5,6 +5,8 @@
 
 import Combine
 import Foundation
+import Network
+import UIKit
 
 /// The network's shared state: the static GTFS catalog of the enabled modes
 /// and the live vehicle feed. Every tab reads from here rather than fetching
@@ -45,6 +47,8 @@ final class TransitStore: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var vehicleMap: [String: LiveVehicle] = [:]
     private var stopIndex: [String: Stop] = [:]
+    private let pathMonitor = NWPathMonitor()
+    private var isOnline = true
 
     init() {
         modesKey = LocalStore.shared.modesParam
@@ -52,6 +56,24 @@ final class TransitStore: ObservableObject {
             .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
             .sink { [weak self] in self?.modesMayHaveChanged() }
             .store(in: &cancellables)
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            // Delivered on the main queue (see `start(queue:)`).
+            MainActor.assumeIsolated { self?.networkChanged(online: path.status == .satisfied) }
+        }
+        pathMonitor.start(queue: .main)
+    }
+
+    /// Back online (web `online` event): the catalog is retried at once
+    /// instead of after the rest of its backoff, and the live feed reconnects.
+    private func networkChanged(online: Bool) {
+        let cameBack = online && !isOnline
+        isOnline = online
+        guard cameBack else { return }
+        if !hasLoadedStatic {
+            staticTask?.cancel()
+            staticTask = Task { await self.loadStatic() }
+        }
+        if UIApplication.shared.applicationState == .active { wake() }
     }
 
     func stop(id: String?) -> Stop? {
@@ -252,6 +274,7 @@ final class TransitStore: ObservableObject {
     }
 
     deinit {
+        pathMonitor.cancel()
         pollTask?.cancel()
         staticTask?.cancel()
     }
