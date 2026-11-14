@@ -27,7 +27,7 @@ struct StopCardView: View {
     @EnvironmentObject private var location: LocationProvider
     @ObservedObject private var notifications = NotificationCenterStore.shared
     @ObservedObject private var features = WatchFeatures.shared
-    @ObservedObject private var alerts = AlertWatchStore.shared
+    @ObservedObject private var alerts = AlertsStore.shared
 
     @StateObject private var model = StopArrivalsModel()
     @State private var isNotifyOpen = false
@@ -290,24 +290,22 @@ struct StopCardView: View {
         leaveNote = nil
         defer { leaveBusy = false }
         if on {
-            alerts.remove(stopId: stop.id, slot: slot)
+            await alerts.remove(stopId: stop.id, slot: slot)
             return
         }
-        let result = await alerts.add(AlertWatch(
+        let result = await alerts.add(
             slot: slot,
             kind: "leave",
             stopId: stop.id,
             stopName: stop.name,
             tripId: next.tripId,
-            params: ["walkS": .number(walkS)],
-            pushRegistered: false,
-            createdAt: 0
-        ))
+            params: ["walkS": .number(walkS)]
+        )
         if !result.ok {
             leaveNote = result.reason ?? "Nem sikerült bekapcsolni."
         } else {
             if !result.push { leaveNote = result.noPushNote }
-            alerts.boardUpdated(stopId: stop.id, stopName: stop.name, arrivals: model.arrivals)
+            alerts.boardUpdated(stopId: stop.id, arrivals: model.arrivals)
         }
     }
 

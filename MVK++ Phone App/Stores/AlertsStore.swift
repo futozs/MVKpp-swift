@@ -27,41 +27,48 @@ struct AlertWatch: Codable, Hashable, Identifiable {
     var params: [String: AlertParam]?
     var pushRegistered: Bool
     var notifiedTripIds: [String]?
+    /// Unix milliseconds, as on the web.
     var createdAt: Double
 
     var id: String { "\(stopId)|\(slot)" }
+
+    var walkS: Double { max(0, min(3600, params?["walkS"]?.number ?? 0)) }
 }
 
-/// A param value as the web stores it (numbers, strings, arrays of day numbers).
+/// A param value as the web stores it (numbers, strings, flags, arrays of day numbers).
 enum AlertParam: Codable, Hashable {
     case number(Double)
-    case text(String)
+    case string(String)
     case numbers([Double])
+    case bool(Bool)
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let value = try? container.decode(Double.self) { self = .number(value) }
-        else if let value = try? container.decode([Double].self) { self = .numbers(value) }
-        else { self = .text(try container.decode(String.self)) }
+        if let value = try? container.decode(Bool.self) { self = .bool(value) }
+        else if let value = try? container.decode(Double.self) { self = .number(value) }
+        else if let value = try? container.decode(String.self) { self = .string(value) }
+        else { self = .numbers(try container.decode([Double].self)) }
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case .number(let value): try container.encode(value)
-        case .text(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
         case .numbers(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
         }
     }
 
     var number: Double? { if case .number(let value) = self { return value } else { return nil } }
-    var text: String? { if case .text(let value) = self { return value } else { return nil } }
+    var string: String? { if case .string(let value) = self { return value } else { return nil } }
 
     var any: Any {
         switch self {
         case .number(let value): return value
-        case .text(let value): return value
+        case .string(let value): return value
         case .numbers(let value): return value
+        case .bool(let value): return value
         }
     }
 }
@@ -70,7 +77,7 @@ enum AlertParam: Codable, Hashable {
 final class AlertsStore: ObservableObject {
     static let shared = AlertsStore()
 
-    private static let key = "mvk_alert_watches"
+    static let key = "mvk_alert_watches"
 
     @Published private(set) var alerts: [AlertWatch]
 
@@ -94,10 +101,23 @@ final class AlertsStore: ObservableObject {
         alerts.first { $0.stopId == stopId && $0.slot == slot }
     }
 
+    func has(stopId: String, slot: String) -> Bool {
+        find(stopId: stopId, slot: slot) != nil
+    }
+
+    func alert(stopId: String, slotPrefix: String) -> AlertWatch? {
+        alerts.first { $0.stopId == stopId && $0.slot.hasPrefix(slotPrefix) }
+    }
+
     struct AddResult {
         let ok: Bool
         let push: Bool
         var reason: String?
+
+        /// Why no alert comes while the app is closed (the "push nélkül" note).
+        var noPushNote: String {
+            reason.map { "Csak nyitott appnál szólok: \($0)" } ?? "Push nélkül csak akkor szólok, ha nyitva van az app."
+        }
     }
 
     /// Switching on: asks for permission, saves a push watch on the server;
@@ -113,23 +133,20 @@ final class AlertsStore: ObservableObject {
             stopId: stopId, stopName: stopName, thresholdMin: 5, routeShorts: routeShorts, tripId: tripId,
             schedMin: schedMin, slot: slot, kind: kind, params: params?.mapValues(\.any)
         ))
-        let rest = alerts.filter { !($0.stopId == stopId && $0.slot == slot) }
-        write(rest + [AlertWatch(
+        let alert = AlertWatch(
             slot: slot, kind: kind, stopId: stopId, stopName: stopName, tripId: tripId, routeShorts: routeShorts,
             schedMin: schedMin, params: params, pushRegistered: diag.ok, notifiedTripIds: nil,
             createdAt: Date().timeIntervalSince1970 * 1000
-        )])
+        )
+        write(alerts.filter { $0.id != alert.id } + [alert])
+        if !alert.pushRegistered { LocalAlertEvaluator.planRecurring(alert) }
         BackgroundRefresh.schedule()
         return AddResult(ok: true, push: diag.ok, reason: diag.ok ? nil : diag.reason)
     }
 
-    /// Why no alert comes while the app is closed (the "push nélkül" note).
-    static func noPushNote(_ result: AddResult) -> String {
-        result.reason.map { "Csak nyitott appnál szólok: \($0)" } ?? "Push nélkül csak akkor szólok, ha nyitva van az app."
-    }
-
     func remove(stopId: String, slot: String) async {
         write(alerts.filter { !($0.stopId == stopId && $0.slot == slot) })
+        LocalAlertEvaluator.cancelPending(stopId: stopId, slot: slot)
         await PushService.shared.unregisterWatch(stopId: stopId, slot: slot)
     }
 
@@ -140,6 +157,7 @@ final class AlertsStore: ObservableObject {
             params: alert.params?.mapValues(\.any)
         ))
         update(alert.id) { $0.pushRegistered = diag.ok }
+        if diag.ok { LocalAlertEvaluator.cancelPending(stopId: alert.stopId, slot: alert.slot) }
     }
 
     /// A local (push-less) notification once per trip; true if it spoke now.
@@ -150,13 +168,9 @@ final class AlertsStore: ObservableObject {
         let center = NotificationCenterStore.shared
         // The main switch and "Ne zavarj" apply to local alerts too.
         guard center.isAuthorized, center.settings.enabled, !center.isWithinDnd() else { return false }
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-        content.interruptionLevel = .timeSensitive
-        content.userInfo = ["stopId": stopId]
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: String("mvk-\(slot)-\(tripId)".prefix(60)), content: content, trigger: nil))
+        let id = LocalAlertEvaluator.identifier(stopId: stopId, slot: slot, tripId: tripId)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        LocalAlertEvaluator.post(id: "\(id)-now", title: title, body: body, trigger: nil, stopId: stopId)
         update(alert.id) { $0.notifiedTripIds = Array(($0.notifiedTripIds ?? []).suffix(20)) + [tripId] }
         return true
     }
@@ -167,152 +181,269 @@ final class AlertsStore: ObservableObject {
         let keep = alerts.filter { $0.schedMin != nil || $0.kind == "traffic" || now - $0.createdAt < maxAge * 1000 }
         if keep.count != alerts.count { write(keep) }
     }
+
+    // MARK: - Local fallback
+
+    /// Every fresh board of a stop: the push-less alerts there are checked
+    /// on the phone, as the web does while the page is open.
+    func boardUpdated(stopId: String, arrivals: [ArrivalItem]) {
+        let pending = alerts.filter { $0.stopId == stopId && !$0.pushRegistered && $0.kind != "transfer" }
+        guard !pending.isEmpty else { return }
+        LocalAlertEvaluator.evaluate(pending, arrivals: arrivals, now: RealtimeClient.shared.serverNow)
+    }
+
+    /// Drops expired one-shot alerts and re-plans the week ahead of the
+    /// push-less recurring ones.
+    func refresh() {
+        prune()
+        for alert in alerts where alert.schedMin != nil && !alert.pushRegistered {
+            LocalAlertEvaluator.planRecurring(alert)
+        }
+    }
+
+    /// A fresh plan from the planner: a push-less watched transfer whose
+    /// chance has collapsed is told once, with the next option.
+    func evaluateTransfers(_ plan: JourneyPlanResponse) {
+        guard plan.mode == .now, alerts.contains(where: { $0.kind == "transfer" && !$0.pushRegistered }) else { return }
+        let now = RealtimeClient.shared.serverNow
+        for trip in plan.trips {
+            for check in trip.transferChecks {
+                guard let toTrip = check.toTripId, let stopId = check.boardStopId,
+                      let chance = check.chance, chance < LocalAlertEvaluator.transferAlertChance,
+                      let leg = trip.legs.first(where: { $0.tripId == toTrip }), let sched = leg.schedDep else { continue }
+                let depart = sched + (leg.prediction?.depDelayS ?? 0)
+                guard depart >= now - 60, depart - now <= 3600 else { continue }
+                let pct = Int((chance * 100).rounded())
+                let fromRoute = check.fromRoute.map { HungarianText.withSuffix($0) + " " } ?? ""
+                let toRoute = check.toRoute.map(HungarianText.withSuffix) ?? "csatlakozás"
+                let late = check.marginSec < 0 ? "\(TripInsightText.minutes(-check.marginSec)) késéssel" : "épp csak"
+                let fallback = check.fallback.map { " Ha lekésed: \($0.time)." } ?? ""
+                notifyLocallyOnce(stopId: stopId, slot: "transfer:\(toTrip)", tripId: toTrip,
+                                  title: "Veszélyben az átszállás (\(pct)% esély)",
+                                  body: "A \(fromRoute)busz várhatóan \(late) ér ide a \(toRoute) indulásához \(check.at).\(fallback)")
+            }
+        }
+    }
 }
 
 // MARK: - Local evaluation
 
-/// The fields of a departure that the alert texts need (the shared
-/// `ArrivalItem` carries only the basics).
-private struct AlertArrival: Decodable {
-    let route: String
-    let headsign: String
-    let time: String
-    let etaMin: Int
-    let delaySec: Int?
-    let tripId: String
-    let mode: String?
-    let trainNo: String?
-    let trainName: String?
-    let cancelled: Bool?
-    let schedUnix: Double?
-    let forecastDelaySec: Double?
-    let forecastUpperSec: Double?
-    let measuredDelaySec: Double?
-    let trafficAhead: Traffic?
-    let vehicle: Vehicle?
-
-    struct Traffic: Decodable { let excessS: Double; let fromName: String; let toName: String }
-    struct Vehicle: Decodable { let id: String }
-}
-
-private struct AlertBoard: Decodable {
-    let arrivals: [AlertArrival]
-}
-
-/// What the server's push engine does for each alert kind, run on the phone
-/// for alerts the server cannot push (no APNs key, registration failed).
-/// Transfers need the server's transfer outlook and are push-only.
+/// What the server's push engine does for each alert kind (`push.ts`), run
+/// on the phone for alerts the server cannot push (no APNs key, registration
+/// failed). Transfers need the server's transfer outlook and are checked
+/// against the planner's fresh plans instead.
 @MainActor
 enum LocalAlertEvaluator {
-    private static let walkMps = 1.3
-    private static let runMps = 2.7
-    private static let safetyS = 30.0
-    private static let goWindowS = 90.0
+    static let transferAlertChance = 0.4
     private static let trafficAlertS = 150.0
     private static let trafficHorizonMin = 30
     private static let recurringWindowMin = 4
 
+    /// Background refresh: each stop with a push-less alert is read once.
     static func run() async {
         AlertsStore.shared.prune()
         let pending = AlertsStore.shared.alerts.filter { !$0.pushRegistered && $0.kind != "transfer" }
-        let stopIds = Set(pending.map(\.stopId))
-        for stopId in stopIds {
-            guard let board = await fetch(stopId) else { continue }
-            for alert in pending where alert.stopId == stopId {
-                if alert.kind == "leave" { evaluateLeave(alert, board.arrivals) }
-                if alert.kind == "traffic" { evaluateTraffic(alert, board.arrivals) }
-            }
-        }
-    }
-
-    private static func fetch(_ stopId: String) async -> AlertBoard? {
         let local = LocalStore.shared
-        let items = [
-            URLQueryItem(name: "stop", value: stopId),
-            URLQueryItem(name: "limit", value: "40"),
-            URLQueryItem(name: "modes", value: local.modesParam),
-            URLQueryItem(name: "merge", value: local.stopMerge.rawValue),
-        ]
-        return try? await APIClient.shared.request(path: "/live/arrivals", queryItems: items)
-    }
-
-    private static func label(_ a: AlertArrival) -> String {
-        if a.mode == "rail" {
-            return "\(HungarianText.withSuffix(a.trainNo ?? a.route)) vonat\(a.trainName.map { " (\($0))" } ?? "")"
+        for stopId in Set(pending.map(\.stopId)) {
+            let items = [
+                URLQueryItem(name: "stop", value: stopId),
+                URLQueryItem(name: "limit", value: "40"),
+                URLQueryItem(name: "modes", value: local.modesParam),
+                URLQueryItem(name: "merge", value: local.stopMerge.rawValue),
+            ]
+            guard let board: StopArrivalsResponse = try? await APIClient.shared.request(path: "/live/arrivals", queryItems: items) else { continue }
+            evaluate(pending.filter { $0.stopId == stopId }, arrivals: board.arrivals, now: board.now)
         }
-        let vehicle = a.vehicle.map { " (\($0.id.replacingOccurrences(of: "hkir:hkir_", with: "")))" } ?? ""
-        return "\(HungarianText.withSuffix(a.route)) \(a.mode == "tram" ? "villamos" : "busz")\(vehicle)"
     }
 
-    private static func minText(_ seconds: Double) -> String { "\(max(1, Int((seconds / 60).rounded()))) perc" }
-
-    private static func delaySuffix(_ delay: Double?) -> String {
-        guard let delay, abs(delay) >= 60 else { return "" }
-        let minutes = Int((abs(delay) / 60).rounded())
-        return delay > 0 ? " (\(minutes) perc késés)" : " (\(minutes) perccel korábban)"
-    }
-
-    private static func minuteOfDay() -> Int {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Budapest") ?? .current
-        let parts = calendar.dateComponents([.hour, .minute], from: Date())
-        return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-    }
-
-    private static func relevant(_ alert: AlertWatch, _ arrivals: [AlertArrival]) -> [AlertArrival] {
-        let routes = alert.routeShorts.flatMap { $0.isEmpty ? nil : $0 }
-        let nowMin = minuteOfDay()
-        return arrivals.filter { a in
-            if let sched = alert.schedMin {
-                if let routes, !routes.contains(a.route) { return false }
-                let delayMin = Int((Double(a.delaySec ?? 0) / 60).rounded())
-                let aSched = ((nowMin + a.etaMin - delayMin) % 1440 + 1440) % 1440
-                let d = abs(aSched - sched)
-                return min(d, 1440 - d) <= recurringWindowMin
+    static func evaluate(_ alerts: [AlertWatch], arrivals: [ArrivalItem], now: Double) {
+        for alert in alerts {
+            switch alert.kind {
+            case "leave": evaluateLeave(alert, arrivals: arrivals, now: now)
+            case "traffic": evaluateTraffic(alert, arrivals: arrivals)
+            default: break
             }
-            if let trip = alert.tripId { return a.tripId == trip }
-            return routes.map { $0.contains(a.route) } ?? true
         }
     }
 
-    private static func evaluateLeave(_ alert: AlertWatch, _ arrivals: [AlertArrival]) {
-        let walkS = min(3600, max(0, alert.params?["walkS"]?.number ?? 0))
+    private static func relevant(_ alert: AlertWatch, arrivals: [ArrivalItem], now: Double) -> [ArrivalItem] {
+        let routes = alert.routeShorts.flatMap { $0.isEmpty ? nil : $0 }
+        let nowMin = BudapestClock.minute(now)
+        return arrivals.filter { arrival in
+            if let schedMin = alert.schedMin {
+                if let routes, !routes.contains(arrival.route) { return false }
+                let delayMin = Int((Double(arrival.delaySec ?? 0) / 60).rounded())
+                let arrivalMin = ((nowMin + arrival.etaMin - delayMin) % 1440 + 1440) % 1440
+                let distance = abs(arrivalMin - schedMin)
+                return min(distance, 1440 - distance) <= recurringWindowMin
+            }
+            if let tripId = alert.tripId { return arrival.tripId == tripId }
+            return routes.map { $0.contains(arrival.route) } ?? true
+        }
+    }
+
+    private static func evaluateLeave(_ alert: AlertWatch, arrivals: [ArrivalItem], now: Double) {
+        if alert.schedMin != nil, !isWatchDay(alert.params?["days"], iso: BudapestClock.serviceIso(now)) { return }
+        let walkS = alert.walkS
+        let store = AlertsStore.shared
+        for arrival in relevant(alert, arrivals: arrivals, now: now) {
+            let expected = CatchBus.expectedArrival(arrival, now: now)
+            guard expected.at - now <= 3600 else { continue }
+            let next = arrivals.first { !$0.isCancelled && $0.route == arrival.route && $0.tripId != arrival.tripId && Double($0.etaMin * 60) >= walkS }
+            let nextText = next.map { " A következő \(HungarianText.withSuffix(arrival.route)): \($0.time)." } ?? ""
+            if arrival.isCancelled {
+                store.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: arrival.tripId,
+                    title: "\(busLabel(arrival)) kimarad",
+                    body: "\(TransitIds.isRegional(arrival.tripId) ? "Törölték" : "Az MVK kihúzta") a \(arrival.time)-s menetet (\(alert.stopName)).\(nextText)")
+                continue
+            }
+            let verdict = CatchBus.verdict(now: now, expected: expected.at, upper: expected.upper, walkS: walkS)
+            let delay = delaySuffix(arrival.measuredDelaySec ?? arrival.delaySec)
+            switch verdict.state {
+            case .relax:
+                schedule(alert, tripId: arrival.tripId, at: verdict.leaveAtUnix, now: now,
+                         title: "Indulj most: \(busLabel(arrival)) \(TripInsightText.minutes(expected.at - verdict.leaveAtUnix)) múlva",
+                         body: "\(alert.stopName) \(TripInsightText.minutes(walkS)) séta\(delay).")
+            case .go, .run:
+                let eta = TripInsightText.minutes(expected.at - now)
+                store.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: arrival.tripId,
+                    title: verdict.state == .run ? "Siess! \(busLabel(arrival)) \(eta) múlva" : "Indulj most: \(busLabel(arrival)) \(eta) múlva",
+                    body: "\(alert.stopName) \(TripInsightText.minutes(walkS)) séta\(verdict.state == .run ? ", csak futva éred el" : "")\(delay).")
+            case .missed:
+                store.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: arrival.tripId,
+                    title: "\(busLabel(arrival)): ezt már nem éred el",
+                    body: "\(TripInsightText.minutes(expected.at - now)) múlva ér a \(alert.stopName) megállóba, a séta \(TripInsightText.minutes(walkS)).\(nextText)")
+            }
+        }
+    }
+
+    private static func evaluateTraffic(_ alert: AlertWatch, arrivals: [ArrivalItem]) {
+        let routes = alert.routeShorts.flatMap { $0.isEmpty ? nil : $0 }
+        for arrival in arrivals {
+            guard let traffic = arrival.trafficAhead, traffic.excessS >= trafficAlertS,
+                  !arrival.isCancelled, arrival.etaMin <= trafficHorizonMin else { continue }
+            if let routes, !routes.contains(arrival.route) { continue }
+            AlertsStore.shared.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: arrival.tripId,
+                title: "Dugó: \(busLabel(arrival)) kb. +\(TripInsightText.minutes(traffic.excessS))",
+                body: "\(traffic.fromName) → \(traffic.toName) között beállt a forgalom kb. \(arrival.etaMin) perc múlva ér a \(alert.stopName) megállóba.")
+        }
+    }
+
+    // MARK: - Delivery
+
+    static func identifier(stopId: String, slot: String, tripId: String) -> String {
+        "\(prefix(stopId: stopId, slot: slot))\(tripId)"
+    }
+
+    private static func prefix(stopId: String, slot: String) -> String {
+        "mvk-alert-\(stopId)-\(slot)-"
+    }
+
+    static func post(id: String, title: String, body: String, trigger: UNNotificationTrigger?, stopId: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        content.threadIdentifier = "mvk-stop-\(stopId)"
+        content.userInfo = ["stopId": stopId]
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
+    }
+
+    /// While it is still early, the "Indulj most" is aimed at the moment to
+    /// leave, so it arrives with the app closed too; each fresh board re-aims it.
+    private static func schedule(_ alert: AlertWatch, tripId: String, at unix: Double, now: Double, title: String, body: String) {
+        let lead = unix - now
+        let center = NotificationCenterStore.shared
+        guard lead > 0, center.settings.enabled, !(alert.notifiedTripIds ?? []).contains(tripId),
+              !center.isWithinDnd(now: Date().addingTimeInterval(lead)) else { return }
+        post(id: identifier(stopId: alert.stopId, slot: alert.slot, tripId: tripId), title: title, body: body,
+             trigger: UNTimeIntervalNotificationTrigger(timeInterval: lead, repeats: false), stopId: alert.stopId)
+        if alert.schedMin != nil {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: ["\(prefix(stopId: alert.stopId, slot: alert.slot))day-\(BudapestClock.serviceIso(now))"]
+            )
+        }
+    }
+
+    /// A push-less recurring alert, planned for the next seven days it
+    /// applies to: the scheduled minute less the walk and the safety margin.
+    /// A live board on the day replaces that day's entry with an exact one.
+    static func planRecurring(_ alert: AlertWatch) {
+        guard let schedMin = alert.schedMin, alert.kind == "leave" else { return }
+        let leadMin = Int(((alert.walkS + CatchBus.safetyS + CatchBus.earlyDefaultS) / 60).rounded(.up))
+        let route = alert.routeShorts?.first.map(HungarianText.withSuffix) ?? ""
         let now = Date().timeIntervalSince1970
-        for a in relevant(alert, arrivals) where a.cancelled != true {
-            let at: Double
-            var upper: Double?
-            if let sched = a.schedUnix, let forecast = a.forecastDelaySec {
-                at = sched + forecast
-                upper = a.forecastUpperSec.map { sched + $0 }
-            } else {
-                at = now + Double(a.etaMin) * 60
-            }
-            guard at - now <= 3600 else { continue }
-            let spread = upper.map { min(120, max(30, max(0, $0 - at) * 0.35)) } ?? 45
-            let leaveAt = at - spread - walkS - safetyS
-            let runS = walkS * walkMps / runMps
-            if leaveAt - now > goWindowS { continue }
-            let eta = minText(at - now)
-            if now + walkS <= at {
-                AlertsStore.shared.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: a.tripId,
-                    title: "Indulj most: \(label(a)) \(eta) múlva",
-                    body: "\(alert.stopName) \(minText(walkS)) séta\(delaySuffix(a.measuredDelaySec ?? a.delaySec.map(Double.init))).")
-            } else if now + runS <= at {
-                AlertsStore.shared.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: a.tripId,
-                    title: "Siess! \(label(a)) \(eta) múlva",
-                    body: "\(alert.stopName) \(minText(walkS)) séta, csak futva éred el\(delaySuffix(a.measuredDelaySec ?? a.delaySec.map(Double.init))).")
-            }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = BudapestClock.timeZone
+
+        for offset in 0..<7 {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: Date()) else { continue }
+            let parts = calendar.dateComponents([.year, .month, .day], from: day)
+            let iso = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+            guard isWatchDay(alert.params?["days"], iso: iso) else { continue }
+            var fire = parts
+            let minute = ((schedMin - leadMin) % 1440 + 1440) % 1440
+            fire.hour = minute / 60
+            fire.minute = minute % 60
+            fire.timeZone = BudapestClock.timeZone
+            guard let date = calendar.date(from: fire), date.timeIntervalSince1970 > now else { continue }
+            post(
+                id: "\(prefix(stopId: alert.stopId, slot: alert.slot))day-\(iso)",
+                title: "Indulj most: \(route) \(BudapestClock.hm(minute: schedMin))",
+                body: "\(alert.stopName) \(TripInsightText.minutes(alert.walkS)) séta.",
+                trigger: UNCalendarNotificationTrigger(dateMatching: calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date), repeats: false),
+                stopId: alert.stopId
+            )
         }
     }
 
-    private static func evaluateTraffic(_ alert: AlertWatch, _ arrivals: [AlertArrival]) {
-        let routes = alert.routeShorts.flatMap { $0.isEmpty ? nil : $0 }
-        for a in arrivals {
-            guard let traffic = a.trafficAhead, traffic.excessS >= trafficAlertS, a.cancelled != true, a.etaMin <= trafficHorizonMin else { continue }
-            if let routes, !routes.contains(a.route) { continue }
-            AlertsStore.shared.notifyLocallyOnce(stopId: alert.stopId, slot: alert.slot, tripId: a.tripId,
-                title: "Dugó: \(label(a)) kb. +\(minText(traffic.excessS))",
-                body: "\(traffic.fromName) → \(traffic.toName) között beállt a forgalom kb. \(a.etaMin) perc múlva ér a \(alert.stopName) megállóba.")
+    static func cancelPending(stopId: String, slot: String) {
+        let prefix = prefix(stopId: stopId, slot: slot)
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+        }
+    }
+
+    // MARK: - Text
+
+    /// „21-es busz (1644)”, „1-es villamos”, „5139-es vonat (IC TOKAJ)”.
+    static func busLabel(_ arrival: ArrivalItem) -> String {
+        if arrival.mode == .rail {
+            return "\(HungarianText.withSuffix(arrival.trainNo ?? arrival.route)) vonat\(arrival.trainName.map { " (\($0))" } ?? "")"
+        }
+        let plate = { (id: String) in id.replacingOccurrences(of: "hkir:hkir_", with: "") }
+        let vehicle: String?
+        if let id = arrival.vehicle?.id {
+            vehicle = plate(id)
+        } else if let predicted = arrival.predictedVehicle {
+            vehicle = predicted.method == "loop" ? plate(predicted.id) : "~\(plate(predicted.id))"
+        } else {
+            vehicle = nil
+        }
+        return "\(HungarianText.withSuffix(arrival.route)) \(arrival.mode == .tram ? "villamos" : "busz")\(vehicle.map { " (\($0))" } ?? "")"
+    }
+
+    private static func delaySuffix(_ delaySec: Int?) -> String {
+        guard let delaySec, abs(delaySec) >= 60 else { return "" }
+        let minutes = Int((Double(abs(delaySec)) / 60).rounded())
+        return delaySec > 0 ? " (\(minutes) perc késés)" : " (\(minutes) perccel korábban)"
+    }
+
+    /// Whether a recurring alert applies on a day: every day, workdays or
+    /// weekends, or listed weekdays (a workday habit never on a weekend).
+    static func isWatchDay(_ days: AlertParam?, iso: String) -> Bool {
+        let dow = BudapestClock.isoDow(iso)
+        let kind = dow >= 6 ? "weekend" : "workday"
+        switch days {
+        case .none: return true
+        case .string(let value): return value == "all" || value == kind
+        case .numbers(let list):
+            let workdayHabit = list.allSatisfy { $0 <= 5 }
+            return list.contains(Double(dow)) && !(workdayHabit && kind != "workday")
+        default: return true
         }
     }
 }

@@ -320,16 +320,16 @@ struct AlertList: View {
             return ("exclamationmark.triangle", "Dugóriasztás \(alert.stopName)", routes.isEmpty ? "bármelyik ide tartó busz" : "csak: \(routes.joined(separator: ", "))")
         }
         if alert.kind == "transfer" {
-            let from = alert.params?["fromRoute"]?.text ?? "?"
-            let to = alert.params?["toRoute"]?.text ?? "?"
+            let from = alert.params?["fromRoute"]?.string ?? "?"
+            let to = alert.params?["toRoute"]?.string ?? "?"
             return ("shuffle", "Átszállás \(alert.stopName)", "\(from) → \(to), szólok, ha veszélybe kerül")
         }
         let walk = alert.params?["walkS"]?.number ?? 0
         let days: String
         switch alert.params?["days"] {
         case .numbers(let list): days = list.map { Self.dayNames[safe: Int($0)] ?? "" }.joined(separator: ", ")
-        case .text("workday"): days = "munkanaponként"
-        case .text("weekend"): days = "hétvégén"
+        case .string("workday"): days = "munkanaponként"
+        case .string("weekend"): days = "hétvégén"
         default: days = "naponta"
         }
         let when = alert.schedMin.map { "\(days) \(String(format: "%02d:%02d", $0 / 60, $0 % 60))" } ?? "egy menetre"

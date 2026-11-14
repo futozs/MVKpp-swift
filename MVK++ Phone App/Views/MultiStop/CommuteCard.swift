@@ -12,7 +12,7 @@ import SwiftUI
 struct CommuteCard: View {
     @ObservedObject private var rideLog = CommuteRideLog.shared
     @ObservedObject private var features = WatchFeatures.shared
-    @ObservedObject private var alerts = AlertWatchStore.shared
+    @ObservedObject private var alerts = AlertsStore.shared
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in
@@ -28,7 +28,7 @@ struct CommuteCard: View {
 private struct CommuteCardBody: View {
     let commute: Commute
     let now: Double
-    @ObservedObject var alerts: AlertWatchStore
+    @ObservedObject var alerts: AlertsStore
 
     @EnvironmentObject private var location: LocationProvider
     @ObservedObject private var features = WatchFeatures.shared
@@ -177,23 +177,21 @@ private struct CommuteCardBody: View {
         note = nil
         defer { busy = false }
         if let daily {
-            alerts.remove(stopId: daily.stopId, slot: daily.slot)
+            await alerts.remove(stopId: daily.stopId, slot: daily.slot)
             return
         }
         let schedMin = departure?.schedUnix.map(BudapestClock.minute) ?? commute.minute
         let walk = walkS ?? 0
         let days: AlertParam = commute.daily ? .string(commute.dayKind.rawValue) : .numbers(commute.dows.map(Double.init))
-        let result = await alerts.add(AlertWatch(
+        let result = await alerts.add(
             slot: "commute:\(commute.route):\(schedMin)",
             kind: "leave",
             stopId: commute.fromStopId,
             stopName: commute.fromStopName,
             routeShorts: [commute.route],
             schedMin: schedMin,
-            params: ["walkS": .number(walk), "days": days],
-            pushRegistered: false,
-            createdAt: 0
-        ))
+            params: ["walkS": .number(walk), "days": days]
+        )
         if !result.ok {
             note = result.reason ?? "Nem sikerült bekapcsolni."
         } else {

@@ -114,7 +114,7 @@ struct NewsSheet: View {
                         ForEach(Array(feed.items.enumerated()), id: \.element.id) { index, item in
                             if index > 0 { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
                             NavigationLink(value: item) { row(item, routes: feed.routes) }
-                                .buttonStyle(RowHighlightStyle())
+                                .buttonStyle(RowHighlightStyle(opacity: 0.45))
                         }
                     }
                 }
@@ -231,13 +231,6 @@ struct NewsSheet: View {
         }
         .phaseAnimator([0.55, 1]) { content, phase in content.opacity(phase) } animation: { _ in .easeInOut(duration: 0.9) }
         .accessibilityLabel("Betöltés")
-    }
-}
-
-struct RowHighlightStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? Theme.accent.opacity(0.45) : .clear)
     }
 }
 

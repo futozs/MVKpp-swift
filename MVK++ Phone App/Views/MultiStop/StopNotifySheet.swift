@@ -189,7 +189,7 @@ struct TrafficAlertSwitch: View {
     let stopName: String
     let routeShorts: [String]
 
-    @ObservedObject private var alerts = AlertWatchStore.shared
+    @ObservedObject private var alerts = AlertsStore.shared
     @State private var busy = false
     @State private var note: String?
 
@@ -239,18 +239,16 @@ struct TrafficAlertSwitch: View {
         note = nil
         defer { busy = false }
         guard next else {
-            alerts.remove(stopId: stopId, slot: Self.slot)
+            await alerts.remove(stopId: stopId, slot: Self.slot)
             return
         }
-        let result = await alerts.add(AlertWatch(
+        let result = await alerts.add(
             slot: Self.slot,
             kind: "traffic",
             stopId: stopId,
             stopName: stopName,
-            routeShorts: routeShorts.isEmpty ? nil : routeShorts,
-            pushRegistered: false,
-            createdAt: 0
-        ))
+            routeShorts: routeShorts.isEmpty ? nil : routeShorts
+        )
         if !result.ok {
             note = result.reason ?? "Nem sikerült bekapcsolni."
         } else if !result.push {

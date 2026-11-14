@@ -151,7 +151,7 @@ final class StopArrivalsModel: ObservableObject {
             stopName: stopName.isEmpty ? (result.stop.name ?? stopId) : stopName,
             arrivals: result.arrivals
         )
-        AlertWatchStore.shared.boardUpdated(stopId: stopId, stopName: stopName, arrivals: result.arrivals)
+        AlertsStore.shared.boardUpdated(stopId: stopId, arrivals: result.arrivals)
     }
 
     private func failed(_ failure: Error) {

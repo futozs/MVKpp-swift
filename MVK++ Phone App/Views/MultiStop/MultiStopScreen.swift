@@ -71,7 +71,7 @@ struct MultiStopScreen: View {
             .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
             .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
             .onAppear {
-                AlertWatchStore.shared.refresh()
+                AlertsStore.shared.refresh()
                 applyDeepLinkFocus()
             }
         }

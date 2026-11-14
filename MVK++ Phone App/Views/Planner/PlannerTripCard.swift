@@ -346,13 +346,13 @@ struct PlannerTransferBadge: View {
 struct PlannerTransferWatchButton: View {
     let check: JourneyTransferCheck
 
-    @ObservedObject private var alerts = TransferAlertStore.shared
+    @ObservedObject private var alerts = AlertsStore.shared
     @State private var busy = false
     @State private var note: String?
 
     var body: some View {
         if check.toTripId != nil, check.fromTripId != nil, check.boardStopId != nil, check.alightStopId != nil {
-            let on = alerts.isOn(check)
+            let on = check.boardStopId.map { alerts.has(stopId: $0, slot: "transfer:\(check.toTripId ?? "")") } ?? false
             VStack(alignment: .leading, spacing: 2) {
                 Button {
                     Task { await toggle(on: on) }
@@ -393,14 +393,29 @@ struct PlannerTransferWatchButton: View {
     }
 
     private func toggle(on: Bool) async {
+        guard let stopId = check.boardStopId, let toTrip = check.toTripId, let fromTrip = check.fromTripId,
+              let alight = check.alightStopId else { return }
+        let slot = "transfer:\(toTrip)"
         busy = true
         note = nil
         defer { busy = false }
         if on {
-            alerts.remove(check)
+            await alerts.remove(stopId: stopId, slot: slot)
             return
         }
-        let result = await alerts.add(check)
-        note = result.ok ? TransferAlertStore.noPushNote : (result.reason ?? "Nem sikerült bekapcsolni.")
+        var params: [String: AlertParam] = [
+            "fromTrip": .string(fromTrip),
+            "alightStopId": .string(alight),
+            "walkS": .number(check.walkS ?? 0),
+            "boardStopName": .string(check.at),
+        ]
+        if let fromRoute = check.fromRoute { params["fromRoute"] = .string(fromRoute) }
+        if let toRoute = check.toRoute { params["toRoute"] = .string(toRoute) }
+        let result = await alerts.add(slot: slot, kind: "transfer", stopId: stopId, stopName: check.at, tripId: toTrip, params: params)
+        if !result.ok {
+            note = result.reason ?? "Nem sikerült bekapcsolni."
+        } else if !result.push {
+            note = result.noPushNote
+        }
     }
 }

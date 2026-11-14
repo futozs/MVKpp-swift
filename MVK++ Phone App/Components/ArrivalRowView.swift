@@ -180,9 +180,12 @@ struct ArrivalRowView: View {
 
 /// The web's `hover:bg-accent` for a tappable list row, shown while pressed.
 struct RowHighlightStyle: ButtonStyle {
+    /// `hover:bg-accent/45` on the news list.
+    var opacity = 1.0
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Theme.accent : Color.clear)
+            .background(configuration.isPressed ? Theme.accent.opacity(opacity) : Color.clear)
             .animation(Theme.Motion.fastAnimation, value: configuration.isPressed)
     }
 }

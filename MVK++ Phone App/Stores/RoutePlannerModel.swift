@@ -251,7 +251,7 @@ final class RoutePlannerModel: ObservableObject {
                 let plan = try await APIClient.shared.planJourney(query)
                 guard !Task.isCancelled, let self else { return }
                 self.result = .done(plan)
-                TransferAlertStore.shared.evaluate(plan)
+                AlertsStore.shared.evaluateTransfers(plan)
                 if plan.mode == .now { self.startRefresh() } else { self.stopRefresh() }
             } catch {
                 guard !Task.isCancelled, !silent, let self else { return }
