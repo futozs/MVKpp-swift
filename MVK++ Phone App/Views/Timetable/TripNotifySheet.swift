@@ -5,126 +5,178 @@
 
 import SwiftUI
 
-/// An alarm pinned to one departure at one stop.
+/// An alarm pinned to one run at one stop — the web's `TripNotifyDialog`.
 ///
-/// The recurring switch is the point of this screen: a trip ID is only good
-/// for today, so a daily commute is pinned by the *scheduled minute* instead,
-/// and keeps working tomorrow when the operator issues new IDs.
+/// The recurring switch is the point: a trip id is only good for one day, so a
+/// daily commute is pinned by the scheduled minute instead and keeps working
+/// when tomorrow's runs get new ids.
 struct TripNotifySheet: View {
     let stopId: String
     let stopName: String
     let tripId: String
     let routeShort: String
+    /// The vehicle in sentences („3-as busz”, „IC vonat”).
+    let vehicleLabel: String
     let isDeparture: Bool
     /// "HH:MM" for this run at this stop.
-    let timeLabel: String
+    let departureLabel: String
 
     @ObservedObject private var notifications = NotificationCenterStore.shared
     @Environment(\.dismiss) private var dismiss
 
-    @State private var thresholdMin = NotificationCenterStore.defaultThresholdMin
-    @State private var isRecurring = false
+    @State private var threshold = String(NotificationCenterStore.defaultThresholdMin)
+    @State private var recurring = false
     @State private var permissionDenied = false
+    @State private var existed = false
+    @FocusState private var thresholdFocused: Bool
 
     var body: some View {
-        NavigationStack {
-            Form {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Értesítés \(vehicleLabel), \(departureLabel)")
+                        .font(.system(size: 18, weight: .semibold))
+                        .tracking(-0.3)
+                        .foregroundStyle(Theme.foreground)
+                    Text(description)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 if permissionDenied {
-                    Section {
-                        ErrorNotice(message: "Az értesítések le vannak tiltva — engedélyezd a rendszerbeállításokban.")
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                    }
+                    Text("Az értesítések le vannak tiltva ehhez az apphoz. Engedélyezd a Beállítások › Értesítések alatt, majd próbáld újra.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.destructive)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.destructive.opacity(0.3), lineWidth: 1))
                 }
 
-                Section {
-                    Stepper(value: $thresholdMin, in: 1...60) {
-                        HStack {
-                            Text(isDeparture ? "Indulás előtt" : "Érkezés előtt")
-                            Spacer()
-                            Text("\(thresholdMin) perccel")
-                                .font(Theme.mono(14, weight: .semibold))
-                                .foregroundStyle(Theme.primary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(isDeparture ? "Riasztás ennyi perccel indulás előtt" : "Riasztás ennyi perccel érkezés előtt")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Theme.foreground)
+                    TextField("", text: $threshold)
+                        .keyboardType(.numberPad)
+                        .focused($thresholdFocused)
+                        .font(.system(size: 14))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.foreground)
+                        .padding(.horizontal, 12)
+                        .frame(width: 96, height: 36)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(thresholdFocused ? Theme.ring : Theme.input, lineWidth: 1)
+                        )
+                        .onChange(of: threshold) { _, value in
+                            let digits = String(value.filter(\.isNumber).prefix(2))
+                            if digits != value { threshold = digits }
                         }
+                }
+
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Ismétlődő minden nap")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Theme.foreground)
+                        Text("Nem csak erre az egy napra, hanem minden napra szól, amikor a \(vehicleLabel) \(departureLabel)-kor közlekedik innen. Ez kell a napi iskolabuszhoz/munkába járáshoz egyszer állítod be, és nem kell újra minden alkalommal.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.mutedForeground)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                } header: {
-                    Text(stopName)
-                }
-                .listRowBackground(Theme.card)
-
-                Section {
-                    Toggle("Ismétlődő — minden nap", isOn: $isRecurring)
+                    Toggle("Ismétlődő minden nap", isOn: $recurring)
+                        .labelsHidden()
                         .tint(Theme.primary)
-                } footer: {
-                    Text("Minden nap, nem csak ma.")
                 }
-                .listRowBackground(Theme.card)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
-                if notifications.hasWatch(stopId: stopId) {
-                    Section {
+                HStack(spacing: 8) {
+                    if existed {
                         Button(role: .destructive) {
                             notifications.removeWatch(stopId: stopId)
                             notifications.cancelAlarm(stopId: stopId)
                             dismiss()
                         } label: {
                             Label("Értesítés kikapcsolása", systemImage: "bell.slash")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Theme.foreground)
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
                     }
-                    .listRowBackground(Theme.card)
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        Text("Mentés")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Theme.primaryForeground)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                            .background(Theme.primary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .mvkBackground()
-            .navigationTitle("\(HungarianText.withSuffix(routeShort)) · \(timeLabel)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Mégse") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Mentés") { Task { await save() } }
-                }
-            }
-            .task {
-                await notifications.refreshAuthorization()
-                permissionDenied = notifications.authorization == .denied
-                if let existing = notifications.watch(stopId: stopId) {
-                    thresholdMin = existing.thresholdMin
-                    isRecurring = existing.schedMin != nil
-                }
+            .padding(24)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(Theme.card.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .sensoryFeedback(.success, trigger: existed)
+        .task {
+            await notifications.refreshAuthorization()
+            permissionDenied = notifications.authorization == .denied
+            if let existing = notifications.watch(stopId: stopId) {
+                existed = true
+                threshold = String(existing.thresholdMin)
+                recurring = existing.schedMin != nil
             }
         }
     }
 
+    private var description: String {
+        let lead = isDeparture
+            ? "Szólunk, mielőtt ez a menet elindul innen: \(stopName)"
+            : "Szólunk, mielőtt ez a menet ideér: \(stopName)"
+        return "\(lead), lezárt telefonon is."
+    }
+
     private func save() async {
-        let granted = await notifications.requestPermission()
-        guard granted else {
+        guard await notifications.requestPermission() else {
             permissionDenied = true
             return
         }
-
+        let thresholdMin = min(60, max(1, Int(threshold) ?? NotificationCenterStore.defaultThresholdMin))
         notifications.setWatch(
             NotifyWatch(
                 stopId: stopId,
                 stopName: stopName,
-                thresholdMin: min(60, max(1, thresholdMin)),
-                // A recurring watch matches by route + scheduled minute; a
-                // one-off pins the exact trip.
-                routeShorts: isRecurring ? [routeShort] : nil,
-                tripId: isRecurring ? nil : tripId,
+                thresholdMin: thresholdMin,
+                routeShorts: recurring ? [routeShort] : nil,
+                tripId: recurring ? nil : tripId,
                 isDeparture: isDeparture,
-                schedMin: isRecurring ? Self.parseHourMinute(timeLabel) : nil
+                schedMin: recurring ? Self.parseHourMinute(departureLabel) : nil
             )
         )
+        existed = true
         dismiss()
     }
 
-    /// "HH:MM" → minutes since midnight. GTFS times can run past 24:00 for
+    /// "HH:MM" → minutes since midnight. GTFS times run past 24:00 for
     /// after-midnight service, so the result wraps.
     static func parseHourMinute(_ text: String) -> Int? {
         let parts = text.trimmingCharacters(in: .whitespaces).split(separator: ":")
         guard parts.count >= 2,
               let hour = Int(parts[0]),
-              let minute = Int(parts[1]),
+              let minute = Int(parts[1].prefix(2)),
               (0...27).contains(hour),
               (0...59).contains(minute)
         else { return nil }

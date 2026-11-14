@@ -5,238 +5,346 @@
 
 import SwiftUI
 
-/// Route list for a chosen day. The web app puts this in a permanent sidebar;
-/// on a phone it is the first level of a navigation stack.
+/// The route list for a chosen service day. On the web this is the sidebar;
+/// on a phone it is the first level, and a chosen route opens over it.
 struct TimetableScreen: View {
 
     @EnvironmentObject private var store: TransitStore
-    @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
 
     @StateObject private var model = TimetableModel()
     @State private var query = ""
-    @State private var isDatePickerOpen = false
+    @State private var disruptionsOpen = false
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let error = model.routesError {
-                    ScrollView { ErrorNotice(message: error).padding(16) }
-                } else if model.isLoadingRoutes && model.routes.isEmpty {
-                    ProgressView("Járatok betöltése…")
-                        .font(Theme.mono(12, weight: .regular))
-                        .tint(Theme.primary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    routeList
-                }
+            VStack(spacing: 0) {
+                header
+                Rectangle().fill(Theme.border).frame(height: 1)
+                list
             }
-            .background(AppBackground())
+            .background(Theme.card.ignoresSafeArea())
             .navigationTitle("Menetrend")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, prompt: "Járat vagy végállomás")
-            .safeAreaInset(edge: .top) { dayBar }
-            .task { await model.start() }
+            .navigationDestination(isPresented: routeOpen) {
+                RouteTimetableView(model: model)
+            }
+            .sheet(isPresented: $disruptionsOpen) {
+                DisruptionsSheet()
+            }
+            .task {
+                model.setRange(minIso: minIso, maxIso: maxIso)
+                model.start()
+            }
+            .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
             .onDisappear { model.stop() }
         }
     }
 
-    // MARK: - Day bar
+    private var routeOpen: Binding<Bool> {
+        Binding(
+            get: { model.selectedRoute != nil },
+            set: { open in if !open { model.closeRoute() } }
+        )
+    }
 
-    private var dayBar: some View {
-        HStack(spacing: 12) {
-            stepButton(systemImage: "chevron.left", days: -1)
-                .disabled(minIso.map { model.date <= $0 } ?? false)
+    // MARK: - Header
 
-            Button {
-                isDatePickerOpen = true
-            } label: {
-                VStack(spacing: 1) {
-                    Text(model.dateLabel)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(Theme.foreground)
-                    HStack(spacing: 6) {
-                        Text("\(model.weekdayLabel) · \(model.routes.count) járat")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.mutedForeground)
-                        if model.isOffline { OfflineTag(compact: true) }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            searchField
+
+            if model.groups.count > 2 {
+                groupPicker.padding(.top, 8)
             }
-            .buttonStyle(.plain)
 
-            stepButton(systemImage: "chevron.right", days: 1)
-                .disabled(maxIso.map { model.date >= $0 } ?? false)
-        }
-        .overlay(alignment: .trailing) {
-            // Only earns its place once you have wandered off today.
-            if !model.isToday {
-                Button("Ma") { model.goToToday() }
-                    .font(.system(size: 12, weight: .semibold))
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
-                    .tint(Theme.primary)
-                    .offset(y: 34)
-                    .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .animation(Theme.Motion.normalAnimation, value: model.isToday)
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, model.isToday ? 8 : 30)
-        .background(.bar)
-        .sheet(isPresented: $isDatePickerOpen) {
-            NavigationStack {
-                DatePicker(
-                    "Menetrend napja",
-                    selection: dateBinding,
-                    in: dateRange,
-                    displayedComponents: .date
+            HStack(spacing: 8) {
+                TimetableDayPicker(
+                    value: model.date,
+                    minIso: model.minIso,
+                    maxIso: model.maxIso,
+                    todayIso: TimetableModel.todayIso(),
+                    onShift: model.shiftDate(by:),
+                    onPick: model.setDate
                 )
-                .datePickerStyle(.graphical)
-                .tint(Theme.primary)
-                .padding(.horizontal, 12)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .background(AppBackground())
-                .navigationTitle("Nap választása")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Kész") { isDatePickerOpen = false }
-                    }
-                }
+                .frame(minWidth: 176, maxWidth: .infinity)
+                .layoutPriority(1)
+                disruptionsButton
             }
-            .presentationDetents([.medium])
+            .padding(.top, 8)
+
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 6) {
+                    Text("\(visibleRoutes.count) járat · \(model.weekdayLabel)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.mutedForeground)
+                    if model.isOffline { OfflineTag(compact: true) }
+                }
+                Spacer(minLength: 0)
+                HereChip(stops: store.stops)
+            }
+            .padding(.top, 10)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
     }
 
-    private func stepButton(systemImage: String, days: Int) -> some View {
-        Button {
-            model.shiftDate(by: days, min: minIso, max: maxIso)
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 38, height: 38)
-                .contentShape(Rectangle())
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.mutedForeground)
+            TextField("", text: $query, prompt: Text("Járat vagy végállomás").foregroundStyle(Theme.mutedForeground))
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.foreground)
+                .focused($searchFocused)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .accessibilityLabel("Járat keresése")
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.mutedForeground)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Keresés törlése")
+            }
         }
-        .buttonStyle(.glass)
-        .accessibilityLabel(days < 0 ? "Előző nap" : "Következő nap")
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(searchFocused ? Theme.ring : Theme.input, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { searchFocused = true }
     }
 
-    // MARK: - Route list
-
-    private var routeList: some View {
-        List {
-            if !favoriteLines.isEmpty && query.trimmingCharacters(in: .whitespaces).isEmpty {
-                Section {
-                    ForEach(favoriteLines, id: \.id) { favorite in
-                        NavigationLink {
-                            RouteTimetableView(
-                                route: favorite.route,
-                                initialDir: favorite.dir,
-                                model: model
-                            )
-                        } label: {
-                            routeRow(
-                                favorite.route,
-                                subtitle: favorite.headsign.isEmpty ? favorite.route.long : favorite.headsign,
-                                tripsToday: favorite.tripsToday
-                            )
-                        }
-                        .listRowBackground(Theme.primary.opacity(0.07))
-                    }
-                } header: {
-                    Label("Kedvencek", systemImage: "star.fill")
+    private var groupPicker: some View {
+        HStack(spacing: 4) {
+            ForEach(model.groups) { group in
+                let isOn = model.activeGroup == group
+                Button {
+                    withAnimation(Theme.Motion.fastAnimation) { model.group = group }
+                } label: {
+                    Text(group.label)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.primary)
+                        .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
+                        .frame(maxWidth: .infinity, minHeight: 28)
+                        .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.Level(radius: 0, y: 0, opacity: 0))
+                        .contentShape(Rectangle())
                 }
-            }
-
-            Section {
-                ForEach(visibleRoutes) { route in
-                    NavigationLink {
-                        RouteTimetableView(route: route, initialDir: nil, model: model)
-                    } label: {
-                        routeRow(
-                            route,
-                            subtitle: route.long,
-                            tripsToday: route.directions.reduce(0) { $0 + $1.tripsToday },
-                            cancelledCount: model.cancelledCountByRoute[route.id] ?? 0
-                        )
-                    }
-                    .listRowBackground(Color.clear)
-                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isOn ? [.isSelected] : [])
             }
         }
-        .listStyle(.plain)
-        .mvkBackground()
-        .overlay {
-            if visibleRoutes.isEmpty {
-                ContentUnavailableView.search(text: query)
-            }
-        }
+        .padding(4)
+        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Melyik járatok")
     }
 
-    private func routeRow(
-        _ route: TimetableRoute,
-        subtitle: String,
-        tripsToday: Int,
-        cancelledCount: Int = 0
-    ) -> some View {
+    private var disruptionsButton: some View {
+        let count = model.todayCancelledCount
+        return Button {
+            disruptionsOpen = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "nosign")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(count > 0 ? Theme.destructive : Theme.mutedForeground)
+                Text("Mai zavarok")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(count > 0 ? Theme.foreground : Theme.mutedForeground)
+                    .lineLimit(1)
+                    .fixedSize()
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.destructive)
+                        .padding(.horizontal, 6)
+                        .background(Theme.destructive.opacity(0.15), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: 34)
+            .background(count > 0 ? Theme.destructive.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                    .strokeBorder(count > 0 ? Theme.destructive.opacity(0.4) : Theme.border, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(TimetablePressStyle())
+        .accessibilityHint("Mai zavarok: mi marad ki, mi jön helyette")
+    }
+
+    // MARK: - List
+
+    @ViewBuilder
+    private var list: some View {
+        let routes = visibleRoutes
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        ScrollView {
+            if let error = model.routesError {
+                ErrorNotice(message: error)
+                    .padding(12)
+            } else if routes.isEmpty {
+                Text(trimmed.isEmpty
+                     ? (model.routes.isEmpty ? "Járatok betöltése…" : "Ezen a napon nem közlekedik járat.")
+                     : "Nincs „\(trimmed)” jelzésű járat.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 32)
+            } else {
+                LazyVStack(spacing: 0) {
+                    if !favoriteLines.isEmpty && trimmed.isEmpty {
+                        favoritesSection
+                    }
+                    ForEach(Array(routes.enumerated()), id: \.element.id) { index, route in
+                        if let header = groupHeader(at: index, in: routes) {
+                            Text(header.uppercased())
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .tracking(0.5)
+                                .foregroundStyle(Theme.mutedForeground)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Theme.muted.opacity(0.4))
+                        }
+                        routeRow(route)
+                        if index < routes.count - 1 {
+                            Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1)
+                        }
+                    }
+                }
+            }
+        }
+        .scrollDismissesKeyboard(.immediately)
+    }
+
+    private func groupHeader(at index: Int, in routes: [TimetableRoute]) -> String? {
+        guard model.activeGroup == .all, model.groups.count > 2 else { return nil }
+        let group = TimetableGroup.of(routes[index])
+        guard index == 0 || TimetableGroup.of(routes[index - 1]) != group else { return nil }
+        return group.title
+    }
+
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.primary)
+                Text("KEDVENCEK")
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.mutedForeground)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+
+            ForEach(favoriteLines, id: \.id) { favorite in
+                let isActive = favorite.route.id == model.selectedRouteId && favorite.dir == model.selectedDir
+                Button {
+                    model.open(routeId: favorite.route.id, dir: favorite.dir)
+                } label: {
+                    rowContent(
+                        favorite.route,
+                        title: favorite.headsign.isEmpty ? favorite.route.long : favorite.headsign,
+                        subtitle: serviceLabel(favorite.tripsToday),
+                        cancelledCount: 0
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isActive ? Theme.primary.opacity(0.10) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(TimetablePressStyle(cornerRadius: 0))
+                .accessibilityAddTraits(isActive ? [.isSelected] : [])
+            }
+        }
+        .padding(.vertical, 4)
+        .background(Theme.muted.opacity(0.25))
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+    }
+
+    private func routeRow(_ route: TimetableRoute) -> some View {
+        let isActive = route.id == model.selectedRouteId
+        let tripsToday = route.directions.reduce(0) { $0 + $1.tripsToday }
+        let operatorPrefix = route.mode == .coach && route.operator != nil && route.operator != "Helyközi busz"
+            ? "\(route.operator ?? "") · " : ""
+        return Button {
+            model.selectRoute(route)
+        } label: {
+            rowContent(
+                route,
+                title: route.long,
+                subtitle: operatorPrefix + serviceLabel(tripsToday),
+                cancelledCount: model.cancelledCountByRoute[route.id] ?? 0
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isActive ? Theme.primary.opacity(0.10) : .clear)
+            .opacity(tripsToday == 0 && !isActive ? 0.55 : 1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(TimetablePressStyle(cornerRadius: 0))
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
+    }
+
+    private func rowContent(_ route: TimetableRoute, title: String, subtitle: String, cancelledCount: Int) -> some View {
         HStack(spacing: 10) {
             RouteTile(short: route.short, colorHex: route.color, textHex: route.text)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(subtitle)
-                    .font(.system(size: 13, weight: .medium))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
-                Text(serviceLabel(tripsToday))
+                Text(subtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.mutedForeground)
+                    .lineLimit(1)
             }
-
-            Spacer(minLength: 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if cancelledCount > 0 {
-                Label("\(cancelledCount)", systemImage: "nosign")
-                    .font(Theme.mono(10))
-                    .foregroundStyle(Theme.destructive)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(
-                        Theme.destructive.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    )
-                    .accessibilityLabel("\(cancelledCount) kihúzott menet ezen a járaton")
+                HStack(spacing: 4) {
+                    Image(systemName: "nosign").font(.system(size: 8, weight: .bold))
+                    Text("\(cancelledCount)").font(Theme.mono(10))
+                }
+                .foregroundStyle(Theme.destructive)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.destructive.opacity(0.4), lineWidth: 1))
+                .accessibilityLabel("\(cancelledCount) kihúzott menet \(model.isToday ? "ma" : "ezen a napon") ezen a járaton")
             }
         }
-        // A route with no service today stays listed but recedes — its
-        // absence is information the rider needs.
-        .opacity(tripsToday == 0 ? 0.55 : 1)
     }
 
     private func serviceLabel(_ tripsToday: Int) -> String {
         if tripsToday > 0 {
-            return model.isToday ? "\(tripsToday) menet ma" : "\(tripsToday) menet ezen a napon"
+            return "\(tripsToday) \(model.isToday ? "menet ma" : "menet ezen a napon")"
         }
         return model.isToday ? "Ma nem közlekedik" : "Ezen a napon nem közlekedik"
     }
 
-    // MARK: - Derived data
+    // MARK: - Derived
 
-    private var visibleRoutes: [TimetableRoute] {
-        let needle = query.trimmingCharacters(in: .whitespaces)
-        guard !needle.isEmpty else { return model.routes }
-        return model.routes.filter { route in
-            route.short.containsNormalized(needle)
-                || route.long.containsNormalized(needle)
-                || route.directions.contains { $0.headsign.containsNormalized(needle) }
-        }
-    }
+    private var visibleRoutes: [TimetableRoute] { model.visibleRoutes(query: query) }
 
     private struct FavoriteEntry {
         let route: TimetableRoute
@@ -251,52 +359,28 @@ struct TimetableScreen: View {
             guard let route = model.routes.first(where: { $0.id == favorite.routeId }),
                   let direction = route.directions.first(where: { $0.dir == favorite.dir })
             else { return nil }
-            return FavoriteEntry(
-                route: route,
-                dir: direction.dir,
-                headsign: direction.headsign,
-                tripsToday: direction.tripsToday
-            )
+            return FavoriteEntry(route: route, dir: direction.dir, headsign: direction.headsign, tripsToday: direction.tripsToday)
         }
     }
 
     // MARK: - Date bounds
     //
-    // The picker is limited to what the gateway can actually answer: the live
-    // service window plus however far back the archive reaches.
+    // The picker only offers what the gateway can answer: the live service
+    // window plus however far back the archive reaches.
 
     private var minIso: String? {
         [store.gtfsMeta?.serviceRange?.from, store.gtfsMeta?.archiveRange?.from]
             .compactMap { $0 }
-            .compactMap(TimetableModel.ymdToIso)
+            .compactMap(ServiceClock.ymdToIso)
             .min()
     }
 
     private var maxIso: String? {
         [store.gtfsMeta?.serviceRange?.to, store.gtfsMeta?.archiveRange?.to]
             .compactMap { $0 }
-            .compactMap(TimetableModel.ymdToIso)
+            .compactMap(ServiceClock.ymdToIso)
             .max()
     }
 
-    private var dateRange: ClosedRange<Date> {
-        let lower = minIso.flatMap(TimetableModel.parse)
-            ?? Calendar.current.date(byAdding: .day, value: -30, to: Date())!
-        let upper = maxIso.flatMap(TimetableModel.parse)
-            ?? Calendar.current.date(byAdding: .day, value: 30, to: Date())!
-        return lower <= upper ? lower...upper : upper...lower
-    }
-
-    private var dateBinding: Binding<Date> {
-        Binding(
-            get: { TimetableModel.parse(model.date) ?? Date() },
-            set: { newValue in
-                let formatter = DateFormatter()
-                formatter.calendar = Calendar(identifier: .gregorian)
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                formatter.dateFormat = "yyyy-MM-dd"
-                model.date = formatter.string(from: newValue)
-            }
-        )
-    }
+    private var rangeKey: String { "\(minIso ?? "")|\(maxIso ?? "")" }
 }

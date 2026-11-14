@@ -5,12 +5,9 @@
 
 import SwiftUI
 
-/// What actually happened on a run that has already started or finished:
-/// which vehicle served it, and how far off schedule it began and ended.
-///
-/// The live feed drops a run the moment it completes, so for anything in the
-/// past this journal is the only record — and "which bus was that?" is exactly
-/// what a rider wants to know afterwards.
+/// What actually happened on a run that has started or finished: which
+/// vehicle served it, and how far off schedule it began and ended. For a past
+/// run the journal is the only record left.
 struct RunSummaryView: View {
     let entry: TripJournalEntry
 
@@ -23,26 +20,30 @@ struct RunSummaryView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            FlowLayout(spacing: 10, lineSpacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
+            FlowLayout(spacing: 12, lineSpacing: 6) {
                 if let vehicleId = entry.vehicleId {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "bus")
-                            .font(.system(size: 10))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Theme.mutedForeground)
-                        Text(vehicleId).font(Theme.mono(11))
+                        Text(TransitIds.displayVehicleId(vehicleId))
+                            .font(Theme.mono(11, weight: .semibold))
+                            .foregroundStyle(Theme.foreground)
+                            .accessibilityLabel(TransitIds.vehicleIdTitle(vehicleId))
                         Text("vitte")
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.mutedForeground)
                     }
+                    .frame(minHeight: 22)
                 }
 
                 if let startText {
-                    delayChip(icon: "arrow.up.forward", text: startText, sec: entry.startDelaySec)
+                    delayChip(icon: "rectangle.portrait.and.arrow.right", text: startText, sec: entry.startDelaySec)
                 }
 
                 if let endText {
-                    delayChip(icon: "flag.checkered", text: endText, sec: entry.endDelaySec)
+                    delayChip(icon: "flag", text: endText, sec: entry.endDelaySec)
                 }
             }
 
@@ -53,9 +54,12 @@ struct RunSummaryView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(Theme.muted.opacity(0.3))
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("A menet tényleges futása")
     }
 
     private func delayChip(icon: String, text: String, sec: Int?) -> some View {
@@ -70,19 +74,17 @@ struct RunSummaryView: View {
         case .early: Theme.early.opacity(0.10)
         case .ontime, .unknown: Theme.card
         }
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
 
-        return HStack(spacing: 5) {
-            Image(systemName: icon).font(.system(size: 10))
+        return HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 10, weight: .semibold))
             Text(text).font(.system(size: 11, weight: .semibold))
         }
         .foregroundStyle(DelayFormat.tone(sec))
         .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(fill, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
-                .strokeBorder(border, lineWidth: 1)
-        )
+        .padding(.vertical, 2)
+        .background(fill, in: shape)
+        .overlay(shape.strokeBorder(border, lineWidth: 1))
     }
 
     private var startText: String? {
