@@ -34,17 +34,23 @@ final class TripPathModel: ObservableObject {
         return ApproachEngine.VehicleFix(lat: vehicle.lat, lon: vehicle.lon, speed: vehicle.speed)
     }
 
-    func follow(tripId: String?, vehicleId: String?) {
+    /// `active` false pauses the polling but keeps the last path, so coming
+    /// back to the map does not flash an empty dock.
+    func follow(tripId: String?, vehicleId: String?, active: Bool = true) {
         let key = "\(tripId ?? "")|\(vehicleId ?? "")"
-        guard key != currentKey else { return }
-        currentKey = key
+        let shouldPoll = active && tripId != nil
+        if key != currentKey {
+            currentKey = key
+            path = nil
+            isLost = false
+        } else if (task != nil) == shouldPoll {
+            return
+        }
 
         task?.cancel()
         task = nil
-        path = nil
-        isLost = false
 
-        guard let tripId else { return }
+        guard shouldPoll, let tripId else { return }
 
         task = Task { [weak self] in
             guard let self else { return }
