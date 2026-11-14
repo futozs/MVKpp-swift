@@ -284,6 +284,8 @@ final class TimetableModel: ObservableObject {
     func stop() {
         clockTask?.cancel()
         clockTask = nil
+        journal.pause()
+        cancelled.pause()
     }
 
     private func reloadDay() {

@@ -71,6 +71,7 @@ struct StatsLiveIncidentsCard: View {
     let onOpenDisruptions: () -> Void
 
     @State private var live: StatsLiveIncidents?
+    @Environment(\.isTabActive) private var isTabActive
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,7 +81,8 @@ struct StatsLiveIncidentsCard: View {
                 Color.clear.frame(height: 0)
             }
         }
-        .task {
+        .task(id: isTabActive) {
+            guard isTabActive else { return }
             while !Task.isCancelled {
                 if let fresh = try? await APIClient.shared.liveIncidents() { live = fresh }
                 try? await Task.sleep(for: .seconds(60))

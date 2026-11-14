@@ -12,6 +12,7 @@ import SwiftUI
 struct RoutePlannerScreen: View {
     @EnvironmentObject private var store: TransitStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.isTabActive) private var isTabActive
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @StateObject private var model = RoutePlannerModel()
@@ -54,7 +55,8 @@ struct RoutePlannerScreen: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .task(id: store.stops.count) { model.updateCatalog(store.stops) }
-        .onChange(of: scenePhase) { _, phase in model.isActive = phase == .active }
+        .onChange(of: scenePhase) { _, phase in model.isActive = phase == .active && isTabActive }
+        .onChange(of: isTabActive) { _, active in model.isActive = active && scenePhase == .active }
     }
 
     @ViewBuilder

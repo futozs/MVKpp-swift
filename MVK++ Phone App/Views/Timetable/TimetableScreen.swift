@@ -12,6 +12,7 @@ struct TimetableScreen: View {
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
     @EnvironmentObject private var navigation: AppNavigation
+    @Environment(\.isTabActive) private var isTabActive
 
     @StateObject private var model = TimetableModel()
     @State private var query = ""
@@ -35,6 +36,9 @@ struct TimetableScreen: View {
                 openPendingTrip()
             }
             .onChange(of: navigation.pendingTimetableTrip) { _, _ in openPendingTrip() }
+            .onChange(of: isTabActive) { _, active in
+                if active { model.start() } else { model.stop() }
+            }
             .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
             .onDisappear { model.stop() }
         }

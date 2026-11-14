@@ -30,6 +30,7 @@ struct StopCardView: View {
     @ObservedObject private var alerts = AlertsStore.shared
 
     @StateObject private var model = StopArrivalsModel()
+    @Environment(\.isTabActive) private var isTabActive
     @State private var isNotifyOpen = false
     @State private var leaveBusy = false
     @State private var leaveNote: String?
@@ -48,7 +49,9 @@ struct StopCardView: View {
                 laterDepartures(catchFor)
             }
         }
-        .task(id: stop.id) { await model.start(stopId: stop.id, stopName: stop.name, limit: listLimit) }
+        .task(id: "\(stop.id)|\(isTabActive)") {
+            if isTabActive { await model.start(stopId: stop.id, stopName: stop.name, limit: listLimit) } else { model.stop() }
+        }
         .onDisappear { model.stop() }
         .sheet(isPresented: $isNotifyOpen) {
             StopNotifySheet(stop: stop, arrivals: model.arrivals)

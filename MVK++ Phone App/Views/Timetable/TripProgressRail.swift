@@ -14,6 +14,7 @@ struct TripProgressRail: View {
     let stopNames: [String]
 
     @StateObject private var model = TripProgressModel()
+    @Environment(\.isTabActive) private var isTabActive
 
     private let rowHeight: CGFloat = 34
     private let railX: CGFloat = 71
@@ -37,8 +38,8 @@ struct TripProgressRail: View {
                     .padding(.vertical, 24)
             }
         }
-        .task(id: "\(trip.tripId)|\(vehicleId ?? "")") {
-            await model.start(tripId: trip.tripId, vehicleId: vehicleId)
+        .task(id: "\(trip.tripId)|\(vehicleId ?? "")|\(isTabActive)") {
+            if isTabActive { await model.start(tripId: trip.tripId, vehicleId: vehicleId) } else { model.stop() }
         }
         .onDisappear { model.stop() }
     }

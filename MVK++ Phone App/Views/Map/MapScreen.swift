@@ -18,6 +18,7 @@ struct MapScreen: View {
     @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
+    @Environment(\.isTabActive) private var isTabActive
 
     @ObservedObject private var rides = RideStore.shared
 
@@ -49,6 +50,11 @@ struct MapScreen: View {
 
     private var is3D: Bool { map3dFlag == "1" }
 
+    /// The followed trip's path is polled only while the map is on screen.
+    private func followPath() {
+        tripPath.follow(tripId: isTabActive ? navigation.focusTripId : nil, vehicleId: navigation.focusVehicleId)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let bottom = proxy.frame(in: .global).maxY
@@ -70,7 +76,6 @@ struct MapScreen: View {
             }
             .onPreferenceChange(MapCoverKey.self) { coverTop = $0 }
         }
-        .toolbar(navigation.isFollowingTrip || historyOn || isFilterOpen || isSearchOpen ? .hidden : .visible, for: .tabBar)
         .animation(Theme.Motion.normalAnimation, value: navigation.isFollowingTrip)
         .animation(Theme.Motion.normalAnimation, value: isFilterOpen)
         .animation(Theme.Motion.normalAnimation, value: isSearchOpen)
@@ -91,10 +96,12 @@ struct MapScreen: View {
         .onChange(of: navigation.focusTripId) { _, tripId in
             popupVehicleId = nil
             if tripId != nil { historyOn = false }
-            tripPath.follow(tripId: tripId, vehicleId: navigation.focusVehicleId)
+            followPath()
         }
-        .onChange(of: navigation.focusVehicleId) { _, vehicleId in
-            tripPath.follow(tripId: navigation.focusTripId, vehicleId: vehicleId)
+        .onChange(of: navigation.focusVehicleId) { _, _ in followPath() }
+        .onChange(of: isTabActive) { _, _ in
+            followPath()
+            traffic.setEnabled(navigation.filters.traffic && !historyOn && isTabActive)
         }
         .onChange(of: navigation.selectedStopId) { _, stopId in
             guard let stop = store.stop(id: stopId) else { return }
@@ -104,15 +111,15 @@ struct MapScreen: View {
         .onChange(of: store.stops.count) { _, _ in runAutoZoom() }
         .onChange(of: store.liveVehicles) { _, _ in frameWatchedVehicles() }
         .onChange(of: navigation.filters) { _, _ in frameWatchedVehicles() }
-        .onChange(of: navigation.filters.traffic) { _, on in traffic.setEnabled(on && !historyOn) }
+        .onChange(of: navigation.filters.traffic) { _, on in traffic.setEnabled(on && !historyOn && isTabActive) }
         .onChange(of: historyOn) { _, on in
-            traffic.setEnabled(navigation.filters.traffic && !on)
+            traffic.setEnabled(navigation.filters.traffic && !on && isTabActive)
             popupVehicleId = nil
             popupHistoryId = nil
         }
         .onAppear {
-            tripPath.follow(tripId: navigation.focusTripId, vehicleId: navigation.focusVehicleId)
-            traffic.setEnabled(navigation.filters.traffic && !historyOn)
+            followPath()
+            traffic.setEnabled(navigation.filters.traffic && !historyOn && isTabActive)
             store.startPolling()
             runAutoZoom()
         }
@@ -140,7 +147,7 @@ struct MapScreen: View {
             riddenVehicleId: rides.active?.vehicleId,
             is3D: is3D,
             historyOn: historyOn,
-            isActive: navigation.tab == .map,
+            isActive: isTabActive,
             coverBottom: cover,
             camera: camera,
             onSelectStop: { navigation.selectedStopId = $0 },

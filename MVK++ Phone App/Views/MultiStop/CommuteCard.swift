@@ -33,6 +33,7 @@ private struct CommuteCardBody: View {
     @EnvironmentObject private var location: LocationProvider
     @ObservedObject private var features = WatchFeatures.shared
     @StateObject private var model = StopArrivalsModel()
+    @Environment(\.isTabActive) private var isTabActive
     @State private var busy = false
     @State private var note: String?
 
@@ -126,7 +127,9 @@ private struct CommuteCardBody: View {
         .overlay(shape.strokeBorder(Theme.primary.opacity(0.30), lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Szokásos utad")
-        .task(id: commute.fromStopId) { await model.start(stopId: commute.fromStopId, stopName: commute.fromStopName, limit: 12) }
+        .task(id: "\(commute.fromStopId)|\(isTabActive)") {
+            if isTabActive { await model.start(stopId: commute.fromStopId, stopName: commute.fromStopName, limit: 12) } else { model.stop() }
+        }
         .onDisappear { model.stop() }
     }
 

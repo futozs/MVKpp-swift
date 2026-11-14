@@ -13,6 +13,12 @@ import SwiftUI
 /// and selection — except the Parkoló, which, like on the web, lives only
 /// while it is open (its live subscription has no business running behind
 /// the other tabs, and everything it remembers is stored).
+extension EnvironmentValues {
+    /// False while a visited tab stays mounted behind the active one: its
+    /// live work (subscriptions, polls, timers) pauses until it is shown again.
+    @Entry var isTabActive = true
+}
+
 struct RootTabView: View {
     @EnvironmentObject private var navigation: AppNavigation
     @EnvironmentObject private var store: TransitStore
@@ -31,6 +37,7 @@ struct RootTabView: View {
                 let isActive = navigation.tab == tab
                 if isActive || (visited.contains(tab) && tab != .parking) {
                     screen(tab)
+                        .environment(\.isTabActive, isActive)
                         .opacity(isActive ? 1 : 0)
                         .allowsHitTesting(isActive)
                         .accessibilityHidden(!isActive)

@@ -17,6 +17,8 @@ final class TripJournalFeed: ObservableObject {
     @Published private(set) var trips: [String: TripJournalEntry] = [:]
 
     private(set) var ymd: String?
+    /// The day `trips` belongs to; kept across a pause.
+    private var shownYmd: String?
     private var pollInterval: TimeInterval = 30
     private var liveDay: String?
     private var topic: AnyCancellable?
@@ -51,12 +53,23 @@ final class TripJournalFeed: ObservableObject {
         self.ymd = ymd
         self.pollInterval = pollInterval
         if dayChanged {
-            trips = [:]
+            if ymd != shownYmd { trips = [:] }
+            shownYmd = ymd
             liveDay = nil
             topic = nil
             retryTask?.cancel()
             if let ymd { Task { await load(ymd) } }
         }
+        updatePolling()
+    }
+
+    /// Off screen: no subscription and no poll; the next `set` picks up the
+    /// same day without blanking it.
+    func pause() {
+        ymd = nil
+        liveDay = nil
+        topic = nil
+        retryTask?.cancel()
         updatePolling()
     }
 
@@ -121,6 +134,8 @@ final class CancelledTripsFeed: ObservableObject {
     @Published private(set) var trips: [CancelledTrip] = []
 
     private var key: String?
+    /// The day the list belongs to; kept across a pause.
+    private var shownKey: String?
     private var task: Task<Void, Never>?
     private let pollInterval: TimeInterval = 30
 
@@ -129,8 +144,11 @@ final class CancelledTripsFeed: ObservableObject {
         guard key != self.key else { return }
         self.key = key
         task?.cancel()
-        ids = []
-        trips = []
+        if key != shownKey {
+            ids = []
+            trips = []
+        }
+        shownKey = key
         guard let ymd else { return }
         task = Task { [weak self] in
             while !Task.isCancelled {
@@ -139,6 +157,13 @@ final class CancelledTripsFeed: ObservableObject {
                 try? await Task.sleep(for: .seconds(self?.pollInterval ?? 30))
             }
         }
+    }
+
+    /// Off screen: the 30 s refresh stops; the next `set` resumes it.
+    func pause() {
+        task?.cancel()
+        task = nil
+        key = nil
     }
 
     private func load(ymd: String, isToday: Bool) async {

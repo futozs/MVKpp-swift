@@ -15,6 +15,7 @@ struct TripTimetable: View {
     let tripId: String
 
     @StateObject private var model = TripTimetableModel()
+    @Environment(\.isTabActive) private var isTabActive
     @State private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -41,7 +42,9 @@ struct TripTimetable: View {
                 shell { content }
             }
         }
-        .task(id: tripId) { await model.run(tripId: tripId) }
+        .task(id: "\(tripId)|\(isTabActive)") {
+            if isTabActive { await model.run(tripId: tripId) }
+        }
     }
 
     private func shell<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {

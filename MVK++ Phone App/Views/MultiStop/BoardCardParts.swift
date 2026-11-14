@@ -161,17 +161,19 @@ struct VisiblePoll: ViewModifier {
     let action: () async -> Void
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.isTabActive) private var isTabActive
 
     func body(content: Content) -> some View {
         content
-            .task(id: id) {
+            .task(id: "\(id)|\(isTabActive)") {
+                guard isTabActive else { return }
                 while !Task.isCancelled {
                     if scenePhase == .active { await action() }
                     try? await Task.sleep(for: interval)
                 }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await action() } }
+                if phase == .active, isTabActive { Task { await action() } }
             }
     }
 }
