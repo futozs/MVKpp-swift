@@ -19,6 +19,7 @@ struct MapScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
     @Environment(\.isTabActive) private var isTabActive
+    @Environment(\.tabActivation) private var tabActivation
 
     @ObservedObject private var rides = RideStore.shared
 
@@ -102,6 +103,17 @@ struct MapScreen: View {
         .onChange(of: isTabActive) { _, _ in
             followPath()
             traffic.setEnabled(navigation.filters.traffic && !historyOn && isTabActive)
+        }
+        .onChange(of: tabActivation) { _, _ in
+            // The web remounts the map on each visit: panels and the
+            // timeline start closed.
+            historyOn = false
+            isFilterOpen = false
+            isLayersOpen = false
+            isSearchOpen = false
+            popupVehicleId = nil
+            popupTraffic = nil
+            popupHistoryId = nil
         }
         .onChange(of: navigation.selectedStopId) { _, stopId in
             guard let stop = store.stop(id: stopId) else { return }
