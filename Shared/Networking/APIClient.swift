@@ -25,8 +25,8 @@ enum APIError: LocalizedError {
 struct APIClient {
     static let shared = APIClient()
 
-    private let session: URLSession
-    private let decoder = JSONDecoder()
+    let session: URLSession
+    let decoder = JSONDecoder()
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -34,7 +34,7 @@ struct APIClient {
 
     // MARK: - Transport
 
-    private func url(path: String, queryItems: [URLQueryItem] = []) throws -> URL {
+    func url(path: String, queryItems: [URLQueryItem] = []) throws -> URL {
         guard var components = URLComponents(
             url: APIConfig.baseURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
@@ -46,7 +46,7 @@ struct APIClient {
         return url
     }
 
-    private func decode<T: Decodable>(_ data: Data) throws -> T {
+    func decode<T: Decodable>(_ data: Data) throws -> T {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
@@ -54,7 +54,7 @@ struct APIClient {
         }
     }
 
-    private func request<T: Decodable>(path: String, queryItems: [URLQueryItem] = []) async throws -> T {
+    func request<T: Decodable>(path: String, queryItems: [URLQueryItem] = []) async throws -> T {
         let (data, response) = try await session.data(from: try url(path: path, queryItems: queryItems))
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw APIError.badStatus(http.statusCode)
@@ -65,7 +65,7 @@ struct APIClient {
     /// The gateway's bytes, undecoded. The offline pack stores responses
     /// verbatim so the screens that read them back can use the very same
     /// `Decodable` types, with no second serialization format to keep in step.
-    private func rawData(path: String, queryItems: [URLQueryItem] = []) async throws -> Data {
+    func rawData(path: String, queryItems: [URLQueryItem] = []) async throws -> Data {
         let (data, response) = try await session.data(from: try url(path: path, queryItems: queryItems))
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw APIError.badStatus(http.statusCode)
@@ -73,7 +73,7 @@ struct APIClient {
         return data
     }
 
-    private func post<Body: Encodable, T: Decodable>(path: String, body: Body) async throws -> T {
+    func post<Body: Encodable, T: Decodable>(path: String, body: Body) async throws -> T {
         var request = URLRequest(url: try url(path: path))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -242,13 +242,13 @@ struct APIClient {
         return try decode(data)
     }
 
-    private func statsRequest<T: Decodable>(path: String, queryItems: [URLQueryItem]) async throws -> T {
+    func statsRequest<T: Decodable>(path: String, queryItems: [URLQueryItem]) async throws -> T {
         let (data, response) = try await session.data(from: try url(path: path, queryItems: queryItems))
         try checkStats(response: response, data: data)
         return try decode(data)
     }
 
-    private func checkStats(response: URLResponse, data: Data) throws {
+    func checkStats(response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { return }
         if http.statusCode == 503 {
             let reason = (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
