@@ -13,6 +13,9 @@ struct RideStatsView: View {
     let stats: RideStats
     let fleetSize: Int?
 
+    /// The hour tapped in „Mikor utazol” (web `BarChart` hover).
+    @State private var selectedHour: Int?
+
     private static let weekdays = ["H", "K", "Sze", "Cs", "P", "Szo", "V"]
     private static let day: DateFormatter = {
         let f = DateFormatter()
@@ -164,9 +167,33 @@ struct RideStatsView: View {
             ForEach(Array(stats.hours.enumerated()), id: \.offset) { h, n in
                 BarMark(x: .value("Óra", h), y: .value("Utazás", n), width: .ratio(0.75))
                     .foregroundStyle(Theme.primary.opacity(0.7))
+                    .opacity(selectedHour == nil || selectedHour == h ? 1 : 0.4)
                     .cornerRadius(2)
                     .accessibilityLabel("\(h):00–\(h + 1):00")
                     .accessibilityValue("\(n) utazás")
+                    .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                        if selectedHour == h {
+                            StatsTip(value: "\(h):00–\(h + 1):00 · \(n) utazás")
+                        }
+                    }
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture().onEnded { tap in
+                            guard let plot = proxy.plotFrame else { return }
+                            let x = tap.location.x - geometry[plot].origin.x
+                            guard let value = proxy.value(atX: x, as: Double.self) else { return }
+                            let hour = min(max(Int(value.rounded()), 0), stats.hours.count - 1)
+                            withAnimation(Theme.Motion.fastAnimation) {
+                                selectedHour = selectedHour == hour ? nil : hour
+                            }
+                        }
+                    )
             }
         }
         .chartXAxis {

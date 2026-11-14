@@ -398,8 +398,8 @@ struct RideStopRow: View {
                             .stroke(isPassed ? Theme.mutedForeground : isNext ? Theme.primary : Theme.mutedForeground.opacity(0.6), lineWidth: 2)
                             .background(Circle().fill(isPassed ? Theme.mutedForeground : isNext ? Theme.primary : .clear))
                             .frame(width: 10, height: 10)
-                            .scaleEffect(isNext && pulse ? 1.25 : 1)
-                            .opacity(isNext && pulse ? 0.75 : 1)
+                            .scaleEffect(isNext && pulse ? 0.75 : 1)
+                            .opacity(isNext && pulse ? 0.4 : 1)
                     }
                     .frame(width: 16)
                     (Text(stop.name).fontWeight(isNext ? .semibold : .regular)
@@ -436,9 +436,17 @@ struct RideStopRow: View {
             .disabled(!canPick)
             .accessibilityHint(canPick ? "Itt szállok le" : "")
         }
-        .onAppear {
-            guard isNext, !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) { pulse = true }
-        }
+        .onAppear { setPulse(isNext) }
+        .onChange(of: isNext) { _, next in setPulse(next) }
+    }
+
+    /// The web's `live-pulse` (2.2 s, scale 0.75, opacity 0.4), on whichever
+    /// row becomes the next stop.
+    private func setPulse(_ on: Bool) {
+        var still = Transaction()
+        still.disablesAnimations = true
+        withTransaction(still) { pulse = false }
+        guard on, !reduceMotion else { return }
+        withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
     }
 }

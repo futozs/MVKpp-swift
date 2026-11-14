@@ -142,7 +142,8 @@ struct RidesPanel: View {
             let d: TripDetailResponse
             do {
                 d = try await APIClient.shared.rideTrip(tripId: r.tripId, date: r.serviceDate)
-            } catch APIError.badStatus {
+            } catch APIError.badStatus, APIError.decoding {
+                // The server answered: settled. Only a network error is retried.
                 tried.insert(r.id)
                 continue
             } catch {
