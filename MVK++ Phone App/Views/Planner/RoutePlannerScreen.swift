@@ -13,6 +13,7 @@ struct RoutePlannerScreen: View {
     @EnvironmentObject private var store: TransitStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.isTabActive) private var isTabActive
+    @Environment(\.tabActivation) private var tabActivation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @StateObject private var model = RoutePlannerModel()
@@ -42,6 +43,7 @@ struct RoutePlannerScreen: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.isLoading) { _, loading in
+                    announce(loading: loading)
                     guard loading, !resultsVisible else { return }
                     if reduceMotion {
                         proxy.scrollTo("results", anchor: .top)
@@ -54,6 +56,20 @@ struct RoutePlannerScreen: View {
         .task(id: store.stops.count) { model.updateCatalog(store.stops) }
         .onChange(of: scenePhase) { _, phase in model.isActive = phase == .active && isTabActive }
         .onChange(of: isTabActive) { _, active in model.isActive = active && scenePhase == .active }
+        .onChange(of: tabActivation) { _, _ in model.reactivate() }
+    }
+
+    /// The web's `aria-live` line: „Keresés…”, then the number of routes.
+    private func announce(loading: Bool) {
+        let message: String
+        if loading {
+            message = "Keresés…"
+        } else if case .done(let plan) = model.result {
+            message = "\(plan.trips.count) útvonal"
+        } else {
+            return
+        }
+        AccessibilityNotification.Announcement(message).post()
     }
 
     @ViewBuilder
@@ -63,7 +79,6 @@ struct RoutePlannerScreen: View {
             Color.clear.frame(height: 1)
         case .loading:
             PlannerResultsSkeleton()
-                .accessibilityLabel("Keresés…")
         case .error(let message):
             Text(message)
                 .font(.system(size: 12))

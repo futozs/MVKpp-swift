@@ -190,7 +190,7 @@ private struct PlannerPastStatus: View {
                     .foregroundStyle(Theme.mutedForeground)
             }
             if o.partial && o.untrackedRoutes.count < o.rideCount {
-                Text("· részleges mérés")
+                Text("részleges mérés")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
             }

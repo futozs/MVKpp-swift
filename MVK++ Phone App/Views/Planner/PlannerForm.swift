@@ -214,29 +214,35 @@ struct PlannerPlaceSelect: View {
                     .accessibilityLabel(label)
 
                 if !matches.isEmpty {
-                    VStack(spacing: 0) {
-                        ForEach(matches) { place in
-                            Button {
-                                pick(place.id)
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "mappin.and.ellipse")
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(Theme.mutedForeground)
-                                    Text(place.name)
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(Theme.foreground)
-                                        .lineLimit(1)
-                                    Spacer(minLength: 0)
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(matches) { place in
+                                Button {
+                                    pick(place.id)
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(Theme.mutedForeground)
+                                        Text(place.name)
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(Theme.foreground)
+                                            .lineLimit(1)
+                                        Spacer(minLength: 0)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 9)
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 9)
-                                .contentShape(Rectangle())
+                                .buttonStyle(PlannerRowButtonStyle())
                             }
-                            .buttonStyle(PlannerRowButtonStyle())
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                    .scrollBounceBehavior(.basedOnSize)
+                    // As tall as its rows, up to the web's `max-h-56`.
+                    .frame(maxHeight: 224)
+                    .fixedSize(horizontal: false, vertical: true)
                     .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
                     .mvkShadow(Theme.Shadow.md)

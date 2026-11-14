@@ -69,12 +69,29 @@ final class RoutePlannerModel: ObservableObject {
     private var ownStops: (key: String, places: [PlannerPlace])?
     private var catalog: [Stop] = []
     private var lastModes: String?
+    /// The date and time `setNow()` last filled in: while the form still
+    /// shows them, the rider has not picked a time of their own.
+    private var nowStamp: (date: String, time: String)
+    private var cancellables: Set<AnyCancellable> = []
 
     init() {
-        form = PlanFormValue(date: PlannerFormat.todayLocalIso(), time: PlannerFormat.nowLocalTime())
+        let date = PlannerFormat.todayLocalIso(), time = PlannerFormat.nowLocalTime()
+        form = PlanFormValue(date: date, time: time)
+        nowStamp = (date, time)
         travel = PlanTravel(coach: false, rail: false)
         travel = resolvedTravel()
         lastModes = modes
+        // Until ticked here, Volán and rail follow the Settings' modes.
+        LocalStore.shared.objectWillChange
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] in
+                guard let self else { return }
+                let next = self.resolvedTravel()
+                guard next != self.travel else { return }
+                self.travel = next
+                self.travelChanged()
+            }
+            .store(in: &cancellables)
     }
 
     var isLoading: Bool {
@@ -180,6 +197,15 @@ final class RoutePlannerModel: ObservableObject {
     func setNow() {
         form.date = PlannerFormat.todayLocalIso()
         form.time = PlannerFormat.nowLocalTime()
+        nowStamp = (form.date, form.time)
+    }
+
+    /// Back on the tab (the web remounts the planner at "now"): a time the
+    /// rider did not set, or a day that has passed, moves to now — otherwise
+    /// yesterday's date would silently turn the search into „Mi történt akkor?”.
+    func reactivate() {
+        let untouched = form.date == nowStamp.date && form.time == nowStamp.time
+        if untouched || form.date < PlannerFormat.todayLocalIso() { setNow() }
     }
 
     func swap() {
@@ -244,7 +270,10 @@ final class RoutePlannerModel: ObservableObject {
         guard let query else { return }
         lastQuery = query
         runTask?.cancel()
-        if !silent { result = .loading }
+        if !silent {
+            result = .loading
+            stopRefresh()
+        }
         runTask = Task { [weak self] in
             do {
                 let plan = try await APIClient.shared.planJourney(query)
@@ -255,6 +284,7 @@ final class RoutePlannerModel: ObservableObject {
             } catch {
                 guard !Task.isCancelled, !silent, let self else { return }
                 self.result = .error(Self.message(for: error))
+                self.stopRefresh()
             }
         }
     }
