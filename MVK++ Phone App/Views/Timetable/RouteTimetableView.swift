@@ -84,7 +84,7 @@ struct RouteTimetableView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(route.long)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Theme.sans(14, weight: .bold))
                         .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
@@ -180,7 +180,7 @@ struct RouteTimetableView: View {
                 .foregroundStyle(Theme.destructive)
             }
         }
-        .font(.system(size: 11))
+        .font(Theme.sans(11))
         .lineLimit(1)
     }
 
@@ -191,7 +191,7 @@ struct RouteTimetableView: View {
         } label: {
             HStack(spacing: 8) {
                 Text(direction.headsign.isEmpty ? "Irány \(direction.dir)" : direction.headsign)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .lineLimit(1)
                     .frame(maxWidth: 220, alignment: .leading)
                 Text("\(direction.tripsToday)")
@@ -237,7 +237,7 @@ struct RouteTimetableView: View {
                 }
             }
         }
-        .font(.system(size: 11))
+        .font(Theme.sans(11))
         .foregroundStyle(Theme.mutedForeground)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
@@ -276,13 +276,13 @@ struct RouteTimetableView: View {
         } else if model.tableError {
             VStack(spacing: 12) {
                 Text("A menetrend most nem tölthető be.")
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
                 Button {
                     model.retryTable()
                 } label: {
                     Text("Újra")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .padding(.horizontal, 12)
                         .frame(height: 32)
@@ -312,7 +312,7 @@ struct RouteTimetableView: View {
             )
         } else {
             Text(model.table?.note ?? "Ezen az irányon ezen a napon nem közlekedik járat.")
-                .font(.system(size: 14))
+                .font(Theme.sans(14))
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -368,12 +368,12 @@ struct TimetableVariantLegend: View {
             ForEach(variants) { variant in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(variant.code)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Theme.sans(11, weight: .bold))
                         .foregroundStyle(Theme.background)
                         .frame(minWidth: 18, minHeight: 18)
                         .padding(.horizontal, 4)
                         .background(Theme.early, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    (Text(variant.label).font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.foreground)
+                    (Text(variant.label).font(Theme.sans(12, weight: .semibold)).foregroundColor(Theme.foreground)
                         + Text("  · \(variant.trips) menet").font(Theme.mono(10.5, weight: .regular)).foregroundColor(Theme.mutedForeground))
                         .fixedSize(horizontal: false, vertical: true)
                 }

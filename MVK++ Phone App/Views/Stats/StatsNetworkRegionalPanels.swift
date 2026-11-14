@@ -124,7 +124,7 @@ struct StatsNetworkPanel: View {
                 ) {
                     if d.slow.isEmpty {
                         Text("Ebben a napszakban még kevés a mérés.")
-                            .font(.system(size: 14))
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
@@ -259,8 +259,8 @@ struct StatsRegionalPanel: View {
 
             StatsChartFrame(title: "Legtöbbet késő \(nouns)", hint: "A végállomáson (vagy a megye határán túli utolsó jelnél) mért átlagos késés; legalább két lefutott menet.") {
                 if worst.isEmpty {
-                    Text("Ehhez még kevés a lefutott menet pár nap múlva telik meg.")
-                        .font(.system(size: 14))
+                    Text("Ehhez még kevés a lefutott menet, pár nap múlva telik meg.")
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.mutedForeground)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -282,7 +282,7 @@ struct StatsRegionalPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if causes.isEmpty {
                         Text("Ebben az időszakban nem volt közölt késésok.")
-                            .font(.system(size: 14))
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 24)
@@ -293,7 +293,7 @@ struct StatsRegionalPanel: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Divider().overlay(Theme.border)
                             Text("EGYÉB KÖZLEMÉNYEK")
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .font(Theme.sans(10.5, weight: .semibold))
                                 .tracking(0.7)
                                 .foregroundStyle(Theme.mutedForeground)
                             StatsRankBars(rows: other.prefix(6).map { c in

@@ -25,12 +25,13 @@ struct StopNotifySheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Értesítés \(stop.name)")
-                            .font(.system(size: 18, weight: .semibold))
-                            .tracking(-0.2)
+                        Text("Értesítés: \(stop.name)")
+                            .font(Theme.sans(18, weight: .semibold))
+                            .tracking(-0.45)
+                            .padding(.trailing, 24)
                             .foregroundStyle(Theme.foreground)
-                        Text("Szólunk, amikor a busz a beállított időn belülre ér ehhez a megállóhoz lezárt telefonon is.")
-                            .font(.system(size: 14))
+                        Text("Szólunk, amikor a busz a beállított időn belülre ér ehhez a megállóhoz, lezárt telefonon is.")
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -44,10 +45,10 @@ struct StopNotifySheet: View {
                         TextField("", text: $threshold)
                             .keyboardType(.numberPad)
                             .focused($thresholdFocused)
-                            .font(.system(size: 14))
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.foreground)
                             .padding(.horizontal, 12)
-                            .frame(width: 96, height: 40)
+                            .frame(width: 96, height: 36)
                             .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
@@ -63,11 +64,11 @@ struct StopNotifySheet: View {
                     VStack(alignment: .leading, spacing: 6) {
                         fieldLabel("Csak ezekre a járatokra")
                         Text("Ha egyet sem jelölsz be, bármelyik vonal jó.")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                         if nearbyRoutes.isEmpty {
                             Text("Most nincs élő járat itt, amit ki lehetne választani.")
-                                .font(.system(size: 11))
+                                .font(Theme.sans(11))
                                 .foregroundStyle(Theme.mutedForeground)
                         } else {
                             FlowLayout(spacing: 6, lineSpacing: 6) {
@@ -83,30 +84,24 @@ struct StopNotifySheet: View {
             }
             .scrollDismissesKeyboard(.interactively)
 
-            HStack(spacing: 8) {
-                if existed {
-                    Button(action: remove) {
-                        Label("Értesítés kikapcsolása", systemImage: "bell.slash")
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                    }
-                    .buttonStyle(.glass)
-                    .tint(Theme.foreground)
-                }
+            VStack(spacing: 8) {
                 Button {
                     Task { await save() }
                 } label: {
                     Text("Mentés")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 40)
                 }
-                .buttonStyle(.glassProminent)
-                .tint(Theme.primary)
+                .buttonStyle(.mvk(fullWidth: true))
+                if existed {
+                    Button(action: remove) {
+                        Label("Értesítés kikapcsolása", systemImage: "bell.slash")
+                    }
+                    .buttonStyle(.mvk(.outline, fullWidth: true))
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 16)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .mvkDialog()
         .task {
             await notifications.refreshAuthorization()
             permissionDenied = notifications.authorization == .denied
@@ -120,7 +115,7 @@ struct StopNotifySheet: View {
 
     private func fieldLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14, weight: .medium))
+            .font(Theme.sans(14, weight: .medium))
             .foregroundStyle(Theme.foreground)
     }
 
@@ -204,10 +199,10 @@ struct TrafficAlertSwitch: View {
                     .foregroundStyle(TransitTone.amber)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Dugóriasztás")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                     Text("Szólok, ha az ide tartó busz előtt beáll a forgalom\(routeShorts.isEmpty ? "" : " (\(routeShorts.joined(separator: ", ")))").")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -222,7 +217,7 @@ struct TrafficAlertSwitch: View {
             }
             if let note {
                 Text(note)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
             }
         }

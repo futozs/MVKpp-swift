@@ -121,19 +121,19 @@ struct KioskScreen: View {
         HStack(spacing: 16) {
             HStack(spacing: 12) {
                 Text("MVK++")
-                    .font(.system(size: 14, weight: .heavy))
+                    .font(Theme.sans(14, weight: .heavy))
                     .foregroundStyle(Theme.primaryForeground)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Theme.primary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 if width >= 640 {
                     Text(Self.dateFormatter.string(from: now))
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(1)
                 }
                 if realtime.connected {
-                    LiveDot(size: 8).accessibilityLabel("élő")
+                    Circle().fill(Theme.live).frame(width: 8, height: 8).livePulse().accessibilityLabel("élő")
                 } else {
                     Circle().fill(Theme.mutedForeground.opacity(0.5)).frame(width: 8, height: 8).accessibilityLabel("kapcsolódás…")
                 }
@@ -153,7 +153,7 @@ struct KioskScreen: View {
         HStack(spacing: 8) {
             Button(action: onClose) {
                 Label("Kilépés", systemImage: "arrow.left")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .padding(.horizontal, 12)
                     .frame(height: 40)
                     .contentShape(Rectangle())
@@ -162,7 +162,7 @@ struct KioskScreen: View {
                 picking = true
             } label: {
                 Label("Megállók", systemImage: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .padding(.horizontal, 12)
                     .frame(height: 40)
                     .contentShape(Rectangle())

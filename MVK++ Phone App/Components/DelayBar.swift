@@ -68,14 +68,14 @@ struct ForecastLine: View {
         case .worst:
             if let upperS, DelayFormat.state(upperS) == .late {
                 Text("Legrosszabb esetben \(Text(DelayFormat.label(upperS)).font(Theme.mono(11, weight: .semibold)).foregroundStyle(Theme.late))")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .accessibilityHint("A 85%-os felső becslés: ennél ritkán késik többet (a mostani késésből és az elmúlt 8 hét menetidejeiből)")
             }
         case .full:
             if let delayS {
                 fullText(delayS)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .accessibilityHint("Előrejelzés a mostani késésből és az elmúlt 8 hét menetidejeiből (a felső érték 85%-ban nem lesz rosszabb)")
             }

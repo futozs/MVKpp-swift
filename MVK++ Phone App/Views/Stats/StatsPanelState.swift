@@ -26,7 +26,7 @@ struct StatsQueryBoundary<T, Content: View>: View {
                     .font(.system(size: 22))
                     .foregroundStyle(Theme.mutedForeground)
                 Text("Az adatraktár nem érhető el")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 Text("npm run db:migrate")
                     .font(Theme.mono(12, weight: .regular))
@@ -41,7 +41,7 @@ struct StatsQueryBoundary<T, Content: View>: View {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 14))
                 Text(error)
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .foregroundStyle(Theme.destructive)
@@ -52,7 +52,7 @@ struct StatsQueryBoundary<T, Content: View>: View {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small).tint(Theme.mutedForeground)
                 Text("Betöltés…")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity)
@@ -63,7 +63,7 @@ struct StatsQueryBoundary<T, Content: View>: View {
             content(data)
         } else {
             Text("Erre az időszakra még nincs adat")
-                .font(.system(size: 14, weight: .semibold))
+                .font(Theme.sans(14, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 24)
@@ -81,7 +81,7 @@ struct StatsHeading: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 18, weight: .bold))
+            .font(Theme.sans(18, weight: .bold))
             .tracking(-0.4)
             .foregroundStyle(Theme.foreground)
     }
@@ -136,7 +136,7 @@ struct StatsPillPicker<ID: Hashable>: View {
                             .opacity(0.6)
                     }
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -177,7 +177,7 @@ struct StatsSearchField: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.mutedForeground))
-                .font(.system(size: 16))
+                .font(Theme.sans(16))
                 .foregroundStyle(Theme.foreground)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -222,14 +222,14 @@ struct StatsSearchablePicker<ID: Hashable>: View {
             StatsSearchField(text: $query, placeholder: placeholder)
             if filtered.isEmpty {
                 Text("Nincs „\(query)” találat.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.horizontal, 4)
             } else {
                 StatsPillPicker(items: filtered, value: value, onChange: onChange, isFavorite: isFavorite, onToggleFavorite: onToggleFavorite)
                 if items.count > filtered.count {
                     Text(verbatim: "\(filtered.count) látszik a(z) \(items.count) elemből szűkíts a kereséssel.")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 4)
                 }
@@ -259,7 +259,7 @@ struct StatsButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return configuration.label
-            .font(.system(size: 12, weight: .medium))
+            .font(Theme.sans(12, weight: .medium))
             .foregroundStyle(Theme.foreground)
             .padding(.horizontal, icon ? 0 : 12)
             .frame(minWidth: icon ? 36 : nil, minHeight: icon ? 36 : 32)

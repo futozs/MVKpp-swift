@@ -267,8 +267,8 @@ final class NotificationCenterStore: ObservableObject {
         let delayNote = arrivals.count == 1 ? Self.delaySuffix(arrivals[0].delaySec) : ""
         let isPinnedRun = watch.tripId != nil || watch.schedMin != nil
         content.body = isPinnedRun
-            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote) — \(stopName) (\(stopId))"
-            : "\(stopName) (\(stopId)) — kb. \(minEta) percen belül\(delayNote)"
+            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote), \(stopName) (\(stopId))"
+            : "\(stopName) (\(stopId)): kb. \(minEta) percen belül\(delayNote)"
         content.sound = .default
         content.threadIdentifier = Self.identifier(stopId: stopId)
         content.interruptionLevel = .timeSensitive
@@ -319,8 +319,8 @@ final class NotificationCenterStore: ObservableObject {
         let delayNote = fresh.count == 1 ? Self.delaySuffix(fresh[0].delaySec) : ""
         let isPinnedRun = watch.tripId != nil || watch.schedMin != nil
         content.body = isPinnedRun
-            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote) — \(stopName) (\(stopId))"
-            : "\(stopName) (\(stopId)) — kb. \(minEta) percen belül\(delayNote)"
+            ? "kb. \(minEta) percen belül \(watch.isDeparture == true ? "indul" : "ér ide")\(delayNote), \(stopName) (\(stopId))"
+            : "\(stopName) (\(stopId)): kb. \(minEta) percen belül\(delayNote)"
         content.sound = .default
         // One live notification per stop: a replacement, not a pile.
         content.threadIdentifier = "mvk-stop-\(stopId)"

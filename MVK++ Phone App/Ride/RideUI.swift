@@ -9,65 +9,33 @@
 import SwiftUI
 
 struct RideButton: View {
-    enum Variant { case primary, outline, ghost }
-    enum Size { case regular, small }
-
     let title: String
     var systemImage: String?
-    var variant: Variant = .primary
-    var size: Size = .regular
+    var variant: MVKButtonStyle.Variant = .primary
+    var size: MVKButtonStyle.Size = .regular
     var fullWidth = false
     var busy = false
     var iconTint: Color?
+    var fill: Color?
+    var border: Color?
     let action: () -> Void
-
-    @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if busy {
-                    ProgressView().controlSize(.small).tint(foreground)
+                    ProgressView().controlSize(.small)
                 } else if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(iconTint ?? foreground)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(iconTint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.foreground))
                 }
-                Text(title)
-                    .font(.system(size: size == .small ? 12 : 14, weight: .medium))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                Text(title).truncationMode(.tail)
             }
-            .foregroundStyle(foreground)
-            .padding(.horizontal, variant == .ghost ? 8 : (size == .small ? 12 : 16))
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: size == .small ? 34 : 38)
-            .background(background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-            .overlay {
-                if variant == .outline {
-                    RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).stroke(Theme.input, lineWidth: 1)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-            .opacity(isEnabled ? 1 : 0.5)
         }
-        .buttonStyle(RidePressStyle())
+        .buttonStyle(.mvk(variant, size: size, fullWidth: fullWidth, fill: fill, border: border))
         .fixedSize(horizontal: !fullWidth, vertical: false)
         .layoutPriority(fullWidth ? 0 : 1)
-    }
-
-    private var foreground: Color {
-        switch variant {
-        case .primary: return Theme.primaryForeground
-        case .outline, .ghost: return Theme.foreground
-        }
-    }
-
-    private var background: Color {
-        switch variant {
-        case .primary: return Theme.primary
-        case .outline: return Theme.background
-        case .ghost: return .clear
-        }
     }
 }
 
@@ -91,7 +59,7 @@ struct RideEyebrow: View {
         HStack(spacing: 6) {
             if let systemImage { Image(systemName: systemImage).font(.system(size: size, weight: .semibold)) }
             Text(text.uppercased())
-                .font(.system(size: size, weight: .semibold))
+                .font(Theme.sans(size, weight: .semibold))
                 .tracking(0.5)
                 .lineLimit(1)
         }
@@ -156,16 +124,16 @@ struct StopChoiceList: View {
                     .foregroundStyle(at == nil ? Theme.mutedForeground : Theme.foreground)
                     .frame(width: 48, alignment: .leading)
                 Text(s.name)
-                    .font(.system(size: 13, weight: on ? .semibold : .medium))
+                    .font(Theme.sans(13, weight: on ? .semibold : .medium))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 4) {
                     if focus, let focusLabel {
-                        Text(focusLabel).font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.mutedForeground)
+                        Text(focusLabel).font(Theme.sans(10.5, weight: .medium)).foregroundStyle(Theme.mutedForeground)
                     }
                     if let mark = marks[s.idx] {
-                        Text(mark).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Theme.primary)
+                        Text(mark).font(Theme.sans(10.5, weight: .semibold)).foregroundStyle(Theme.primary)
                     }
                     if on {
                         Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.primary)
@@ -230,10 +198,10 @@ struct PastTripList: View {
                 RouteTile(short: t.route, colorHex: t.color, textHex: t.text, size: .small)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(t.destinationName) felé")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.sans(13, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                     Text("\(t.originName) · érk. \(BudapestClock.hm(t.endTs))")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 .lineLimit(1)
@@ -247,14 +215,9 @@ struct PastTripList: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
                             .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4))
-                    } else {
-                        Text("—")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.mutedForeground)
-                            .accessibilityLabel("Ezen a meneten a rendszer nem látta a buszt")
                     }
                     if let note = badge(t) {
-                        Text(note).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.primary)
+                        Text(note).font(Theme.sans(10, weight: .semibold)).foregroundStyle(Theme.primary)
                     }
                 }
             }
@@ -287,8 +250,8 @@ struct RideStepHead: View {
                 .padding(.leading, -6)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.foreground)
-                Text(hint).font(.system(size: 11.5)).foregroundStyle(Theme.mutedForeground).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(Theme.sans(14, weight: .bold)).foregroundStyle(Theme.foreground)
+                Text(hint).font(Theme.sans(11.5)).foregroundStyle(Theme.mutedForeground).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -303,7 +266,7 @@ struct RideMessage: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.system(size: 14))
+            .font(Theme.sans(14))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

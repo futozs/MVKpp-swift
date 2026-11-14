@@ -56,7 +56,6 @@ struct StopCardView: View {
         .sheet(isPresented: $isNotifyOpen) {
             StopNotifySheet(stop: stop, arrivals: model.arrivals)
                 .presentationDetents([.medium, .large])
-                .presentationBackground(Theme.background)
         }
     }
 
@@ -66,7 +65,7 @@ struct StopCardView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(stop.name)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Theme.sans(16, weight: .bold))
                     .tracking(-0.2)
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
@@ -84,7 +83,7 @@ struct StopCardView: View {
                     }
                     if isOnWatch {
                         Label("órán", systemImage: "applewatch")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Theme.sans(10, weight: .semibold))
                             .foregroundStyle(Theme.primary)
                     }
                 }
@@ -191,7 +190,7 @@ struct StopCardView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(next.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     FlowLayout(spacing: 8, lineSpacing: 4) {
@@ -215,7 +214,7 @@ struct StopCardView: View {
 
                 if next.isCancelled {
                     Text("nem jön")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.destructive)
                         .padding(.top, 4)
                 } else {
@@ -254,7 +253,7 @@ struct StopCardView: View {
                 .padding(.top, 10)
                 if let leaveNote {
                     Text(leaveNote)
-                        .font(.system(size: 10.5))
+                        .font(Theme.sans(10.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.top, 4)
                 }
@@ -280,7 +279,7 @@ struct StopCardView: View {
             Text(loop ? "jön: most a végállomás felé tart, onnan fordul vissza" : "jön")
                 .lineLimit(2)
         }
-        .font(.system(size: 11))
+        .font(Theme.sans(11))
         .foregroundStyle(Theme.mutedForeground)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(loop ? "A \(id) jön: most a végállomás felé tart, onnan fordul vissza" : "Várhatóan a \(id) jön")
@@ -321,7 +320,7 @@ struct StopCardView: View {
                 if rest.isEmpty {
                     if !model.arrivals.isEmpty {
                         Text("Nincs több ismert indulás.")
-                            .font(.system(size: 12))
+                            .font(Theme.sans(12))
                             .foregroundStyle(Theme.mutedForeground)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)

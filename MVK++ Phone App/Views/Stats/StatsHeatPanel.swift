@@ -90,8 +90,8 @@ struct StatsHeatPanel: View {
             HStack(alignment: .bottom, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     StatsHeading("Hőtérkép")
-                    Text("Hol és mikor késnek a buszok a lezárt napok mért megálló-időiből, mediánnal (egy-egy kiugró menet nem torzít).")
-                        .font(.system(size: 12.5))
+                    Text("Hol és mikor késnek a buszok, a lezárt napok mért megálló-időiből, mediánnal (egy-egy kiugró menet nem torzít).")
+                        .font(Theme.sans(12.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -117,7 +117,7 @@ struct StatsHeatPanel: View {
                                 dir = d.dir
                             } label: {
                                 Text(d.headsign)
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .font(Theme.sans(11.5, weight: .semibold))
                                     .lineLimit(1)
                                     .frame(maxWidth: 200)
                                     .fixedSize()
@@ -153,7 +153,7 @@ struct StatsSegmented<ID: Hashable>: View {
                     selection = id
                 } label: {
                     Text(label)
-                        .font(.system(size: large ? 14 : 12, weight: .semibold))
+                        .font(Theme.sans(large ? 14 : 12, weight: .semibold))
                         .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                         .padding(.horizontal, large ? 16 : 10)
                         .padding(.vertical, large ? 6 : 4)
@@ -262,7 +262,7 @@ struct StatsHeatLegend: View {
             .clipShape(Capsule())
             Text(metric == .delay ? "\(top)+ perc késés" : "\(top)+ perc veszteség")
         }
-        .font(.system(size: 10))
+        .font(Theme.sans(10))
         .foregroundStyle(Theme.mutedForeground)
         .accessibilityHidden(true)
     }
@@ -311,7 +311,7 @@ struct StatsRouteHeatView: View {
                 if let bestHour {
                     insight(icon: "sparkles", tone: Theme.ontime, title: "A legpontosabb napszak") {
                         let v = Text(StatsHeatScale.fmtSec(bestHour.avg)).font(Theme.mono(12.5, weight: .bold))
-                        return Text("\(StatsHeatScale.hourLabel(bestHour.h)) óra átlagosan \(v) eltérés")
+                        return Text("\(StatsHeatScale.hourLabel(bestHour.h)) óra: átlagosan \(v) eltérés")
                     }
                 }
             }
@@ -338,7 +338,7 @@ struct StatsRouteHeatView: View {
                     Text("Koppints egy cellára a részletekért. Fentről lefelé menetirányban haladnak a megállók; a halvány cella kevés mérésből jön.")
                 }
             }
-            .font(.system(size: 12))
+            .font(Theme.sans(12))
             .foregroundStyle(Theme.mutedForeground)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
@@ -367,12 +367,12 @@ struct StatsRouteHeatView: View {
             HStack(spacing: 6) {
                 Image(systemName: icon).font(.system(size: 12))
                 Text(title.uppercased())
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(Theme.sans(10.5, weight: .semibold))
                     .tracking(0.5)
             }
             .foregroundStyle(tone)
             text()
-                .font(.system(size: 12.5))
+                .font(Theme.sans(12.5))
                 .foregroundStyle(Theme.foreground)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -400,7 +400,7 @@ struct StatsRouteHeatView: View {
                 ForEach(Array(data.stops.enumerated()), id: \.offset) { i, s in
                     HStack(spacing: 1) {
                         Text(s.name)
-                            .font(.system(size: 10.5))
+                            .font(Theme.sans(10.5))
                             .foregroundStyle(Theme.foreground)
                             .lineLimit(1)
                             .padding(.leading, 8)
@@ -564,7 +564,7 @@ struct StatsCityHeatMap: View {
                     .fontWeight(slow > 0 ? .semibold : .regular)
                     .foregroundStyle(slow > 0 ? Theme.late : Theme.mutedForeground)
                 Text("\(live.count) szakaszon van mérés · \(slowText)")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                 StatsHeatLegend(metric: .loss)
             }
@@ -583,7 +583,7 @@ struct StatsCityHeatMap: View {
                                     .frame(width: 16, alignment: .leading)
                                 Circle().fill(StatsHeatScale.color(.loss, item.1)).frame(width: 12, height: 12)
                                 Text("\(item.0.from) → \(item.0.to)")
-                                    .font(.system(size: 12.5))
+                                    .font(Theme.sans(12.5))
                                     .foregroundStyle(Theme.foreground)
                                     .lineLimit(1)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -616,7 +616,7 @@ struct StatsCityHeatMap: View {
         let ex = s.ex[statsSafe: idx] ?? nil
         return VStack(alignment: .leading, spacing: 4) {
             Text("\(s.from) → \(s.to)")
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(Theme.sans(12.5, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Group {
                 if let ex {
@@ -628,13 +628,13 @@ struct StatsCityHeatMap: View {
                     Text("\(StatsHeatScale.hourLabel(currentHour)) óra: ebben az órában nincs mérés")
                 }
             }
-            .font(.system(size: 12.5))
+            .font(Theme.sans(12.5))
             .foregroundStyle(Theme.mutedForeground)
             Text("\(Int(s.m.rounded())) m · \(s.routes.joined(separator: ", "))")
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
             Button("Bezárás") { picked = nil }
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .foregroundStyle(Theme.primary)
                 .buttonStyle(.plain)
                 .padding(.top, 2)

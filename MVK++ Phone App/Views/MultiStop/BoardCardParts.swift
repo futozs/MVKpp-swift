@@ -100,7 +100,7 @@ struct BoardEyebrow: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .font(Theme.sans(11, weight: .semibold))
             .textCase(.uppercase)
             .tracking(0.5)
             .foregroundStyle(Theme.mutedForeground)
@@ -116,7 +116,7 @@ struct RowEta: View {
         Group {
             if cancelled {
                 Text("nem jön")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.destructive)
             } else if minutes <= 0 {
                 Text("most")
@@ -129,7 +129,7 @@ struct RowEta: View {
                         .font(Theme.mono(16))
                         .foregroundStyle(Theme.foreground)
                     Text(parts.unit == "perc" ? "p" : parts.unit)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
@@ -145,7 +145,7 @@ struct BoardPlaceholder: View {
 
     var body: some View {
         Text(text)
-            .font(mono ? Theme.mono(12, weight: .regular) : .system(size: 14))
+            .font(mono ? Theme.mono(12, weight: .regular) : Theme.sans(14))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

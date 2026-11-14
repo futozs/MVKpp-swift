@@ -47,8 +47,13 @@ struct ParkingSignalDot: View {
 
     var body: some View {
         if online {
-            LiveDot(size: 8)
-                .accessibilityLabel("Élő GPS-jel")
+            ZStack {
+                PingRing(color: Theme.live.opacity(0.6))
+                Circle().fill(Theme.live)
+            }
+            .frame(width: 8, height: 8)
+            .accessibilityElement()
+            .accessibilityLabel("Élő GPS-jel")
         } else {
             Circle()
                 .strokeBorder(Theme.mutedForeground.opacity(0.6), lineWidth: 1)
@@ -94,7 +99,7 @@ struct ParkingTipChip: View {
                     .foregroundStyle(Theme.mutedForeground)
             }
         }
-        .font(.system(size: 11))
+        .font(Theme.sans(11))
         .foregroundStyle(Theme.foreground.opacity(tip.certain ? 1 : 0.9))
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -165,7 +170,7 @@ struct ParkingSegmented<ID: Hashable>: View {
                     withAnimation(Theme.Motion.fastAnimation) { selection = option.id }
                 } label: {
                     Text(option.label)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .lineLimit(1)
                         .padding(.horizontal, compact ? 8 : 10)
                         .padding(.vertical, compact ? 4 : 6)
@@ -198,7 +203,7 @@ struct ParkingSectionTitle: View {
                 .monospacedDigit()
                 .foregroundStyle(Theme.foreground)
         }
-        .font(.system(size: 13, weight: .bold))
+        .font(Theme.sans(13, weight: .bold))
         .padding(.horizontal, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityAddTraits(.isHeader)
@@ -212,7 +217,7 @@ struct ParkingEmptyBox: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 14))
+            .font(Theme.sans(14))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

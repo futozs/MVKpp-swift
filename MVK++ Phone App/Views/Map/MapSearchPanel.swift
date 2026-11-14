@@ -134,7 +134,7 @@ struct MapSearchPanel: View {
                         .font(.system(size: 15))
                         .foregroundStyle(Theme.mutedForeground)
                     TextField("Megálló, kód, rendszám vagy vonatszám", text: $query)
-                        .font(.system(size: 15))
+                        .font(Theme.sans(15))
                         .focused($focused)
                         .submitLabel(.search)
                         .autocorrectionDisabled()
@@ -164,7 +164,7 @@ struct MapSearchPanel: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let error {
                         Text(error)
-                            .font(.system(size: 12))
+                            .font(Theme.sans(12))
                             .foregroundStyle(Theme.destructive)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -207,7 +207,7 @@ struct MapSearchPanel: View {
                     }
 
                     if !term.isEmpty, byCode == nil, groups.isEmpty, hits.isEmpty {
-                        note(busy ? "Keresés…" : digits.map { "Nincs ilyen rendszámú jármű vagy \($0) kódú megálló a listában Enterrel a szervertől is megkérdezem." } ?? "Nincs „\(raw)” nevű megálló.")
+                        note(busy ? "Keresés…" : digits.map { "Nincs ilyen rendszámú jármű vagy \($0) kódú megálló a listában. Enterrel a szervertől is megkérdezem." } ?? "Nincs „\(raw)” nevű megálló.")
                     }
                     if term.isEmpty, groups.isEmpty {
                         note("Írd be a megálló nevét, a táblán látható kódját, egy busz rendszámát vagy egy vonat számát.")
@@ -272,7 +272,7 @@ struct MapSearchPanel: View {
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title.uppercased())
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(Theme.sans(10.5, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.horizontal, 16)
@@ -285,7 +285,7 @@ struct MapSearchPanel: View {
 
     private func note(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13))
+            .font(Theme.sans(13))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -304,7 +304,7 @@ struct MapSearchPanel: View {
                         .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(name)
-                            .font(.system(size: 13.5, weight: .semibold))
+                            .font(Theme.sans(13.5, weight: .semibold))
                             .foregroundStyle(Theme.foreground)
                             .lineLimit(1)
                         Text(sub)
@@ -347,7 +347,7 @@ struct MapSearchPanel: View {
                     RouteTile(short: v.routeShort, colorHex: v.routeColor, textHex: v.routeText)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(Self.vehicleTitle(v)).font(Theme.mono(14)).foregroundStyle(Theme.foreground)
-                        Text(v.headsign).font(.system(size: 11.5)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                        Text(v.headsign).font(Theme.sans(11.5)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
                     }
                     Spacer(minLength: 0)
                 }

@@ -50,7 +50,7 @@ private struct CommuteCardBody: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 12, weight: .semibold))
                 Text("Szokásos utad · ~\(BudapestClock.hm(minute: commute.minute))")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(0.5)
                     .lineLimit(1)
@@ -63,7 +63,7 @@ private struct CommuteCardBody: View {
                 RouteTile(short: commute.route, colorHex: departure?.color ?? commute.color, textHex: departure?.text ?? commute.text)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(Text(commute.fromStopName)) \(Text(commute.loop ? "· körbeutazás" : "→ \(commute.toStopName ?? commute.headsign)").foregroundStyle(Theme.mutedForeground))")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.sans(13, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     HStack(spacing: 8) {
@@ -74,12 +74,12 @@ private struct CommuteCardBody: View {
                             DelayBar(delaySec: departure.delaySec ?? departure.measuredDelaySec, showLabel: false)
                         } else {
                             Text(response == nil ? "Indulások lekérése…" : "Most nincs közeli indulás ezen a vonalon.")
-                                .font(.system(size: 11))
+                                .font(Theme.sans(11))
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                     }
                     Text("\(commute.rides) út · \(commute.daysText)")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,7 +92,7 @@ private struct CommuteCardBody: View {
                         } else {
                             HStack(alignment: .firstTextBaseline, spacing: 2) {
                                 Text("\(eta)").font(Theme.mono(18)).foregroundStyle(Theme.foreground)
-                                Text("p").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
+                                Text("p").font(Theme.sans(11, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
                             }
                         }
                     }
@@ -115,7 +115,7 @@ private struct CommuteCardBody: View {
 
             if let note {
                 Text(note)
-                    .font(.system(size: 10.5))
+                    .font(Theme.sans(10.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 6)
@@ -143,7 +143,7 @@ private struct CommuteCardBody: View {
                 Image(systemName: on ? "bell.and.waves.left.and.right.fill" : "repeat")
                     .font(.system(size: 10, weight: .bold))
                 Text(on ? "Szólok ilyenkor" : "Szólj ilyenkor")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
             }
             .foregroundStyle(on ? Theme.primaryForeground : Theme.primary)
             .padding(.horizontal, 6)
@@ -157,7 +157,7 @@ private struct CommuteCardBody: View {
         .disabled(busy)
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityHint(on
-            ? "\(capitalized(commute.daysText)) szólok, amikor indulni kell koppints a kikapcsoláshoz"
+            ? "\(capitalized(commute.daysText)) szólok, amikor indulni kell. Koppints a kikapcsoláshoz"
             : "Szólj \(commute.daysText), amikor indulnom kell")
     }
 

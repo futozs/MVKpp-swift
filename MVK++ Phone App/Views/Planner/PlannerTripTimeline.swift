@@ -195,7 +195,7 @@ private struct StopRow: View {
             .frame(maxHeight: .infinity)
 
             Text(name)
-                .font(.system(size: endpoint ? 14 : 13, weight: endpoint ? .bold : .semibold))
+                .font(Theme.sans(endpoint ? 14 : 13, weight: endpoint ? .bold : .semibold))
                 .foregroundStyle(Theme.foreground)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -241,7 +241,7 @@ private struct RideBody: View {
                     Text(leg.trainName ?? PlannerFormat.modeNoun(leg.mode)).fontWeight(.semibold).foregroundColor(Theme.foreground),
                     Text(leg.headsign.map { " · \($0)" } ?? "").foregroundColor(Theme.mutedForeground)
                 )
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .lineLimit(1)
                     .truncationMode(.tail)
                 if let platform = leg.fromPlatform, !platform.isEmpty {
@@ -250,7 +250,7 @@ private struct RideBody: View {
             }
             if leg.stopsBetween.isEmpty {
                 Text(meta)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .monospacedDigit()
                     .foregroundStyle(Theme.mutedForeground)
             } else {
@@ -258,7 +258,7 @@ private struct RideBody: View {
                     withAnimation(Theme.Motion.fastAnimation) { showStops.toggle() }
                 } label: {
                     Text.joined(Text("\(meta) "), Text("útközben").underline(true, pattern: .dot))
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .monospacedDigit()
                         .foregroundStyle(showStops ? Theme.foreground : Theme.mutedForeground)
                         .contentShape(Rectangle())
@@ -269,7 +269,7 @@ private struct RideBody: View {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(Array(leg.stopsBetween.enumerated()), id: \.offset) { _, name in
                             Text(name)
-                                .font(.system(size: 11))
+                                .font(Theme.sans(11))
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                     }
@@ -296,7 +296,7 @@ private struct WalkBody<Extra: View>: View {
                 Image(systemName: "figure.walk")
                     .font(.system(size: 11))
                 Text(isTransfer ? "Átszállás: \(what)" : what.prefix(1).uppercased() + what.dropFirst())
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
             }
             .foregroundStyle(Theme.mutedForeground)
             extra()
@@ -318,7 +318,7 @@ private struct PlannerPlatformBadge: View {
             Text(platform)
                 .font(Theme.mono(10.5, weight: .bold))
             Text(rail ? "vg." : "k.áll.")
-                .font(.system(size: 10, weight: .semibold))
+                .font(Theme.sans(10, weight: .semibold))
                 .foregroundStyle(Theme.mutedForeground)
         }
         .foregroundStyle(Theme.foreground)
@@ -361,7 +361,7 @@ struct PlannerLegInsight: View {
                         delayLine(p.arrDelayS, worst: showWorst ? p85 : nil)
                     }
                 }
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
 
                 HStack(spacing: 6) {
                     if live {
@@ -384,12 +384,12 @@ struct PlannerLegInsight: View {
                         .foregroundStyle(Theme.mutedForeground)
                     }
                 }
-                .font(.system(size: 10.5))
+                .font(Theme.sans(10.5))
                 .foregroundStyle(live ? Theme.live : Theme.mutedForeground)
             }
         } else {
-            Text("Ehhez a menethez nincs késési adatunk a menetrendi időt mutatjuk.")
-                .font(.system(size: 11))
+            Text("Ehhez a menethez nincs késési adatunk, a menetrendi időt mutatjuk.")
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -448,7 +448,7 @@ struct PlannerLegInsight: View {
                                 Image(systemName: "dot.radiowaves.left.and.right")
                                     .font(.system(size: 8))
                                 Text("BECSÜLT")
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(Theme.sans(10, weight: .semibold))
                                     .tracking(0.4)
                             }
                             .foregroundStyle(Theme.mutedForeground)
@@ -462,14 +462,14 @@ struct PlannerLegInsight: View {
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
-            .font(.system(size: 11))
+            .font(Theme.sans(11))
             .fixedSize(horizontal: false, vertical: true)
         } else {
             HStack(spacing: 6) {
                 Image(systemName: "eye.slash")
                     .font(.system(size: 11))
                 Text("Erről a menetről nincs mérés.")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
             }
             .foregroundStyle(Theme.mutedForeground)
             .padding(.horizontal, 8)

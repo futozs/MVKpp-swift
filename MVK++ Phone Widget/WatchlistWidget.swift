@@ -104,7 +104,7 @@ struct WatchlistProvider: TimelineProvider {
                     departures: OfflineDepartures.arrivals(stopId: id, at: now, limit: 3).map { DepartureSnapshot($0, reference: now) }
                 )
             }
-            return WatchlistEntry(date: now, stops: stops, focus: focus, message: "Nincs kapcsolat — menetrend szerinti idők.", isOffline: true)
+            return WatchlistEntry(date: now, stops: stops, focus: focus, message: "Nincs kapcsolat, menetrend szerinti idők.", isOffline: true)
         }
     }
 }
@@ -330,7 +330,7 @@ struct WatchlistWidgetView: View {
                 Image(systemName: "antenna.radiowaves.left.and.right.slash")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Theme.offline)
-                    .accessibilityLabel("Offline — menetrend szerinti idők")
+                    .accessibilityLabel("Offline, menetrend szerinti idők")
             }
             Spacer(minLength: 4)
             Text(entry.date, style: .time)
@@ -490,7 +490,7 @@ struct WatchlistWidget: Widget {
                 }
         }
         .configurationDisplayName("Figyelő")
-        .description("A figyelt megállóid élő indulásai egy helyen — ugyanaz a lista, mint az appban és a weben.")
+        .description("A figyelt megállóid élő indulásai egy helyen, ugyanaz a lista, mint az appban és a weben.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryRectangular])
     }
 }

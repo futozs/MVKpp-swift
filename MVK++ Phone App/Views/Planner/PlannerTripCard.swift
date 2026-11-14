@@ -64,7 +64,7 @@ struct PlannerTripCard: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(PlannerFormat.hm(trip.start))
                     Text("→")
-                        .font(.system(size: 18, weight: .regular))
+                        .font(Theme.sans(18, weight: .regular))
                         .foregroundStyle(Theme.mutedForeground)
                     Text(PlannerFormat.hm(trip.end))
                 }
@@ -75,7 +75,7 @@ struct PlannerTripCard: View {
                 Spacer(minLength: 8)
                 HStack(spacing: 4) {
                     Text(PlannerFormat.minutes(trip.durationSec))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.foreground)
                     Image(systemName: "chevron.down")
@@ -89,7 +89,7 @@ struct PlannerTripCard: View {
                 PlannerRouteChain(trip: trip)
                 Spacer(minLength: 0)
                 Text(PlannerFormat.transfersLabel(trip.transfers) + (walk >= 60 ? " · \(PlannerFormat.minutes(walk)) gyalog" : ""))
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.trailing)
                     .fixedSize()
@@ -118,9 +118,9 @@ struct PlannerTripCard: View {
         let worstLate = f.worstArrival.map { $0 > target + Self.arriveBySlackSec } ?? false
         if expectedLate || worstLate {
             Text(expectedLate
-                ? "\(PlannerFormat.hm(target))-ig várhatóan nem érsz be válassz korábbi indulást."
+                ? "\(PlannerFormat.hm(target))-ig várhatóan nem érsz be. Válassz korábbi indulást."
                 : "Rossz esetben \(PlannerFormat.hm(target)) után érsz be.")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .foregroundStyle(expectedLate ? Theme.late : PlannerAmber.a300)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -180,18 +180,18 @@ private struct PlannerPastStatus: View {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 12, weight: .semibold))
                 Text(o.headline)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
             }
             .foregroundStyle(tone.color)
             if let detail {
                 Text(detail)
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .monospacedDigit()
                     .foregroundStyle(Theme.mutedForeground)
             }
             if o.partial && o.untrackedRoutes.count < o.rideCount {
                 Text("· részleges mérés")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
         }
@@ -215,7 +215,7 @@ private struct PlannerForecastStatus: View {
                         Text(" (\(PlannerFormat.delayForecast(delay)))").fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color),
                         Text(f.worstArrival != nil ? "," : "").foregroundColor(Theme.mutedForeground)
                     )
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.foreground)
                 }
                 if let worst = f.worstArrival {
@@ -223,12 +223,12 @@ private struct PlannerForecastStatus: View {
                         Text("rossz esetben ").foregroundColor(Theme.mutedForeground),
                         Text(PlannerFormat.hm(worst)).fontWeight(.semibold).monospacedDigit().foregroundColor(Theme.foreground)
                     )
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                 }
             }
         } else {
-            Text("Nincs késési adat a menetrend szerinti időket mutatjuk.")
-                .font(.system(size: 12))
+            Text("Nincs késési adat, a menetrend szerinti időket mutatjuk.")
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -251,7 +251,7 @@ struct PlannerTransferBadge: View {
             Image(systemName: icon(kind))
                 .font(.system(size: 11, weight: .semibold))
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -327,7 +327,7 @@ struct PlannerTransferBadge: View {
             let title = "Az első busz várható és rossz esetbeli érkezéséből, a csatlakozás várható indulásából és a séta idejéből (\(m) \(check.marginSec < 0 ? "hiány" : "tartalék") várhatóan)."
             let alt = check.fallback.map { " · ha lekésed: \($0.time)" } ?? ""
             switch check.risk {
-            case .risky: return ("\(pct)% esély valószínűleg lekésed\(alt)", title)
+            case .risky: return ("\(pct)% esély, valószínűleg lekésed\(alt)", title)
             case .tight: return ("\(pct)% eséllyel eléred\(alt)", title)
             case .safe: return ("\(pct)% eséllyel eléred · \(m) tartalék", title)
             }
@@ -367,7 +367,7 @@ struct PlannerTransferWatchButton: View {
                                 .font(.system(size: 11, weight: .semibold))
                         }
                         Text(on ? "Figyelem az átszállást" : "Figyeld az átszállást")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Theme.sans(11, weight: .semibold))
                     }
                     .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                     .padding(.horizontal, 6)
@@ -380,11 +380,11 @@ struct PlannerTransferWatchButton: View {
                 .disabled(busy)
                 .sensoryFeedback(.success, trigger: on) { _, now in now }
                 .accessibilityAddTraits(on ? .isSelected : [])
-                .accessibilityHint(on ? "Szólok, ha veszélybe kerül az átszállás koppints a kikapcsoláshoz" : "Szólj, ha veszélybe kerül ez az átszállás")
+                .accessibilityHint(on ? "Szólok, ha veszélybe kerül az átszállás. Koppints a kikapcsoláshoz" : "Szólj, ha veszélybe kerül ez az átszállás")
 
                 if let note {
                     Text(note)
-                        .font(.system(size: 10.5))
+                        .font(Theme.sans(10.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }

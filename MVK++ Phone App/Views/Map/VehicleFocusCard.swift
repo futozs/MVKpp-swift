@@ -34,12 +34,8 @@ struct VehicleFocusCard: View {
                     )
                 } label: {
                     Label("Felszálltam erre a \(tripMode.words.ra)", systemImage: "ticket")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 40)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.primary)
-                .foregroundStyle(Theme.primaryForeground)
+                .buttonStyle(.mvk(fullWidth: true))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
             }
@@ -67,7 +63,7 @@ struct VehicleFocusCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(title ?? "Menet betöltése…")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Theme.sans(14, weight: .bold))
                         .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
@@ -96,7 +92,7 @@ struct VehicleFocusCard: View {
                             .font(.system(size: 10))
                             .foregroundStyle(Theme.primary)
                         Text(status)
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                 }

@@ -92,7 +92,7 @@ struct StatsOverviewPanel: View {
             StatsChartFrame(title: "Feldolgozási feladatok") {
                 if d.jobs.isEmpty {
                     Text("Még nem futott feldolgozási feladat.")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -105,7 +105,7 @@ struct StatsOverviewPanel: View {
                                     .font(.system(size: 13))
                                     .foregroundStyle(j.ok != 0 ? Theme.ontime : Theme.late)
                                 Text(Self.jobLabels[j.job] ?? j.job)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(Theme.sans(12, weight: .medium))
                                     .lineLimit(1)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 if j.rows_out != 0 {
@@ -117,7 +117,7 @@ struct StatsOverviewPanel: View {
                                     .monospacedDigit()
                                     .foregroundStyle(Theme.mutedForeground)
                             }
-                            .font(.system(size: 12))
+                            .font(Theme.sans(12))
                             .padding(.vertical, 8)
                         }
                     }
@@ -157,7 +157,7 @@ struct StatsForecastModelCard: View {
                     StatsHeading("Késés-előrejelzés")
                 }
                 Text("Tanított modell (kvantilis gradient boosting): a mostani forgalmat, az előtte járó buszt, a busz késés-trendjét és az időjárást is nézi. Éjszakánként újratanul, és csak ott becsül, ahol a tanításból kihagyott napokon bizonyítottan pontosabb a régi képletnél.")
-                    .font(.system(size: 12.5))
+                    .font(Theme.sans(12.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -180,7 +180,7 @@ struct StatsForecastModelCard: View {
                     HStack(spacing: 6) {
                         Circle().fill(active ? Theme.ontime : Theme.mutedForeground).frame(width: 6, height: 6)
                         Text(active ? "Modell becsül" : "Képlet becsül")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(Theme.sans(12, weight: .bold))
                     }
                     .foregroundStyle(active ? Theme.ontime : Theme.mutedForeground)
                     .padding(.horizontal, 8)
@@ -191,11 +191,11 @@ struct StatsForecastModelCard: View {
                     let after = Text("\(fmt(rep.overall.maeModel)) mp").font(Theme.mono(14, weight: .bold)).foregroundStyle(Theme.ontime)
                     let gain = Text("(\(fmt(rep.overall.improvement))% pontosabb)").foregroundStyle(Theme.mutedForeground)
                     Text("átlagos hiba \(before) → \(after) \(gain)")
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.foreground)
 
                     Text("tanítva \(d.inUse.trainedAt.map(trainedLabel) ?? "") · \(rep.days.train.count) nap, \(StatsFormat.number(rep.rows.train)) minta · teszt: \(rep.days.test.count) sosem látott nap")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -216,7 +216,7 @@ struct StatsForecastModelCard: View {
                             let b = entry.value
                             GridRow {
                                 Text(Self.horizonLabel[entry.key] ?? entry.key)
-                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .font(Theme.sans(12.5, weight: .semibold))
                                 Text("\(fmt(b.maeBaseline)) mp")
                                 Text("\(fmt(b.maeModel)) mp")
                                     .fontWeight(b.maeModel < b.maeBaseline ? .bold : .regular)
@@ -224,7 +224,7 @@ struct StatsForecastModelCard: View {
                                 let formula = Text("(képlet \(Int((b.coverBaseline * 100).rounded()))%)").foregroundStyle(Theme.mutedForeground)
                                 Text("\(Int((b.coverModel * 100).rounded()))% \(formula)")
                                 Text(b.useMedian ? "modell" : "képlet")
-                                    .font(.system(size: 12.5))
+                                    .font(Theme.sans(12.5))
                             }
                             .font(Theme.mono(12.5, weight: .regular))
                             .foregroundStyle(Theme.foreground)
@@ -237,7 +237,7 @@ struct StatsForecastModelCard: View {
 
                 if !weak.isEmpty {
                     Text("A képlet marad itt (a modell nem volt legalább 3%-kal jobb): \(weak.map { $0.replacingOccurrences(of: "|", with: " · ") }.joined(separator: ", ")).")
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -245,8 +245,8 @@ struct StatsForecastModelCard: View {
             .padding(16)
             .statsCard()
         } else {
-            Text("Még nincs tanított modell a képlet becsül. Az első tanítás a worker indulása után pár perccel, utána minden éjjel fut.")
-                .font(.system(size: 14))
+            Text("Még nincs tanított modell, a képlet becsül. Az első tanítás a worker indulása után pár perccel, utána minden éjjel fut.")
+                .font(Theme.sans(14))
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 16)
@@ -258,7 +258,7 @@ struct StatsForecastModelCard: View {
 
     private func header(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(Theme.sans(10.5, weight: .semibold))
             .tracking(0.5)
             .foregroundStyle(Theme.mutedForeground)
             .fixedSize()

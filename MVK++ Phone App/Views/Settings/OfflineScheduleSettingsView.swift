@@ -47,7 +47,7 @@ struct OfflineScheduleSettingsView: View {
         let days = manager.manifest.days.count
         let size = byteText(manager.bytes)
         guard isCurrentRelease else {
-            return "\(days) nap letöltve, \(size). Új menetrendi kiadás jelent meg — érdemes frissíteni."
+            return "\(days) nap letöltve, \(size). Új menetrendi kiadás jelent meg, érdemes frissíteni."
         }
         return "\(days) nap letöltve, \(size)."
     }

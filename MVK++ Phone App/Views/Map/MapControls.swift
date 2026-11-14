@@ -30,7 +30,7 @@ struct MapControlButton: View {
                     .symbolEffect(.pulse, isActive: busy)
                 if showLabel {
                     Text(label)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.sans(13, weight: .semibold))
                         .lineLimit(1)
                         .fixedSize()
                 }
@@ -78,7 +78,7 @@ struct MapNotice: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5))
+            .font(Theme.sans(11.5))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.leading)
             .padding(.horizontal, 12)

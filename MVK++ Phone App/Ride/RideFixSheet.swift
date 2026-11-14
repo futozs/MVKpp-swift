@@ -74,15 +74,16 @@ struct RideFixSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 10) {
                         RouteTile(short: first.route, colorHex: first.color, textHex: first.text, size: .small)
-                        Text("Hol szálltál fel és le?").font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.foreground)
+                        Text("Hol szálltál fel és le?").font(Theme.sans(18, weight: .semibold)).tracking(-0.45).foregroundStyle(Theme.foreground)
                     }
                     (Text("\(first.headsign) · \(Self.when.string(from: Date(timeIntervalSince1970: first.boardedAt))) · ") + Text(TransitIds.displayVehicleId(first.vehicleId)).font(Theme.mono(13, weight: .regular)))
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(1)
                         .accessibilityHint(TransitIds.vehicleIdTitle(first.vehicleId))
                 }
-                .padding(.horizontal, 20)
+                .padding(.leading, 20)
+                .padding(.trailing, 44)
                 .padding(.top, 20)
                 .padding(.bottom, 12)
 
@@ -119,18 +120,16 @@ struct RideFixSheet: View {
                 .frame(maxHeight: .infinity, alignment: .top)
 
                 Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1)
-                HStack(spacing: 8) {
-                    Spacer()
-                    RideButton(title: "Mégse", variant: .ghost) { dismiss() }
-                    RideButton(title: "Mentés", action: save)
+                VStack(spacing: 8) {
+                    RideButton(title: "Mentés", fullWidth: true, action: save)
                         .disabled(!changed || fromIdx == nil || toIdx == nil)
+                    RideButton(title: "Mégse", variant: .ghost, fullWidth: true) { dismiss() }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(Theme.card)
             .presentationDetents([.medium, .large])
-            .presentationBackground(Theme.card)
+            .mvkDialog()
             .task { await load() }
         }
     }
@@ -220,11 +219,11 @@ struct RideModeTabs: View {
         } label: {
             VStack(alignment: .leading, spacing: 1) {
                 Text(label.uppercased())
-                    .font(.system(size: 10.5, weight: .semibold))
+                    .font(Theme.sans(10.5, weight: .semibold))
                     .tracking(0.5)
                     .foregroundStyle(on ? Theme.primary : Theme.mutedForeground)
                 Text(name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Theme.sans(13, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
             }

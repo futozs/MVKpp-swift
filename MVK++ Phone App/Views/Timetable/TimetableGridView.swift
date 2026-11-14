@@ -134,7 +134,7 @@ struct TimetableGridView: View {
                 .overlay(alignment: .topTrailing) {
                     if let variant = trip.variant, !isCancelled {
                         Text(variant)
-                            .font(.system(size: 10, weight: .bold))
+                            .font(Theme.sans(10, weight: .bold))
                             .foregroundStyle(isLive && !isWaiting ? Theme.primary : Theme.background)
                             .frame(minWidth: 16, minHeight: 16)
                             .padding(.horizontal, 2)

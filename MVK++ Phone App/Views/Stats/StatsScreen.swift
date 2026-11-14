@@ -161,7 +161,7 @@ struct StatsScreen: View {
                 Image(systemName: p.icon)
                     .font(.system(size: 12, weight: .semibold))
                 Text(p.label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
             }
             .foregroundStyle(active ? Theme.primaryForeground : Theme.mutedForeground)
             .padding(.horizontal, 12)

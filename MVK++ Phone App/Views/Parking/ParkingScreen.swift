@@ -92,11 +92,11 @@ struct ParkingScreen: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Parkoló")
-                        .font(.system(size: 22, weight: .heavy))
+                        .font(Theme.sans(22, weight: .heavy))
                         .tracking(-0.4)
                     HStack(spacing: 8) {
                         if realtime.connected {
-                            LiveDot(size: 6)
+                            Circle().fill(Theme.live).frame(width: 6, height: 6).livePulse()
                         } else {
                             Circle().fill(Theme.mutedForeground.opacity(0.5)).frame(width: 6, height: 6)
                         }
@@ -105,7 +105,7 @@ struct ParkingScreen: View {
                             Text("· \(ParkingFormat.clock(at))").monospacedDigit()
                         }
                     }
-                    .font(.system(size: 12.5))
+                    .font(Theme.sans(12.5))
                     .foregroundStyle(Theme.mutedForeground)
                 }
                 Spacer(minLength: 0)
@@ -130,7 +130,7 @@ struct ParkingScreen: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.mutedForeground)
                 TextField("", text: $query, prompt: Text("Rendszám vagy vonal").foregroundStyle(Theme.mutedForeground))
-                    .font(query.isEmpty ? .system(size: 13) : Theme.mono(13, weight: .regular))
+                    .font(query.isEmpty ? Theme.sans(13) : Theme.mono(13, weight: .regular))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
@@ -160,7 +160,7 @@ struct ParkingScreen: View {
                 .frame(width: 28, height: 16)
                 .animation(Theme.Motion.fastAnimation, value: on)
                 Text("Volán és vonat")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize()
             }
@@ -235,7 +235,7 @@ struct ParkingScreen: View {
         var regionalCtx = ctx
         regionalCtx.regional = true
         return VStack(alignment: .leading, spacing: 12) {
-            ParkingSectionTitle(title: "Volán és vonat végállomáson", count: lots.reduce(0) { $0 + $1.vehicles.count })
+            ParkingSectionTitle(title: "Volán és vonat: végállomáson", count: lots.reduce(0) { $0 + $1.vehicles.count })
             if lots.isEmpty {
                 ParkingEmptyBox(text: "Most egy megyei autóbusz-állomáson vagy pályaudvaron sem áll Volán-busz vagy vonat.", verticalPadding: 24)
             } else {

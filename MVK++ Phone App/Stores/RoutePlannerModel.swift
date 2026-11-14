@@ -16,11 +16,11 @@ struct PlanTravel: Equatable {
     var emptyHint: String? {
         if coach && rail { return nil }
         if !coach && !rail {
-            return "Lehet, hogy csak MVK-val nem érhető el pipáld be a Volánt vagy a vonatot, vagy próbálj másik időpontot."
+            return "Lehet, hogy csak MVK-val nem érhető el. Pipáld be a Volánt vagy a vonatot, vagy próbálj másik időpontot."
         }
         return rail
-            ? "Lehet, hogy Volán nélkül nem érhető el pipáld be a Volánt, vagy próbálj másik időpontot."
-            : "Lehet, hogy vonat nélkül nem érhető el pipáld be a vonatot, vagy próbálj másik időpontot."
+            ? "Lehet, hogy Volán nélkül nem érhető el. Pipáld be a Volánt, vagy próbálj másik időpontot."
+            : "Lehet, hogy vonat nélkül nem érhető el. Pipáld be a vonatot, vagy próbálj másik időpontot."
     }
 }
 

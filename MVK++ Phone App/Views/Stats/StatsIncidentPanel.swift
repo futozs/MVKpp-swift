@@ -46,7 +46,7 @@ struct StatsIncidentPanel: View {
                 let official = Text("Hivatalos").fontWeight(.semibold).foregroundStyle(Theme.foreground)
                 let detected = Text("Észlelt").fontWeight(.semibold).foregroundStyle(Theme.foreground)
                 Text("\(official): az MVK által törölt menetek. \(detected): a jármű menet közben elnémult, legalább 30 percig nem jelentkezett, és a hely nem ismert térerő-hiányos szakasz. Csak lezárt napra számoljuk, a mai nap csak a hivatalos törléseket mutatja.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
                 StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 })
@@ -102,20 +102,20 @@ struct StatsLiveIncidentsCard: View {
                         Circle().fill(Theme.ontime).frame(width: 8, height: 8)
                     }
                     Text("Most élőben")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                 }
                 Text(hasMissing
                      ? "Ezek a menetek 15–90 perce esedékesek, egyetlen busz sem kezdte el őket, és késő busz sem tart feléjük, pedig a vonal szomszédos meneteit látjuk. Nem számoljuk az „igény esetén” járatokat, a garázsból kiálló meneteket (alattuk a fedélzeti egység gyakran még nem küld adatot), és azt sem, amelyiket a busz láthatóan levitt, csak adat nélkül."
                      : "Most nincs valószínűleg kimaradó menet.")
-                    .font(.system(size: 11.5))
+                    .font(Theme.sans(11.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
 
                 FlowLayout(spacing: 8, lineSpacing: 8) {
                     let count = Text("\(live.cancelled)").fontWeight(.semibold).foregroundStyle(Theme.foreground)
                     Text("Ma \(count) hivatalos MVK-törlés")
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -148,12 +148,12 @@ struct StatsLiveIncidentsCard: View {
                                 .font(Theme.mono(14, weight: .semibold))
                                 .foregroundStyle(Theme.foreground)
                             Text(m.headsign)
-                                .font(.system(size: 13))
+                                .font(Theme.sans(13))
                                 .foregroundStyle(Theme.foreground)
                                 .lineLimit(1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text("\(m.lateMin) perce esedékes")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(Theme.late)
                                 .fixedSize()
                         }
@@ -238,13 +238,13 @@ private struct StatsIncidentBody: View {
                         .font(.system(size: 12))
                         .foregroundStyle(meta.tone)
                     Text(i.title)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                 }
                 if let detail = i.detail {
                     Text(detail)
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -269,7 +269,7 @@ private struct StatsIncidentBody: View {
                         Text("\(i.confidence)% biztos")
                     }
                 }
-                .font(.system(size: 10))
+                .font(Theme.sans(10))
                 .monospacedDigit()
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 2)

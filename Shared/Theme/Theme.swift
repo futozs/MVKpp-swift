@@ -116,36 +116,61 @@ enum Theme {
     // level below is the dominant (larger) of the pair.
 
     enum Shadow {
-        static let color = Color(hue: 160.0 / 360, saturation: 0.40, brightness: 0.02)
+        static let color = Theme.hsl(160, 40, 2)
 
         struct Level {
             let radius: CGFloat
             let y: CGFloat
             let opacity: Double
+            var color: Color = Shadow.color
         }
 
+        static let none = Level(radius: 0, y: 0, opacity: 0)
         static let xs = Level(radius: 2, y: 1, opacity: 0.50)
         static let sm = Level(radius: 3, y: 1, opacity: 0.50)
         static let md = Level(radius: 12, y: 4, opacity: 0.55)
-        static let lg = Level(radius: 24, y: 10, opacity: 0.65)
-        static let xl = Level(radius: 48, y: 20, opacity: 0.75)
+        static let lg = Level(radius: 28, y: 12, opacity: 0.65)
+        static let xl = Level(radius: 56, y: 24, opacity: 0.75)
+        /// Tailwind's stock `shadow-2xl` (pure black, not a token): the
+        /// timeline bar and the dialogs.
+        static let xxl = Level(radius: 50, y: 25, opacity: 0.25, color: .black)
     }
 
     // MARK: - Type
     //
-    // The web app pairs Plus Jakarta Sans with JetBrains Mono. On Apple
-    // platforms the closest system equivalents are SF Pro Rounded (the same
-    // geometric-humanist, rounded feel) and SF Mono. Both ship with the OS,
-    // so there is no font payload and Dynamic Type keeps working.
+    // The web app pairs Plus Jakarta Sans and JetBrains Mono. The phone app
+    // bundles both; the watch and the widgets do not, so there the system
+    // faces stand in. The web asks for `ss01`, but the Google Fonts build it
+    // loads drops the stylistic sets, so the default glyphs are the match.
 
     /// Every numeric readout — countdown, vehicle ID, speed, delay — so digits
     /// never jump as they tick.
     static func mono(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        #if os(iOS)
+        if BundledFonts.available {
+            return .custom(BundledFonts.monoName(weight), fixedSize: size)
+        }
+        #endif
+        return .system(size: size, weight: weight, design: .monospaced)
+    }
+
+    /// The web's `font-sans`. `relativeTo` scales the size with Dynamic Type
+    /// for running text the web would let the browser scale.
+    static func sans(_ size: CGFloat, weight: Font.Weight = .regular, relativeTo style: Font.TextStyle? = nil) -> Font {
+        #if os(iOS)
+        if BundledFonts.available {
+            let name = BundledFonts.sansName(weight)
+            if let style {
+                return .custom(name, size: size, relativeTo: style)
+            }
+            return .custom(name, fixedSize: size)
+        }
+        #endif
+        return .system(size: size, weight: weight)
     }
 
     static func rounded(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        sans(size, weight: weight)
     }
 
     // MARK: - Helpers
@@ -185,11 +210,68 @@ enum Theme {
     }
 }
 
+#if os(iOS)
+import UIKit
+
+extension Theme {
+    /// `sans` for UIKit-drawn text (map annotations).
+    static func uiSans(_ size: CGFloat, weight: Font.Weight = .regular) -> UIFont {
+        UIFont(name: BundledFonts.sansName(weight), size: size) ?? .systemFont(ofSize: size, weight: weight.uiWeight)
+    }
+
+    /// `mono` for UIKit-drawn text (map annotations).
+    static func uiMono(_ size: CGFloat, weight: Font.Weight = .bold) -> UIFont {
+        UIFont(name: BundledFonts.monoName(weight), size: size) ?? .monospacedSystemFont(ofSize: size, weight: weight.uiWeight)
+    }
+}
+
+/// The web's typefaces, bundled with the phone app only (`UIAppFonts`).
+private enum BundledFonts {
+    static let available = UIFont(name: "PlusJakartaSans-Regular", size: 12) != nil
+
+    static func sansName(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .medium: "PlusJakartaSans-Medium"
+        case .semibold: "PlusJakartaSans-SemiBold"
+        case .bold: "PlusJakartaSans-Bold"
+        case .heavy, .black: "PlusJakartaSans-ExtraBold"
+        default: "PlusJakartaSans-Regular"
+        }
+    }
+
+    /// The web loads JetBrains Mono 400–700, so heavier weights fall to Bold.
+    static func monoName(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .medium: "JetBrainsMono-Medium"
+        case .semibold: "JetBrainsMono-SemiBold"
+        case .bold, .heavy, .black: "JetBrainsMono-Bold"
+        default: "JetBrainsMono-Regular"
+        }
+    }
+}
+
+private extension Font.Weight {
+    var uiWeight: UIFont.Weight {
+        switch self {
+        case .ultraLight: .ultraLight
+        case .thin: .thin
+        case .light: .light
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
+        case .heavy: .heavy
+        case .black: .black
+        default: .regular
+        }
+    }
+}
+#endif
+
 extension View {
     /// Applies one of the web app's five depth levels.
     func mvkShadow(_ level: Theme.Shadow.Level) -> some View {
         shadow(
-            color: Theme.Shadow.color.opacity(level.opacity),
+            color: level.color.opacity(level.opacity),
             radius: level.radius / 2,
             x: 0,
             y: level.y

@@ -138,7 +138,7 @@ struct MapTrafficPopup: View {
             HStack(spacing: 8) {
                 Circle().fill(TrafficColor.color(segment.level)).frame(width: 10, height: 10)
                 Text("\(levelText) a forgalom")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Theme.sans(13, weight: .bold))
                     .foregroundStyle(Theme.foreground)
                 Spacer(minLength: 8)
                 Button(action: onClose) {
@@ -152,13 +152,13 @@ struct MapTrafficPopup: View {
                 .accessibilityLabel("Bezárás")
             }
             Text("\(segment.from) → \(segment.to)")
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(Theme.sans(12.5, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             Text("\(Text(ratioText).font(Theme.mono(12, weight: .bold)).foregroundStyle(Theme.foreground)) lassabb a szokásosnál (\(Text("+\(excessText)").font(Theme.mono(12, weight: .regular))))")
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
             Text(meta)
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
         }
         .padding(14)

@@ -74,7 +74,7 @@ struct TripTimetable: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.primary)
             Text("Menetrend")
-                .font(.system(size: 14, weight: .bold))
+                .font(Theme.sans(14, weight: .bold))
                 .foregroundStyle(Theme.foreground)
             if !stops.isEmpty {
                 Text("\(passedCount)/\(stops.count) \(unit)")
@@ -85,7 +85,7 @@ struct TripTimetable: View {
             Spacer(minLength: 8)
             if model.data?.cancelled == true {
                 Text("TÖRÖLVE")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(Theme.sans(10, weight: .bold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.destructive)
                     .padding(.horizontal, 6)
@@ -135,7 +135,7 @@ struct TripTimetable: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.late)
                 Text("\(Text("Hiba, újrapróbálom…").fontWeight(.semibold).foregroundStyle(Theme.foreground)) \(error.reason)")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
             }
@@ -224,14 +224,14 @@ struct TripTimetable: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(s.name)
-                    .font(.system(size: 12.5, weight: isNext ? .bold : s.passed ? .regular : .medium))
+                    .font(Theme.sans(12.5, weight: isNext ? .bold : s.passed ? .regular : .medium))
                     .foregroundStyle(s.passed ? Theme.mutedForeground : Theme.foreground)
                     .lineLimit(1)
                 if isNext || dwell {
                     HStack(spacing: 6) {
                         if isNext {
                             Text(i == 0 ? "INDUL" : "KÖVETKEZŐ")
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .font(Theme.sans(10.5, weight: .semibold))
                                 .tracking(0.4)
                                 .foregroundStyle(Theme.primary)
                         }
@@ -260,7 +260,7 @@ struct TripTimetable: View {
             : AnyShape(Circle())
         if isNext {
             ZStack {
-                PulseRing()
+                PingRing(color: Theme.primary.opacity(0.4))
                 Circle().fill(Theme.primary)
                     .frame(width: 12, height: 12)
                     .overlay(Circle().strokeBorder(Theme.card, lineWidth: 2))
@@ -274,22 +274,6 @@ struct TripTimetable: View {
                 .frame(width: 10, height: 10)
                 .overlay(shape.stroke(Theme.mutedForeground.opacity(0.45), lineWidth: 2))
         }
-    }
-}
-
-private struct PulseRing: View {
-    @State private var on = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Circle()
-            .fill(Theme.primary.opacity(0.4))
-            .scaleEffect(on ? 2 : 1)
-            .opacity(on ? 0 : 1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeOut(duration: 1).repeatForever(autoreverses: false)) { on = true }
-            }
     }
 }
 

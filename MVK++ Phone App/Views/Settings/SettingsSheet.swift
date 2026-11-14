@@ -49,31 +49,31 @@ struct SettingsSheet: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Beállítások")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Theme.sans(13, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 HStack(spacing: 6) {
                     Image(systemName: signedIn ? "icloud" : "icloud.slash")
                         .font(.system(size: 12))
                         .foregroundStyle(signedIn ? Theme.primary : Theme.mutedForeground)
-                    Text(signedIn ? "Felhőbe szinkronizálva minden eszközödön ugyanígy." : "Ezen az eszközön bejelentkezve a felhőbe is szinkronizáljuk.")
-                        .font(.system(size: 11))
+                    Text(signedIn ? "Felhőbe szinkronizálva, minden eszközödön ugyanígy." : "Ezen az eszközön. Bejelentkezve a felhőbe is szinkronizáljuk.")
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
-            Spacer(minLength: 8)
-            SheetCloseButton { dismiss() }
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 18)
-        .padding(.bottom, 12)
+        .padding(.leading, 16)
+        .padding(.trailing, 44)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
         .overlay(alignment: .bottom) { separator }
     }
 
     private func groupTitle(_ title: String) -> some View {
         Text(title.uppercased())
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(Theme.sans(10.5, weight: .semibold))
             .tracking(0.3)
             .foregroundStyle(Theme.mutedForeground)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -86,10 +86,10 @@ struct SettingsSheet: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Theme.sans(13, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 Text(hint)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -136,14 +136,14 @@ struct SettingsSheet: View {
         let current = Preferences.stopMergeItems.first { $0.id == merge } ?? Preferences.stopMergeItems[0]
         return VStack(alignment: .leading, spacing: 6) {
             Text("Közös megállók")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Theme.sans(13, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
             HStack(spacing: 4) {
                 ForEach(Preferences.stopMergeItems) { item in
                     let isOn = merge == item.id
                     Button { local.setStopMerge(item.id) } label: {
                         Text(item.label)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Theme.sans(11, weight: .semibold))
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                             .minimumScaleFactor(0.85)
@@ -161,7 +161,7 @@ struct SettingsSheet: View {
             .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
             Text(current.hint)
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -229,10 +229,10 @@ struct SettingsSheet: View {
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 Text(subtitle)
-                    .font(.system(size: 11.5))
+                    .font(Theme.sans(11.5))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

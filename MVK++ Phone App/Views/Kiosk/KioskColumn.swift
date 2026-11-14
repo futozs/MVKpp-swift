@@ -39,7 +39,7 @@ struct KioskColumn: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 0.6 * em) {
                 Text(name)
-                    .font(.system(size: 1.35 * em, weight: .heavy))
+                    .font(Theme.sans(1.35 * em, weight: .heavy))
                     .tracking(-0.02 * em)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -66,7 +66,7 @@ struct KioskColumn: View {
                 Spacer(minLength: 0)
             } else {
                 Text(board.error != nil ? "A megálló adatai most nem érhetők el." : board.data != nil ? "A következő órában nincs innen induló járat." : "Betöltés…")
-                    .font(.system(size: 0.9 * em))
+                    .font(Theme.sans(0.9 * em))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, em)
@@ -114,7 +114,7 @@ private struct KioskPlatform: View {
                 Text("\(predicted ? "~" : "")\(platform)")
                     .font(Theme.mono(size, weight: .bold))
                 Text(a.isRail ? "vg." : "k.áll.")
-                    .font(.system(size: 0.85 * size, weight: .semibold))
+                    .font(Theme.sans(0.85 * size, weight: .semibold))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .foregroundStyle(predicted ? Theme.mutedForeground : changed ? Theme.late : Theme.foreground)
@@ -138,7 +138,7 @@ private struct KioskDelay: View {
     var body: some View {
         if a.isCancelled {
             Text("TÖRÖLVE")
-                .font(.system(size: size, weight: .bold))
+                .font(Theme.sans(size, weight: .bold))
                 .tracking(0.04 * size)
                 .foregroundStyle(Theme.late)
         } else {
@@ -147,7 +147,7 @@ private struct KioskDelay: View {
             case .unknown:
                 EmptyView()
             case .ontime:
-                Text("pontos").font(.system(size: size)).foregroundStyle(Theme.ontime)
+                Text("pontos").font(Theme.sans(size)).foregroundStyle(Theme.ontime)
             case .late, .early:
                 let late = DelayFormat.state(delay) == .late
                 let min = max(1, Int((Double(abs(delay ?? 0)) / 60).rounded()))
@@ -203,9 +203,6 @@ private struct KioskEta: View {
     let em: CGFloat
     var big = false
 
-    @State private var pulse = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         if !a.isCancelled {
             let mins = max(0, Int(a.etaMin.rounded()))
@@ -213,11 +210,7 @@ private struct KioskEta: View {
                 Text("most")
                     .font(Theme.mono((big ? 1.9 : 1.15) * em, weight: .heavy))
                     .foregroundStyle(Theme.primary)
-                    .opacity(pulse ? 0.55 : 1)
-                    .onAppear {
-                        guard !reduceMotion else { return }
-                        withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) { pulse = true }
-                    }
+                    .livePulse(scales: false)
             } else {
                 let size = (big ? 2.6 : 1.35) * em
                 HStack(alignment: .firstTextBaseline, spacing: 0.1 * size) {
@@ -247,7 +240,7 @@ private struct KioskFeatured: View {
                 KioskTile(a: a, em: em, big: true)
                 VStack(alignment: .leading, spacing: 0.3 * em) {
                     Text(a.title)
-                        .font(.system(size: 1.1 * em, weight: .bold))
+                        .font(Theme.sans(1.1 * em, weight: .bold))
                         .strikethrough(a.isCancelled)
                         .lineLimit(1)
                     HStack(spacing: 0.6 * em) {
@@ -255,7 +248,7 @@ private struct KioskFeatured: View {
                         KioskPlatform(a: a, size: 0.72 * em)
                         KioskDelay(a: a, size: 0.72 * em)
                     }
-                    .font(.system(size: 0.72 * em))
+                    .font(Theme.sans(0.72 * em))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
                 }
@@ -272,7 +265,7 @@ private struct KioskFeatured: View {
                     Spacer(minLength: 0)
                     KioskVehicle(a: a, size: 0.78 * em, showPredicted: showPredicted)
                 }
-                .font(.system(size: 0.78 * em))
+                .font(Theme.sans(0.78 * em))
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 0.55 * em)
                 .overlay(alignment: .top) { Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1) }
@@ -281,7 +274,7 @@ private struct KioskFeatured: View {
 
             if let upper = a.forecastUpperSec, DelayFormat.state(Int(upper)) == .late {
                 (Text("Legrosszabb esetben ") + Text(DelayFormat.label(Int(upper))).font(Theme.mono(0.72 * em, weight: .semibold)).foregroundColor(Theme.late))
-                    .font(.system(size: 0.72 * em))
+                    .font(Theme.sans(0.72 * em))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.top, 0.45 * em)
             }
@@ -293,7 +286,7 @@ private struct KioskFeatured: View {
                         .foregroundStyle(Theme.late)
                     Text(notice).lineLimit(1)
                 }
-                .font(.system(size: 0.7 * em))
+                .font(Theme.sans(0.7 * em))
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 0.45 * em)
             }
@@ -319,7 +312,7 @@ private struct KioskRow: View {
             KioskTile(a: a, em: em)
             VStack(alignment: .leading, spacing: 0.25 * em) {
                 Text(a.title)
-                    .font(.system(size: 0.92 * em, weight: .semibold))
+                    .font(Theme.sans(0.92 * em, weight: .semibold))
                     .strikethrough(a.isCancelled)
                     .lineLimit(1)
                 HStack(spacing: 0.55 * em) {
@@ -329,7 +322,7 @@ private struct KioskRow: View {
                     if let where_ { Text("· \(where_)").lineLimit(1) }
                     KioskVehicle(a: a, size: 0.66 * em, showPredicted: showPredicted)
                 }
-                .font(.system(size: 0.66 * em))
+                .font(Theme.sans(0.66 * em))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(1)
             }

@@ -31,13 +31,13 @@ struct ApproachStripView: View {
 
                     if let note = stateNote {
                         Text(note)
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(isTransparent ? .white.opacity(0.75) : Theme.mutedForeground)
                     }
 
                     if hasDelay {
                         Text(DelayFormat.sentence(deviationSec))
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Theme.sans(11, weight: .semibold))
                             .foregroundStyle(DelayFormat.tone(deviationSec))
                     }
                 }

@@ -19,7 +19,7 @@ struct RouteTile: View {
 
     var body: some View {
         Text(short)
-            .font(.system(size: fontSize, weight: .heavy))
+            .font(Theme.sans(fontSize, weight: .heavy))
             .monospacedDigit()
             .tracking(-0.3)
             .lineLimit(1)

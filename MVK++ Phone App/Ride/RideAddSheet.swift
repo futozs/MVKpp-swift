@@ -76,9 +76,8 @@ struct RideAddSheet: View {
             .frame(maxHeight: .infinity, alignment: .top)
             if let current, step == .leg { footer(current) }
         }
-        .background(Theme.card)
         .presentationDetents([.fraction(0.85)])
-        .presentationBackground(Theme.card)
+        .mvkDialog()
         .onAppear {
             if day.isEmpty { day = days.first?.iso ?? "" }
             if base != nil, legs.isEmpty { step = .next }
@@ -104,7 +103,7 @@ struct RideAddSheet: View {
         case .next:
             let terminus = nextOf?.terminus ?? ""
             let extra = baseFix != nil && legs.isEmpty ? " Az előző menet (\(base?.toStopName ?? "?") helyett) a végállomásig hosszabbodik." : ""
-            return "A végállomáson (\(terminus.isEmpty ? "?" : terminus)) a buszon maradtál — melyik menettel ment tovább?\(extra)"
+            return "A végállomáson (\(terminus.isEmpty ? "?" : terminus)) a buszon maradtál. Melyik menettel ment tovább?\(extra)"
         case .leg:
             guard let current else { return "" }
             let legNo = (continueFrom?.count ?? 0) + legs.count
@@ -120,10 +119,10 @@ struct RideAddSheet: View {
                 if canGoBack {
                     Button(action: back) {
                         Image(systemName: "arrow.left")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Theme.mutedForeground)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle().inset(by: -10))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Vissza")
@@ -135,20 +134,11 @@ struct RideAddSheet: View {
                 if step == .leg, let current {
                     RouteTile(short: current.trip.route, colorHex: current.trip.color, textHex: current.trip.text, size: .small)
                 }
-                Text(title).font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.foreground)
-                Spacer(minLength: 0)
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.mutedForeground)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Bezárás")
+                Text(title).font(Theme.sans(18, weight: .semibold)).tracking(-0.45).foregroundStyle(Theme.foreground)
             }
+            .padding(.trailing, 24)
             Text(description)
-                .font(.system(size: 14))
+                .font(Theme.sans(14))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(2)
         }
@@ -332,7 +322,7 @@ struct RideAddSheet: View {
                         .accessibilityLabel("A busz pályaszáma")
                     }
                 }
-                .font(.system(size: 12.5))
+                .font(Theme.sans(12.5))
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
                 RideModeTabs(mode: $mode, fromName: nameOf(leg.from), toName: nameOf(leg.to), fromLocked: leg.fixedFrom)
@@ -363,12 +353,12 @@ struct RideAddSheet: View {
         VStack(spacing: 0) {
             Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1)
             VStack(spacing: 8) {
+                RideButton(title: "Mentés", fullWidth: true, action: save)
+                    .disabled(leg.from == nil || leg.to == nil || detail == nil)
                 if let to = leg.to, let n = detail?.stops.count, n > 0, to == n - 1 {
                     RideButton(title: "A buszon maradtam, tovább utaztam", systemImage: "repeat", variant: .outline, fullWidth: true, action: stay)
                         .disabled(leg.from == nil)
                 }
-                RideButton(title: "Mentés", fullWidth: true, action: save)
-                    .disabled(leg.from == nil || leg.to == nil || detail == nil)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -417,7 +407,7 @@ private struct RideDayRoutePicker: View {
                                 day = d.iso
                             } label: {
                                 Text(d.label)
-                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .font(Theme.sans(12.5, weight: .semibold))
                                     .foregroundStyle(on ? Theme.primary : Theme.mutedForeground)
                                     .padding(.horizontal, 12)
                                     .frame(height: 32)
@@ -462,7 +452,7 @@ private struct RideDayRoutePicker: View {
 
     private func label(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(Theme.sans(10.5, weight: .semibold))
             .tracking(0.5)
             .foregroundStyle(Theme.mutedForeground)
             .padding(.horizontal, 20)

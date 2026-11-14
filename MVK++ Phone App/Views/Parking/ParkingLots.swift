@@ -46,11 +46,11 @@ struct ParkingFleetSummary: View {
                         HStack(spacing: 6) {
                             RoundedRectangle(cornerRadius: 3).fill(s.color).frame(width: 8, height: 8)
                             Text(s.label)
-                                .font(.system(size: 11.5))
+                                .font(Theme.sans(11.5))
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                         Text("\(counts[keyPath: s.key])")
-                            .font(.system(size: 26, weight: .bold))
+                            .font(Theme.sans(26, weight: .bold))
                             .monospacedDigit()
                             .tracking(-0.5)
                             .foregroundStyle(s.text)
@@ -84,11 +84,11 @@ struct ParkingFleetSummary: View {
                     ForEach(facts, id: \.label) { fact in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(fact.label.uppercased())
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .font(Theme.sans(10.5, weight: .semibold))
                                 .tracking(0.6)
                                 .foregroundStyle(Theme.mutedForeground)
                             fact.value
-                                .font(.system(size: 13))
+                                .font(Theme.sans(13))
                                 .lineLimit(1)
                         }
                     }
@@ -127,11 +127,11 @@ struct ParkingTerminalLotCard: View {
                     .padding(.top, 2)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lot.name)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(Theme.sans(15, weight: .bold))
                         .tracking(-0.2)
                         .lineLimit(1)
                     nextLine(next)
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(1)
                 }
@@ -154,7 +154,7 @@ struct ParkingTerminalLotCard: View {
             Group {
                 if lot.vehicles.isEmpty {
                     Text("Most senki sem parkol itt")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -234,7 +234,7 @@ struct ParkingTile: View {
                     Text(parked.map { "áll \(ParkingFormat.duration($0))" } ?? (v.online ? "itt áll" : ""))
                         .lineLimit(1)
                 }
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
                 if let toLimit, let silent {
                     ParkingProgressBar(value: toLimit, tint: toLimit > 0.75 ? Theme.nosignal : Theme.park.opacity(0.7))
@@ -306,11 +306,11 @@ struct ParkingDepotLotCard: View {
                     .background(Theme.depot.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lot.name)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(Theme.sans(15, weight: .bold))
                         .tracking(-0.2)
                         .lineLimit(1)
                     Text(lot.vehicles.isEmpty ? "Most mindenki kint van" : "\(lot.vehicles.count) \(lot.id == .tram ? "villamos" : "busz") nincs bevetésen")
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 Spacer(minLength: 0)
@@ -331,7 +331,7 @@ struct ParkingDepotLotCard: View {
                                 .font(Theme.mono(11, weight: .semibold))
                                 .foregroundStyle(Theme.foreground.opacity(0.8))
                         }
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .padding(.horizontal, 4)
                         .accessibilityHint(ParkingFormat.reasonHint(reason))
                         ParkingAdaptiveGrid(minWidth: 122, spacing: 6) {
@@ -377,7 +377,7 @@ private struct ParkingDepotStall: View {
                     }
                 }
                 Text(ParkingFormat.depotLine(v, history: h, serviceDate: serviceDate))
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
                 if let tip = v.next {
@@ -420,9 +420,9 @@ struct ParkingNoSignalList: View {
                     Text("Jel nélkül")
                     Text("\(vehicles.count)").font(Theme.mono(14, weight: .bold)).foregroundStyle(Theme.nosignal)
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(Theme.sans(14, weight: .bold))
                 Text("Menet közben elnémultak. Ha \(Int((limitS / 60).rounded())) percen belül nem jelentkeznek, a kocsiszínbe soroljuk őket.")
-                    .font(.system(size: 11.5))
+                    .font(Theme.sans(11.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.top, 2)
                 ParkingAdaptiveGrid(minWidth: 160, spacing: 8) {
@@ -437,7 +437,7 @@ struct ParkingNoSignalList: View {
                                     ParkingRouteChip(route: v.lastRoute, lookup: lookup)
                                 }
                                 Text("\(v.place.map { "\($0) közelében · " } ?? "")\(ParkingFormat.duration(silent))")
-                                    .font(.system(size: 11))
+                                    .font(Theme.sans(11))
                                     .foregroundStyle(Theme.mutedForeground)
                                     .lineLimit(1)
                                 ParkingProgressBar(value: min(1, silent / limitS), tint: Theme.nosignal)
@@ -501,7 +501,7 @@ struct ParkingServiceList: View {
                                     if v.route != nil {
                                         ParkingRouteChip(route: v.route, lookup: lookup)
                                     } else {
-                                        Text("úton").font(.system(size: 10.5)).foregroundStyle(Theme.mutedForeground)
+                                        Text("úton").font(Theme.sans(10.5)).foregroundStyle(Theme.mutedForeground)
                                     }
                                 }
                                 .padding(.leading, 8)

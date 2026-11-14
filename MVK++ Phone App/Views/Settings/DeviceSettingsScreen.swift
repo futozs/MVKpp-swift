@@ -93,7 +93,7 @@ struct DeviceSettingsScreen: View {
         Section {
             if favorites.stopIds.isEmpty {
                 Text("Nincs figyelt megálló")
-                    .font(.system(size: 13))
+                    .font(Theme.sans(13))
                     .foregroundStyle(Theme.mutedForeground)
             } else {
                 Toggle("Legközelebbi kedvenc a widgeten", isOn: $favorites.widgetNearestEnabled)
@@ -184,7 +184,7 @@ private struct WatchlistOrderView: View {
             ForEach(favorites.stopIds, id: \.self) { stopId in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(store.stop(id: stopId)?.name ?? stopId)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Theme.sans(14, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                     HStack(spacing: 6) {
                         Text(stopId)
@@ -192,7 +192,7 @@ private struct WatchlistOrderView: View {
                             .foregroundStyle(Theme.mutedForeground)
                         if favorites.widgetStopId == stopId {
                             Label("widget", systemImage: "applewatch")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(Theme.sans(10, weight: .semibold))
                                 .foregroundStyle(Theme.primary)
                         }
                     }

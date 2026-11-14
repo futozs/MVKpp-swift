@@ -63,10 +63,10 @@ struct BrandMark: View {
         Button(action: action) {
             HStack(alignment: .lastTextBaseline, spacing: 1) {
                 Text("MVK")
-                    .font(.system(size: 13, weight: .heavy))
+                    .font(Theme.sans(13, weight: .heavy))
                     .tracking(-0.4)
                 Text("++")
-                    .font(.system(size: 10, weight: .heavy))
+                    .font(Theme.sans(10, weight: .heavy))
                     .tracking(-0.6)
                     .opacity(0.6)
             }
@@ -174,7 +174,7 @@ struct LiveStatusModel {
 
     var body: String {
         switch state {
-        case .live: return "A szerver azonnal küldi a járműpozíciókat, amint változnak nem kell kézzel frissíteni."
+        case .live: return "A szerver azonnal küldi a járműpozíciókat, amint változnak, nem kell kézzel frissíteni."
         case .connecting: return "Épül a valós idejű csatorna. Addig néhány másodpercenként lekérdezéssel frissítünk."
         case .reconnecting: return "Megszakadt a valós idejű csatorna. Amíg helyreáll, néhány másodpercenként lekérdezéssel frissítünk, így a pozíciók kicsit késhetnek."
         }
@@ -253,7 +253,7 @@ struct LiveStatusPill: View {
             HStack(spacing: 8) {
                 StatusDot(state: status.state)
                 Text(status.label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(status.textColor)
                     .lineLimit(1)
                 if status.state == .live {
@@ -318,24 +318,12 @@ struct LiveStatusPill: View {
 
 struct StatusDot: View {
     let state: LiveStatusModel.LinkState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
 
     var body: some View {
-        ZStack {
-            if state == .live {
-                Circle().fill(Theme.live)
-                    .scaleEffect(pulse ? 0.75 : 1)
-                    .opacity(pulse ? 0.4 : 1)
-            }
-            Circle().fill(color).opacity(state != .live && pulse ? 0.5 : 1)
-        }
-        .frame(width: 8, height: 8)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
-        }
-        .accessibilityHidden(true)
+        Circle().fill(color)
+            .frame(width: 8, height: 8)
+            .loadingPulse(state != .live)
+            .accessibilityHidden(true)
     }
 
     private var color: Color {
@@ -359,11 +347,11 @@ struct LiveStatusDetails: View {
             HStack(spacing: 8) {
                 StatusDot(state: status.state)
                 Text(status.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Theme.sans(13, weight: .semibold))
                     .foregroundStyle(status.state == .reconnecting ? Theme.amber300 : Theme.foreground)
             }
             Text(status.body)
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -378,7 +366,7 @@ struct LiveStatusDetails: View {
                         Text(lastUpdated.map { LiveStatusModel.clock($0, seconds: true) } ?? "")
                             .font(Theme.mono(12, weight: .semibold))
                         if status.isStale, let age = status.ageMin {
-                            Text("· \(age) perce").font(.system(size: 12, weight: .medium))
+                            Text("· \(age) perce").font(Theme.sans(12, weight: .medium))
                         }
                     }
                     .foregroundStyle(status.isStale ? Theme.amber300 : Theme.foreground)
@@ -387,14 +375,14 @@ struct LiveStatusDetails: View {
                     row("Időjárás") {
                         HStack(spacing: 6) {
                             Text(WeatherResponse.format(temp)).font(Theme.mono(12, weight: .semibold)).foregroundStyle(Theme.foreground)
-                            Text(weather.text).font(.system(size: 12)).foregroundStyle(Theme.mutedForeground)
+                            Text(weather.text).font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground)
                         }
                     }
                 }
             }
             if let weather, weather.tempC != nil, !weather.extras.isEmpty {
                 Text("Miskolc · \(weather.extras)")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -403,7 +391,7 @@ struct LiveStatusDetails: View {
 
     private func row<Value: View>(_ label: String, @ViewBuilder value: () -> Value) -> some View {
         HStack {
-            Text(label).font(.system(size: 12)).foregroundStyle(Theme.mutedForeground)
+            Text(label).font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground)
             Spacer(minLength: 16)
             value()
         }

@@ -78,7 +78,7 @@ enum ParkingFormat {
         switch reason {
         case .pullIn: return "G-járattal (garázsmenettel) ért be a telephelyre"
         case .seen: return "élő GPS-jellel a telephelyen áll"
-        case .timeout: return "a végállomáson 1 óránál tovább néma volt kikapcsolva ment vissza"
+        case .timeout: return "a végállomáson 1 óránál tovább néma volt, kikapcsolva ment vissza"
         case .notToday: return "ma még egy menetet sem vitt"
         }
     }

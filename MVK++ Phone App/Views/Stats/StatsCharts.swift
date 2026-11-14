@@ -25,12 +25,12 @@ struct StatsChartFrame<Content: View, Action: View>: View {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                     if let hint {
                         Text(hint)
-                            .font(.system(size: 11.5))
+                            .font(Theme.sans(11.5))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -75,7 +75,7 @@ struct StatsEmptyChart: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12))
+            .font(Theme.sans(12))
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
@@ -108,12 +108,12 @@ struct StatsStatTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label.uppercased())
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(Theme.sans(10.5, weight: .semibold))
                 .tracking(0.7)
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(2)
             Text(value.isEmpty ? " " : value)
-                .font(.system(size: 20, weight: .bold))
+                .font(Theme.sans(20, weight: .bold))
                 .tracking(-0.4)
                 .foregroundStyle(tone.color)
                 .minimumScaleFactor(0.6)
@@ -121,7 +121,7 @@ struct StatsStatTile: View {
                 .padding(.top, 6)
             if let sub {
                 Text(sub)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 6)
@@ -153,12 +153,12 @@ struct StatsTip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(Theme.foreground)
             if let label {
                 Text(label)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
             }
         }
@@ -265,7 +265,7 @@ struct StatsBarChart: View {
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
                         Text(StatsFormat.tick(v))
-                            .font(.system(size: 10))
+                            .font(Theme.sans(10))
                             .monospacedDigit()
                             .foregroundStyle(Theme.mutedForeground)
                     }
@@ -277,7 +277,7 @@ struct StatsBarChart: View {
                 if let raw = value.as(String.self), let i = Int(raw), i % every == 0, every == 1 || i + every / 2 < data.count {
                     AxisValueLabel(centered: true, collisionResolution: .disabled) {
                         Text(data[i].label)
-                            .font(.system(size: 10))
+                            .font(Theme.sans(10))
                             .monospacedDigit()
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize()
@@ -402,7 +402,7 @@ struct StatsLineChart: View {
                     .symbol {
                         dot(4).overlay(alignment: .leading) {
                             Text(StatsFormat.tick(last.value))
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .font(Theme.sans(10.5, weight: .semibold))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.foreground)
                                 .fixedSize()
@@ -430,7 +430,7 @@ struct StatsLineChart: View {
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
                         Text(StatsFormat.tick(v))
-                            .font(.system(size: 10))
+                            .font(Theme.sans(10))
                             .monospacedDigit()
                             .foregroundStyle(Theme.mutedForeground)
                     }
@@ -442,7 +442,7 @@ struct StatsLineChart: View {
                 if let i = value.as(Int.self), let label = data[statsSafe: i]?.label {
                     AxisValueLabel(anchor: i == 0 ? .topLeading : i == data.count - 1 ? .topTrailing : .top) {
                         Text(label)
-                            .font(.system(size: 10))
+                            .font(Theme.sans(10))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                 }
@@ -511,11 +511,11 @@ struct StatsDonut: View {
                     ))
                     VStack(spacing: 4) {
                         Text(hover.map { "\(pct(slices[$0].value, total))%" } ?? centerLabel ?? "")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(Theme.sans(20, weight: .bold))
                             .foregroundStyle(Theme.foreground)
                         if let hover {
                             Text(slices[hover].label)
-                                .font(.system(size: 10.5))
+                                .font(Theme.sans(10.5))
                                 .foregroundStyle(Theme.mutedForeground)
                                 .lineLimit(1)
                                 .frame(maxWidth: size * 0.8)
@@ -530,12 +530,12 @@ struct StatsDonut: View {
                         HStack(spacing: 8) {
                             RoundedRectangle(cornerRadius: 3).fill(color(s)).frame(width: 10, height: 10)
                             Text(s.label)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Theme.sans(12, weight: .medium))
                                 .foregroundStyle(Theme.foreground)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
                             Text("\(pct(s.value, total))%")
-                                .font(.system(size: 12))
+                                .font(Theme.sans(12))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.mutedForeground)
                         }
@@ -547,13 +547,13 @@ struct StatsDonut: View {
                     }
                     if slices.count > 6 {
                         Text("+ \(slices.count - 6) további")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                             .padding(.horizontal, 4)
                     }
                     if let centerSub {
                         Text(centerSub)
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 4)
@@ -599,23 +599,12 @@ struct StatsPulseDot: View {
     let color: Color
     var size: CGFloat = 8
 
-    @State private var pulsing = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(color.opacity(0.5))
-                .scaleEffect(pulsing ? 2.2 : 1)
-                .opacity(pulsing ? 0 : 0.8)
-            Circle().fill(color)
-        }
-        .frame(width: size, height: size)
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulsing = true }
-        }
-        .accessibilityHidden(true)
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .livePulse()
+            .accessibilityHidden(true)
     }
 }
 
@@ -641,7 +630,7 @@ struct StatsHourHeat: View {
                     ForEach(Array(cells.enumerated()), id: \.element.id) { i, c in
                         let alpha = c.value.map { 0.14 + (max == min ? 0.5 : ($0 - min) / (max - min)) * 0.8 }
                         Text(StatsFormat.serviceHour(c.hour))
-                            .font(.system(size: 9.5, weight: .semibold))
+                            .font(Theme.sans(9.5, weight: .semibold))
                             .monospacedDigit()
                             .foregroundStyle(alpha == nil ? Theme.mutedForeground.opacity(0.5) : (alpha ?? 0) > 0.6 ? Theme.primaryForeground : Theme.foreground)
                             .frame(maxWidth: .infinity)
@@ -673,7 +662,7 @@ struct StatsHourHeat: View {
                     }
                     if let legend { Text(legend) }
                 }
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
             }
         }
@@ -694,7 +683,7 @@ struct StatsRankRow: Identifiable {
     init(label: String, sub: String? = nil, value: Double, display: String? = nil, bar: Color = Theme.late.opacity(0.8)) {
         self.label = AnyView(
             Text(label)
-                .font(.system(size: 12.5, weight: .medium))
+                .font(Theme.sans(12.5, weight: .medium))
                 .foregroundStyle(Theme.foreground)
                 .lineLimit(1)
         )
@@ -736,14 +725,14 @@ struct StatsRankBars: View {
                                     r.label
                                     if let sub = r.sub {
                                         Text(sub)
-                                            .font(.system(size: 11))
+                                            .font(Theme.sans(11))
                                             .foregroundStyle(Theme.mutedForeground)
                                             .lineLimit(1)
                                     }
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 Text(r.display ?? "\(StatsFormat.plain(r.value))\(unit)")
-                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .font(Theme.sans(12.5, weight: .semibold))
                                     .monospacedDigit()
                                     .foregroundStyle(Theme.foreground)
                                     .fixedSize()

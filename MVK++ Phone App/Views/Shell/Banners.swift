@@ -14,7 +14,7 @@ struct SyncBanner: View {
         if sync.pendingRemote {
             HStack(spacing: 12) {
                 Text("Egy másik eszközön módosítottad a beállításaidat.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.foreground)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -22,7 +22,7 @@ struct SyncBanner: View {
                     AppReloader.shared.reload()
                 } label: {
                     Label("Betöltés", systemImage: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .labelStyle(.titleAndIcon)
                         .foregroundStyle(Theme.primaryForeground)
                         .padding(.horizontal, 10)
@@ -58,10 +58,10 @@ struct RegionalIntroBanner: View {
                     .background(Theme.primary.opacity(0.2), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Új: vonatok és Volán-buszok is")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                     Text("Borsod-Abaúj-Zemplénben a térképen, a figyelőben (vasútállomás, vágány, késés oka) és a menetrendben. A Beállításokban módonként kikapcsolhatod.")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }

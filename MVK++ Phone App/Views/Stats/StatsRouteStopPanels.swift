@@ -224,7 +224,7 @@ struct StatsStopPanel: View {
                                 .font(.system(size: 10))
                                 .foregroundStyle(Theme.early)
                             Text("KEDVENCEK")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(Theme.sans(11, weight: .semibold))
                                 .tracking(0.5)
                                 .foregroundStyle(Theme.mutedForeground)
                         }
@@ -234,7 +234,7 @@ struct StatsStopPanel: View {
                 }
                 if matches.isEmpty {
                     Text("Nincs találat.")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 6)
@@ -249,7 +249,7 @@ struct StatsStopPanel: View {
                 }
             } else {
                 Text("Válassz megállót.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 24)
@@ -294,7 +294,7 @@ struct StatsStopPanel: View {
                         .font(Theme.mono(10, weight: .semibold))
                         .opacity(0.6)
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .frame(maxWidth: 220, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
             }
@@ -357,7 +357,7 @@ struct StatsStopPanel: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(selected?.name ?? d.name ?? stopId)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Theme.sans(16, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                     Button {
                         toggleFavorite(stopId)
@@ -372,7 +372,7 @@ struct StatsStopPanel: View {
                     .accessibilityLabel(fav ? "Eltávolítás a kedvencekből" : "Kedvencnek jelölés")
                 }
                 Text("\(from) – \(to) · \(StatsFormat.number(total)) érkezés")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
 

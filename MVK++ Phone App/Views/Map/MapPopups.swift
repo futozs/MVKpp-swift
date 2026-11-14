@@ -48,27 +48,27 @@ struct MapVehiclePopup: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 9) {
                     Text(vehicle.routeShort)
-                        .font(.system(size: 14, weight: .heavy))
+                        .font(Theme.sans(14, weight: .heavy))
                         .foregroundStyle(Theme.hex(vehicle.routeText, fallback: .white))
                         .padding(.horizontal, 8)
                         .frame(minWidth: 40, minHeight: 26)
                         .background(Theme.hex(vehicle.routeColor), in: RoundedRectangle(cornerRadius: rail ? 13 : 8, style: .continuous))
                     Text(vehicle.headsign.isEmpty ? "Járat" : vehicle.headsign)
-                        .font(.system(size: 13.5, weight: .bold))
+                        .font(Theme.sans(13.5, weight: .bold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(2)
                 }
 
                 if let delayLine {
                     Text(delayLine.text)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Theme.sans(17, weight: .bold))
                         .tracking(-0.2)
                         .foregroundStyle(delayLine.tone)
                         .padding(.top, 12)
                 }
 
                 Text(meta)
-                    .font(.system(size: 12).monospacedDigit())
+                    .font(Theme.sans(12).monospacedDigit())
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.top, delayLine == nil ? 12 : 2)
 
@@ -76,7 +76,7 @@ struct MapVehiclePopup: View {
                     HStack(spacing: 6) {
                         Button(action: onFollow) {
                             Text("Követés")
-                                .font(.system(size: 12.5, weight: .bold))
+                                .font(Theme.sans(12.5, weight: .bold))
                                 .foregroundStyle(Theme.foreground)
                                 .frame(maxWidth: .infinity, minHeight: 36)
                                 .background(Theme.secondary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
@@ -84,7 +84,7 @@ struct MapVehiclePopup: View {
                         }
                         Button(action: onBoard) {
                             Text("Felszálltam")
-                                .font(.system(size: 12.5, weight: .bold))
+                                .font(Theme.sans(12.5, weight: .bold))
                                 .foregroundStyle(Theme.primaryForeground)
                                 .frame(maxWidth: .infinity, minHeight: 36)
                                 .background(Theme.primary, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
@@ -134,13 +134,13 @@ struct MapHistoryPopup: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 9) {
                     Text(routeShort ?? "?")
-                        .font(.system(size: 14, weight: .heavy))
+                        .font(Theme.sans(14, weight: .heavy))
                         .foregroundStyle(Theme.hex(route?.text, fallback: .white))
                         .padding(.horizontal, 8)
                         .frame(minWidth: 40, minHeight: 26)
                         .background(Theme.hex(route?.color), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     Text("VISSZAJÁTSZÁS")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Theme.sans(11, weight: .bold))
                         .tracking(0.44)
                         .foregroundStyle(Theme.mutedForeground)
                 }
@@ -148,7 +148,7 @@ struct MapHistoryPopup: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("RENDSZÁM")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Theme.sans(10, weight: .bold))
                         .tracking(0.4)
                         .foregroundStyle(Theme.mutedForeground)
                     Text(vehicleId)

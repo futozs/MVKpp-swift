@@ -141,10 +141,10 @@ struct BoardingPrompt: View {
                 )
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Éppen erre a \(w.ra) szálltál fel?")
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.foreground)
                     Text(vehicle.headsign)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     Text(rail ? (vehicle.trainName ?? "") : TransitIds.displayVehicleId(vehicle.id, plate: vehicle.plate))
@@ -192,7 +192,7 @@ struct RideSavedNote: View {
         let mins = ride.alightedAt.map { max(1, Int((($0 - first.boardedAt) / 60).rounded())) }
         let ask = RideController.endedOnItsOwn(ride) && onFix != nil
         let title = ask
-            ? (ride.endedBy == .terminus ? "Lezártam az utazásod a végállomáson" : "Úgy láttam, leszálltál — lezártam")
+            ? (ride.endedBy == .terminus ? "Lezártam az utazásod a végállomáson" : "Úgy láttam, leszálltál, lezártam")
             : (legs.count > 1 ? "Körbeutazás elmentve · \(legs.count) menet" : "Utazás elmentve")
         let facts = [
             mins.map { "\($0) perc" },
@@ -205,9 +205,9 @@ struct RideSavedNote: View {
             HStack(alignment: .top, spacing: 12) {
                 RouteTile(short: ride.route, colorHex: ride.color, textHex: ride.text)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.foreground)
+                    Text(title).font(Theme.sans(14, weight: .bold)).foregroundStyle(Theme.foreground)
                     Text("\(first.fromStopName ?? "?") → \(ride.toStopName ?? "?")")
-                        .font(.system(size: 12)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                        .font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
                     Text(facts).font(Theme.mono(12, weight: .regular)).foregroundStyle(Theme.foreground).padding(.top, 2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -230,13 +230,14 @@ struct RideSavedNote: View {
             }
             if let onLoop {
                 RideButton(
-                    title: "Körbeutazok — a buszon maradtam",
+                    title: "Körbeutazok, a buszon maradtam",
                     systemImage: "repeat",
                     variant: ask ? .ghost : .outline,
                     size: .small,
                     fullWidth: true,
                     busy: looping,
                     iconTint: Theme.primary,
+                    border: Theme.primary.opacity(0.5),
                     action: onLoop
                 )
                 .disabled(looping)
@@ -262,7 +263,7 @@ struct RideNoticeBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "ticket").foregroundStyle(Theme.primary)
-            Text(text).font(.system(size: 13)).foregroundStyle(Theme.foreground).frame(maxWidth: .infinity, alignment: .leading)
+            Text(text).font(Theme.sans(13)).foregroundStyle(Theme.foreground).frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onClose) {
                 Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
             }

@@ -82,7 +82,7 @@ struct TimetableScreen: View {
             HStack(alignment: .center, spacing: 12) {
                 HStack(spacing: 6) {
                     Text("\(visibleRoutes.count) járat · \(model.weekdayLabel)")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                     if model.isOffline { OfflineTag(compact: true) }
                 }
@@ -101,7 +101,7 @@ struct TimetableScreen: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $query, prompt: Text("Járat vagy végállomás").foregroundStyle(Theme.mutedForeground))
-                .font(.system(size: 14))
+                .font(Theme.sans(14))
                 .foregroundStyle(Theme.foreground)
                 .focused($searchFocused)
                 .submitLabel(.search)
@@ -138,7 +138,7 @@ struct TimetableScreen: View {
                     withAnimation(Theme.Motion.fastAnimation) { model.group = group }
                 } label: {
                     Text(group.label)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
                         .frame(maxWidth: .infinity, minHeight: 28)
                         .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -166,13 +166,13 @@ struct TimetableScreen: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(count > 0 ? Theme.destructive : Theme.mutedForeground)
                 Text("Mai zavarok")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(count > 0 ? Theme.foreground : Theme.mutedForeground)
                     .lineLimit(1)
                     .fixedSize()
                 if count > 0 {
                     Text("\(count)")
-                        .font(.system(size: 10.5, weight: .bold))
+                        .font(Theme.sans(10.5, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.destructive)
                         .padding(.horizontal, 6)
@@ -206,7 +206,7 @@ struct TimetableScreen: View {
                 Text(trimmed.isEmpty
                      ? (model.routes.isEmpty ? "Járatok betöltése…" : "Ezen a napon nem közlekedik járat.")
                      : "Nincs „\(trimmed)” jelzésű járat.")
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -220,7 +220,7 @@ struct TimetableScreen: View {
                     ForEach(Array(routes.enumerated()), id: \.element.id) { index, route in
                         if let header = groupHeader(at: index, in: routes) {
                             Text(header.uppercased())
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .font(Theme.sans(10.5, weight: .semibold))
                                 .tracking(0.5)
                                 .foregroundStyle(Theme.mutedForeground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -253,7 +253,7 @@ struct TimetableScreen: View {
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.primary)
                 Text("KEDVENCEK")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.mutedForeground)
             }
@@ -315,11 +315,11 @@ struct TimetableScreen: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Theme.sans(12, weight: .medium))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
             }

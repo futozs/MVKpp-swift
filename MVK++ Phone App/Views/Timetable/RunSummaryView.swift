@@ -32,7 +32,7 @@ struct RunSummaryView: View {
                             .foregroundStyle(Theme.foreground)
                             .accessibilityLabel(TransitIds.vehicleIdTitle(vehicleId))
                         Text("vitte")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                     .frame(minHeight: 22)
@@ -49,7 +49,7 @@ struct RunSummaryView: View {
 
             if isPartial, let seen = entry.stopsSeen, let total = entry.stopsTotal {
                 Text("Részleges mérés: \(seen)/\(total) megállónál volt élő jel.")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
             }
         }
@@ -78,7 +78,7 @@ struct RunSummaryView: View {
 
         return HStack(spacing: 4) {
             Image(systemName: icon).font(.system(size: 10, weight: .semibold))
-            Text(text).font(.system(size: 11, weight: .semibold))
+            Text(text).font(Theme.sans(11, weight: .semibold))
         }
         .foregroundStyle(DelayFormat.tone(sec))
         .padding(.horizontal, 6)

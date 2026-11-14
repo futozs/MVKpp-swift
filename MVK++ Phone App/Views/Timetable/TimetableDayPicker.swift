@@ -65,7 +65,7 @@ struct TimetableDateField: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 Text(TimetableModel.fieldLabel(value))
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
@@ -121,7 +121,7 @@ private struct TimetableCalendar: View {
                 monthButton("chevron.left", label: "Előző hónap", delta: -1)
                 Spacer()
                 Text("\(Self.months[viewMonth - 1].capitalized) \(String(viewYear))")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 Spacer()
                 monthButton("chevron.right", label: "Következő hónap", delta: 1)
@@ -132,7 +132,7 @@ private struct TimetableCalendar: View {
             LazyVGrid(columns: columns, spacing: 2) {
                 ForEach(Self.weekdays, id: \.self) { day in
                     Text(day.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(Theme.sans(10, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.vertical, 4)
                 }
@@ -149,7 +149,7 @@ private struct TimetableCalendar: View {
                 onPick(todayIso)
             } label: {
                 Text("Ma")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .frame(maxWidth: .infinity, minHeight: 24)
                     .contentShape(Rectangle())

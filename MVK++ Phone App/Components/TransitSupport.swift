@@ -66,7 +66,7 @@ struct RetryNotice: View {
                     withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { spinning = true }
                 }
             Text("\(Text(title).fontWeight(.semibold).foregroundStyle(Theme.foreground)) \(Text(error.reason).foregroundStyle(Theme.mutedForeground))")
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let code = error.code {
                 Text(String(code))

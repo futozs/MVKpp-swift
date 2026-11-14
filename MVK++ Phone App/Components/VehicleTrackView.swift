@@ -53,7 +53,7 @@ struct VehicleTrackView: View {
                     .fixedSize()
             } else {
                 Text("nincs jármű")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
 
@@ -66,7 +66,7 @@ struct VehicleTrackView: View {
 
             if let progressDesc {
                 Text(progressDesc)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)

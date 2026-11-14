@@ -469,7 +469,7 @@ final class CloudSync: ObservableObject {
         var errorDescription: String? {
             switch self {
             case .signedOut: return "nincs bejelentkezve"
-            case .expired: return "A munkamenet lejárt — jelentkezz be újra."
+            case .expired: return "A munkamenet lejárt. Jelentkezz be újra."
             case .http(let code): return "szinkron HTTP \(code)"
             }
         }

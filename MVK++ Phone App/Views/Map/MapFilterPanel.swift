@@ -64,12 +64,8 @@ struct MapFilterPanel: View {
                 onClose()
             } label: {
                 Text("\(visibleVehicles.count) jármű a térképen")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 44)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.primary)
-            .foregroundStyle(Theme.primaryForeground)
+            .buttonStyle(.mvk(fullWidth: true))
             .padding(12)
             .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
         }
@@ -82,17 +78,17 @@ struct MapFilterPanel: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Szűrés")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Theme.sans(16, weight: .bold))
                     .foregroundStyle(Theme.foreground)
                 Text("\(Text("\(visibleVehicles.count)").fontWeight(.semibold).foregroundStyle(Theme.foreground)) jármű látszik\(filters.activeCount > 0 ? " · \(filters.activeCount) szűrő" : "")")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
             Spacer(minLength: 8)
             if filters.isActive {
                 Button(action: onClear) {
                     Label("Alaphelyzet", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Theme.sans(12, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                         .padding(.horizontal, 10)
                         .frame(minHeight: 36)
@@ -139,7 +135,7 @@ struct MapFilterPanel: View {
                         .foregroundStyle(on ? Theme.primaryForeground : Theme.primary)
                 }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(Theme.sans(12, weight: .semibold))
             .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
             .frame(maxWidth: .infinity, minHeight: 36)
             .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
@@ -156,10 +152,10 @@ struct MapFilterPanel: View {
         VStack(spacing: 0) {
             section("Járatok", aside: {
                 if filters.routes.isEmpty {
-                    Text("mind látszik").font(.system(size: 11)).foregroundStyle(Theme.mutedForeground)
+                    Text("mind látszik").font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
                 } else {
                     Button("\(filters.routes.count) kiválasztva · törlés") { filters.routes = [] }
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                 }
             }) {
@@ -171,8 +167,8 @@ struct MapFilterPanel: View {
                     Text("\(filters.watch.count)/\(FilterState.maxWatched)").font(Theme.mono(11, weight: .regular)).foregroundStyle(Theme.mutedForeground)
                 }
             }) {
-                Text("Csak ezek a rendszámok látszanak a többi szűrőtől függetlenül.")
-                    .font(.system(size: 11.5))
+                Text("Csak ezek a rendszámok látszanak, a többi szűrőtől függetlenül.")
+                    .font(Theme.sans(11.5))
                     .foregroundStyle(Theme.mutedForeground)
                 HStack(spacing: 8) {
                     TextField("Rendszám vagy vonatszám, pl. 1641", text: $typedId)
@@ -223,7 +219,7 @@ struct MapFilterPanel: View {
                         }
                     }
                     SwiftUI.Toggle("A térkép kövesse őket", isOn: $filters.follow)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Theme.sans(13, weight: .medium))
                         .tint(Theme.primary)
                         .padding(.horizontal, 4)
                 }
@@ -232,7 +228,7 @@ struct MapFilterPanel: View {
             if enabledModes.count > 1 {
                 section("Közlekedési mód", aside: {
                     if filters.modes.isEmpty {
-                        Text("mind látszik").font(.system(size: 11)).foregroundStyle(Theme.mutedForeground)
+                        Text("mind látszik").font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
                     } else {
                         clearLink { filters.modes = [] }
                     }
@@ -272,7 +268,7 @@ struct MapFilterPanel: View {
                 if !hasPosition {
                     Button(action: onStartGeo) {
                         Label("Helyzetem bekapcsolása", systemImage: "location.fill")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Theme.sans(11, weight: .semibold))
                             .foregroundStyle(Theme.primary)
                     }
                     .buttonStyle(.plain)
@@ -285,7 +281,7 @@ struct MapFilterPanel: View {
                             filters.nearMeKm = value
                         } label: {
                             Text(label)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                                 .frame(maxWidth: .infinity, minHeight: 30)
                                 .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -321,7 +317,7 @@ struct MapFilterPanel: View {
 
     private func clearLink(_ action: @escaping () -> Void) -> some View {
         Button("mind", action: action)
-            .font(.system(size: 11, weight: .semibold))
+            .font(Theme.sans(11, weight: .semibold))
             .foregroundStyle(Theme.primary)
     }
 
@@ -334,7 +330,7 @@ struct MapFilterPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title.uppercased())
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.mutedForeground)
                 Spacer(minLength: 8)
@@ -357,7 +353,7 @@ struct MapFilterPanel: View {
                     onToggle(item.id)
                 } label: {
                     HStack(spacing: 6) {
-                        Text(item.label).font(.system(size: 12, weight: .semibold))
+                        Text(item.label).font(Theme.sans(12, weight: .semibold))
                         Text("\(item.count)")
                             .font(Theme.mono(10))
                             .padding(.horizontal, 4)
@@ -378,7 +374,7 @@ struct MapFilterPanel: View {
     private func segmented<T: Equatable>(_ label: String, value: T, options: [(T, String)], onChange: @escaping (T) -> Void) -> some View {
         HStack(spacing: 12) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(Theme.sans(12, weight: .medium))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(width: 64, alignment: .leading)
             HStack(spacing: 4) {
@@ -388,7 +384,7 @@ struct MapFilterPanel: View {
                         onChange(option.0)
                     } label: {
                         Text(option.1)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(Theme.sans(12, weight: .semibold))
                             .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                             .frame(maxWidth: .infinity, minHeight: 30)
                             .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -409,13 +405,13 @@ struct MapFilterPanel: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Text("RENDEZÉS")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.mutedForeground)
                 ForEach(VehicleSort.allCases, id: \.self) { sort in
                     let on = filters.sort == sort
                     Button(sort.label) { filters.sort = sort }
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                         .padding(.horizontal, 8)
                         .frame(minHeight: 28)
@@ -430,7 +426,7 @@ struct MapFilterPanel: View {
 
             if visibleVehicles.isEmpty {
                 Text("A jelenlegi szűrésnek egy jármű sem felel meg.")
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
@@ -449,7 +445,7 @@ struct MapFilterPanel: View {
                                     LiveDot()
                                 }
                                 Text(v.headsign)
-                                    .font(.system(size: 11))
+                                    .font(Theme.sans(11))
                                     .foregroundStyle(Theme.mutedForeground)
                                     .lineLimit(1)
                             }

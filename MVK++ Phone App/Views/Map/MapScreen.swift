@@ -225,7 +225,7 @@ struct MapScreen: View {
                             isFilterOpen = true
                         } label: {
                             Text(MapFilterSummary.text(navigation.filters, routes: store.routes, visible: filteredVehicles.count))
-                                .font(.system(size: 12.5, weight: .semibold))
+                                .font(Theme.sans(12.5, weight: .semibold))
                                 .foregroundStyle(Theme.primary)
                                 .lineLimit(1)
                                 .truncationMode(.tail)

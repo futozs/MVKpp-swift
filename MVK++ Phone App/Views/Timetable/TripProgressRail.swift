@@ -23,7 +23,7 @@ struct TripProgressRail: View {
         Group {
             if let error = model.errorMessage {
                 Text(error)
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.destructive)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -69,20 +69,20 @@ struct TripProgressRail: View {
                         .padding(.vertical, 2)
                         .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                     Text(subtitle(data))
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                     if DelayFormat.state(data.scheduleDeviationSec) != .unknown {
                         HStack(spacing: 6) {
                             DelayBar(delaySec: data.scheduleDeviationSec, showLabel: false)
                             Text(DelayFormat.sentence(data.scheduleDeviationSec))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(DelayFormat.tone(data.scheduleDeviationSec))
                         }
                     }
                 }
             } else {
                 Text("Erre a menetre még nem jelentkezett be jármű.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
 
@@ -140,7 +140,7 @@ struct TripProgressRail: View {
                 .frame(width: 38)
 
             Text(stop.name)
-                .font(.system(size: 12, weight: isNext ? .semibold : .regular))
+                .font(Theme.sans(12, weight: isNext ? .semibold : .regular))
                 .foregroundStyle(isNext ? Theme.foreground : passed ? Theme.mutedForeground.opacity(0.6) : Theme.mutedForeground)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)

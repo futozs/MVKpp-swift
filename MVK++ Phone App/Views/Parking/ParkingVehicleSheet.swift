@@ -95,18 +95,18 @@ struct ParkingVehicleSheet: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.6)
                             Text(hit.kind == .tram ? "villamos" : "busz")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Theme.sans(12, weight: .medium))
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                         HStack(spacing: 8) {
                             Text(hit.label)
-                                .font(.system(size: 11.5, weight: .semibold))
+                                .font(Theme.sans(11.5, weight: .semibold))
                                 .foregroundStyle(hit.tone)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(hit.tone.opacity(0.15), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .background(hit.tone.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                             if let place = hit.place {
-                                Text(place).font(.system(size: 13))
+                                Text(place).font(Theme.sans(13))
                             }
                         }
                     }
@@ -120,23 +120,17 @@ struct ParkingVehicleSheet: View {
                             onFocusVehicle(hit.id)
                             dismiss()
                         } label: {
-                            Label("Megnézem a térképen", systemImage: "mappin.and.ellipse")
-                                .font(.system(size: 14, weight: .semibold))
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                            Label("Megnézem a térképen", systemImage: "mappin")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme.primary)
-                        .foregroundStyle(Theme.primaryForeground)
+                        .buttonStyle(.mvk(fullWidth: true))
                     }
                 }
-                .padding(20)
+                .padding(24)
             }
         }
         .scrollIndicators(.hidden)
-        .background(Theme.background)
         .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(Theme.background)
+        .mvkDialog()
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -145,7 +139,7 @@ struct ParkingVehicleSheet: View {
             Spacer(minLength: 0)
             content().multilineTextAlignment(.trailing)
         }
-        .font(.system(size: 13))
+        .font(Theme.sans(13))
         .padding(.vertical, 8)
     }
 
@@ -216,7 +210,7 @@ struct ParkingVehicleSheet: View {
                     ParkingTipChip(tip: tip, lookup: lookup, midnight: snap.midnight, now: now)
                         .fixedSize()
                     Text(tip.certain ? "az MVK már kiadta neki" : "előrejelzés, \(ParkingFormat.pct(tip.confidence)) bizonyossággal")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }))
@@ -229,7 +223,7 @@ struct ParkingVehicleSheet: View {
         let box = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
             Text("AZ UTOLSÓ 14 NAP")
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(Theme.sans(10.5, weight: .semibold))
                 .tracking(0.6)
                 .foregroundStyle(Theme.mutedForeground)
             ParkingPresenceStrip(recent: h.recent, tall: true)
@@ -251,7 +245,7 @@ struct ParkingVehicleSheet: View {
                     }
                 }
             }
-            .font(.system(size: 12.5))
+            .font(Theme.sans(12.5))
             .padding(.top, 12)
         }
         .padding(12)

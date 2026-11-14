@@ -137,7 +137,7 @@ struct ParkingBlockChart: View {
 
                 if rows.isEmpty {
                     Text("Nincs ilyen jármű.")
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.vertical, 32)
                 }
@@ -185,7 +185,7 @@ struct ParkingBlockChart: View {
             swatch()
             Text(text)
         }
-        .font(.system(size: 11.5))
+        .font(Theme.sans(11.5))
         .foregroundStyle(Theme.mutedForeground)
     }
 
@@ -212,7 +212,7 @@ struct ParkingBlockChart: View {
                     HStack(spacing: 8) {
                         ParkingRouteChip(route: route, lookup: lookup)
                         Text("\(g.rows.count) jármű")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize()
                     }

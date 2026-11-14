@@ -106,10 +106,10 @@ final class PushService: ObservableObject {
     func registerWatch(_ config: WatchConfig) async -> Diagnostic {
         if serverConfigured == nil { await refreshConfigured() }
         guard serverConfigured == true else {
-            return Diagnostic(ok: false, reason: "A szerveren nincs beállítva az iPhone-os push (APNs) — nyitott appnál és háttérfrissítéssel szólok.")
+            return Diagnostic(ok: false, reason: "A szerveren nincs beállítva az iPhone-os push (APNs), nyitott appnál és háttérfrissítéssel szólok.")
         }
         guard let endpoint else {
-            return Diagnostic(ok: false, reason: "Az iPhone még nem adott push-azonosítót — próbáld újra pár másodperc múlva.")
+            return Diagnostic(ok: false, reason: "Az iPhone még nem adott push-azonosítót. Próbáld újra pár másodperc múlva.")
         }
         var body: [String: Any] = [
             "subscription": ["endpoint": endpoint],

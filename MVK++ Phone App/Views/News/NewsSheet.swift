@@ -38,7 +38,7 @@ struct NewsButton: View {
                 isOpen = false
                 onShowRoute(routeId)
             }
-            .mvkSheet()
+            .mvkDialog(close: .large)
         }
     }
 }
@@ -48,47 +48,53 @@ struct NewsSheet: View {
     @ObservedObject var news: NewsModel
     let fresh: Set<Int>
     let onShowRoute: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
+    @State private var openItem: NewsItem?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let rowRoutesMax = 6
 
     var body: some View {
-        NavigationStack {
+        ZStack {
             VStack(spacing: 0) {
                 header
                 list
             }
-            .background(Theme.background)
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: NewsItem.self) { item in
-                NewsArticle(item: item, routes: news.feed?.routes ?? [:], onShowRoute: onShowRoute)
+            .accessibilityHidden(openItem != nil)
+            if let openItem {
+                NewsArticle(item: openItem, routes: news.feed?.routes ?? [:], onBack: { show(nil) }, onShowRoute: onShowRoute)
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(x: 28)))
+                    .zIndex(1)
             }
         }
         .presentationDetents([.fraction(0.88), .large])
     }
 
+    /// The web's article push: a 0.24 s fade with a 28 px slide.
+    private func show(_ item: NewsItem?) {
+        withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: Theme.Motion.normal)) { openItem = item }
+    }
+
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Hírek").font(.system(size: 17, weight: .bold))
+                Text("Hírek").font(Theme.sans(17, weight: .bold))
                 Text("Az MVK Zrt. közleményei\(news.feed.map { $0.items.isEmpty ? "" : " · \($0.items.count) aktuális" } ?? "")")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                 if news.feed?.stale == true {
                     HStack(spacing: 6) {
                         Circle().fill(Theme.nosignal).frame(width: 6, height: 6)
-                        Text("Az MVK most nem válaszol a legutóbb letöltött hírek látszanak.")
+                        Text("Az MVK most nem válaszol, a legutóbb letöltött hírek látszanak.")
                     }
-                    .font(.system(size: 11.5, weight: .medium))
+                    .font(Theme.sans(11.5, weight: .medium))
                     .foregroundStyle(Theme.nosignal)
                     .padding(.top, 4)
                 }
             }
-            Spacer(minLength: 8)
-            SheetCloseButton { dismiss() }
+            Spacer(minLength: 0)
         }
         .padding(.leading, 20)
-        .padding(.trailing, 12)
+        .padding(.trailing, 56)
         .padding(.vertical, 18)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
@@ -100,7 +106,7 @@ struct NewsSheet: View {
         } else if let feed = news.feed {
             if feed.items.isEmpty {
                 Text("Most nincs aktuális MVK-közlemény.")
-                    .font(.system(size: 13.5))
+                    .font(Theme.sans(13.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -110,7 +116,7 @@ struct NewsSheet: View {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(feed.items.enumerated()), id: \.element.id) { index, item in
                             if index > 0 { Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1) }
-                            NavigationLink(value: item) { row(item, routes: feed.routes) }
+                            Button { show(item) } label: { row(item, routes: feed.routes) }
                                 .buttonStyle(RowHighlightStyle(opacity: 0.45))
                         }
                     }
@@ -119,13 +125,13 @@ struct NewsSheet: View {
         } else {
             VStack(spacing: 12) {
                 Text(news.error ?? "Az MVK hírei most nem érhetők el.")
-                    .font(.system(size: 13.5))
+                    .font(Theme.sans(13.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 280)
                 Button { Task { await news.load() } } label: {
                     Label("Újra", systemImage: "arrow.clockwise")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.sans(13, weight: .semibold))
                 }
                 .buttonStyle(.mvk(.outline))
             }
@@ -141,20 +147,20 @@ struct NewsSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 if let type = item.type {
                     Text(type.uppercased())
-                        .font(.system(size: 10.5, weight: .semibold))
+                        .font(Theme.sans(10.5, weight: .semibold))
                         .tracking(0.6)
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.bottom, 2)
                 }
                 Text(item.title)
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(Theme.sans(14.5, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 if !item.summary.isEmpty, item.summary != item.title {
                     Text(item.summary)
-                        .font(.system(size: 12.5))
+                        .font(Theme.sans(12.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(2)
                         .lineSpacing(2)
@@ -181,7 +187,7 @@ struct NewsSheet: View {
         let tab = NewsTime.dateTab(unix)
         return VStack(spacing: 4) {
             Text(tab.day).font(Theme.mono(16, weight: .bold)).foregroundStyle(Theme.foreground)
-            Text(tab.month.uppercased()).font(.system(size: 9.5, weight: .semibold)).tracking(0.8).foregroundStyle(Theme.mutedForeground)
+            Text(tab.month.uppercased()).font(Theme.sans(9.5, weight: .semibold)).tracking(0.8).foregroundStyle(Theme.mutedForeground)
         }
         .frame(width: 44, height: 44)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
@@ -226,7 +232,7 @@ struct NewsSheet: View {
             }
             Spacer()
         }
-        .phaseAnimator([0.55, 1]) { content, phase in content.opacity(phase) } animation: { _ in .easeInOut(duration: 0.9) }
+        .loadingPulse()
         .accessibilityLabel("Betöltés")
     }
 }
@@ -236,28 +242,55 @@ struct NewsSheet: View {
 private struct NewsArticle: View {
     let item: NewsItem
     let routes: [String: NewsRoute]
+    let onBack: () -> Void
     let onShowRoute: (String) -> Void
 
     var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: onBack) {
+                    HStack(spacing: 2) {
+                        Image(systemName: "chevron.left").font(.system(size: 16, weight: .medium))
+                        Text("Hírek").font(Theme.sans(13, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.mutedForeground)
+                    .padding(.leading, 6)
+                    .padding(.trailing, 12)
+                    .frame(height: 36)
+                    .contentShape(Rectangle().inset(by: -4))
+                }
+                .buttonStyle(.plain)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 10)
+            .padding(.trailing, 56)
+            .frame(height: 56)
+            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+            article
+        }
+        .background(Theme.background)
+    }
+
+    private var article: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 8) {
                     Text(NewsTime.published(item.modifiedAt))
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Theme.sans(12, weight: .medium))
                         .foregroundStyle(Theme.mutedForeground)
                     if let type = item.type {
                         Text(type.uppercased())
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(Theme.sans(10.5, weight: .semibold))
                             .tracking(0.6)
                             .foregroundStyle(Theme.mutedForeground)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1)
-                            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md - 4).strokeBorder(Theme.border, lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
                     }
                 }
                 Text(item.title)
-                    .font(.system(size: 20, weight: .bold))
-                    .tracking(-0.2)
+                    .font(Theme.sans(20, weight: .bold))
+                    .tracking(-0.24)
                     .foregroundStyle(Theme.foreground)
                     .padding(.top, 8)
                     .accessibilityAddTraits(.isHeader)
@@ -278,7 +311,7 @@ private struct NewsArticle: View {
                             }
                         }
                         Text("Koppints egy járatra: csak az marad a térképen.")
-                            .font(.system(size: 11.5))
+                            .font(Theme.sans(11.5))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                     .padding(.top, 16)
@@ -293,10 +326,6 @@ private struct NewsArticle: View {
             .padding(.top, 20)
             .padding(.bottom, 40)
         }
-        .background(Theme.background)
-        .navigationTitle("Hírek")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -313,7 +342,7 @@ struct NewsBodyView: View {
                     .padding(.top, gap(index > 0 ? blocks[index - 1].kind : nil, block.kind))
             }
         }
-        .font(.system(size: 14.5))
+        .font(Theme.sans(14.5))
         .lineSpacing(5)
         .foregroundStyle(Theme.foreground.opacity(0.85))
         .tint(Theme.primary)
@@ -331,9 +360,9 @@ struct NewsBodyView: View {
     private func blockView(_ block: NewsBlock) -> some View {
         switch block {
         case .heading(let runs):
-            Text(attributed(runs)).font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.foreground)
+            Text(attributed(runs)).font(Theme.sans(15, weight: .bold)).foregroundStyle(Theme.foreground)
         case .label(let runs):
-            Text(attributed(runs)).font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.foreground)
+            Text(attributed(runs)).font(Theme.sans(13.5, weight: .semibold)).foregroundStyle(Theme.foreground)
         case .paragraph(let runs):
             Text(attributed(runs))
         case .list(let items):
@@ -349,7 +378,7 @@ struct NewsBodyView: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     if index > 0 { Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(attributed(item.lead ?? [])).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.foreground)
+                        Text(attributed(item.lead ?? [])).font(Theme.sans(12.5, weight: .semibold)).foregroundStyle(Theme.foreground)
                         itemBody(item.runs)
                     }
                     .padding(.horizontal, 14)
@@ -383,14 +412,14 @@ struct NewsBodyView: View {
             }
             .padding(.top, 2)
         } else {
-            Text(attributed(runs)).font(.system(size: 14))
+            Text(attributed(runs)).font(Theme.sans(14))
         }
     }
 
     private func listLine(_ item: NewsListItem) -> AttributedString {
         guard let lead = item.lead else { return attributed(item.runs) }
         var head = attributed(lead)
-        head.font = .system(size: 14.5, weight: .semibold)
+        head.font = Theme.sans(14.5, weight: .semibold)
         head.foregroundColor = Theme.foreground
         return head + AttributedString(": ") + attributed(item.runs)
     }
@@ -404,16 +433,16 @@ struct NewsBodyView: View {
                 var piece = AttributedString(text)
                 piece.backgroundColor = Theme.hex(route.color)
                 piece.foregroundColor = Theme.hex(route.text, fallback: .white)
-                piece.font = .system(size: 12, weight: .heavy).monospacedDigit()
+                piece.font = Theme.sans(12, weight: .heavy).monospacedDigit()
                 out += piece
                 continue
             }
             var piece = AttributedString(text)
             if run.bold == true {
-                piece.font = .system(size: 14.5, weight: .semibold)
+                piece.font = Theme.sans(14.5, weight: .semibold)
                 piece.foregroundColor = Theme.foreground
             }
-            if run.italic == true { piece.font = .system(size: 14.5).italic() }
+            if run.italic == true { piece.font = Theme.sans(14.5).italic() }
             if let href = run.href, let url = URL(string: href) {
                 piece.link = url
                 piece.foregroundColor = Theme.primary

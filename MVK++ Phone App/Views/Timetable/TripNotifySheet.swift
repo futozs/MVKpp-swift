@@ -34,41 +34,42 @@ struct TripNotifySheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Értesítés \(vehicleLabel), \(departureLabel)")
-                        .font(.system(size: 18, weight: .semibold))
-                        .tracking(-0.3)
+                    Text("Értesítés: \(vehicleLabel), \(departureLabel)")
+                        .font(Theme.sans(18, weight: .semibold))
+                        .tracking(-0.45)
+                        .padding(.trailing, 24)
                         .foregroundStyle(Theme.foreground)
                     Text(description)
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if permissionDenied {
                     Text("Az értesítések le vannak tiltva ehhez az apphoz. Engedélyezd a Beállítások › Értesítések alatt, majd próbáld újra.")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.destructive.opacity(0.3), lineWidth: 1))
+                        .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.destructive.opacity(0.3), lineWidth: 1))
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(isDeparture ? "Riasztás ennyi perccel indulás előtt" : "Riasztás ennyi perccel érkezés előtt")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Theme.sans(14, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                     TextField("", text: $threshold)
                         .keyboardType(.numberPad)
                         .focused($thresholdFocused)
-                        .font(.system(size: 14))
+                        .font(Theme.sans(14))
                         .monospacedDigit()
                         .foregroundStyle(Theme.foreground)
                         .padding(.horizontal, 12)
                         .frame(width: 96, height: 36)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                                 .strokeBorder(thresholdFocused ? Theme.ring : Theme.input, lineWidth: 1)
                         )
                         .onChange(of: threshold) { _, value in
@@ -79,57 +80,46 @@ struct TripNotifySheet: View {
 
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Ismétlődő minden nap")
-                            .font(.system(size: 14, weight: .medium))
+                        Text("Ismétlődő, minden nap")
+                            .font(Theme.sans(14, weight: .medium))
                             .foregroundStyle(Theme.foreground)
-                        Text("Nem csak erre az egy napra, hanem minden napra szól, amikor a \(vehicleLabel) \(departureLabel)-kor közlekedik innen. Ez kell a napi iskolabuszhoz/munkába járáshoz egyszer állítod be, és nem kell újra minden alkalommal.")
-                            .font(.system(size: 11))
+                        Text("Nem csak erre az egy napra, hanem minden napra szól, amikor a \(vehicleLabel) \(departureLabel)-kor közlekedik innen. Ez kell a napi iskolabuszhoz/munkába járáshoz: egyszer állítod be, és nem kell újra minden alkalommal.")
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Toggle("Ismétlődő minden nap", isOn: $recurring)
+                    Toggle("Ismétlődő, minden nap", isOn: $recurring)
                         .labelsHidden()
                         .tint(Theme.primary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
-                HStack(spacing: 8) {
+                VStack(spacing: 8) {
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        Text("Mentés")
+                    }
+                    .buttonStyle(.mvk(fullWidth: true))
                     if existed {
-                        Button(role: .destructive) {
+                        Button {
                             notifications.removeWatch(stopId: stopId)
                             notifications.cancelAlarm(stopId: stopId)
                             dismiss()
                         } label: {
                             Label("Értesítés kikapcsolása", systemImage: "bell.slash")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Theme.foreground)
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+                        .buttonStyle(.mvk(.outline, fullWidth: true))
                     }
-                    Button {
-                        Task { await save() }
-                    } label: {
-                        Text("Mentés")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Theme.primaryForeground)
-                            .frame(maxWidth: .infinity, minHeight: 36)
-                            .background(Theme.primary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(24)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(Theme.card.ignoresSafeArea())
         .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
+        .mvkDialog()
         .sensoryFeedback(.success, trigger: existed)
         .task {
             await notifications.refreshAuthorization()

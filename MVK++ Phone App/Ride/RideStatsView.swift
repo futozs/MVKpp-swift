@@ -35,7 +35,7 @@ struct RideStatsView: View {
                 RideStatTile(label: "Begyűjtött megálló", value: "\(s.stopsCollected.count)", sub: "ahol fel- vagy leszálltál", tone: Theme.live)
                 RideStatTile(
                     label: "Pontos busz",
-                    value: s.onTimePct.map { "\($0)%" } ?? "—",
+                    value: s.onTimePct.map { "\($0)%" } ?? "",
                     sub: "felszálláskor ±1 percen belül",
                     tone: (s.onTimePct ?? 0) >= 70 ? Theme.ontime : Theme.late
                 )
@@ -72,7 +72,7 @@ struct RideStatsView: View {
                             }
                             .frame(height: 8)
                             Text("\(r.n)×").font(Theme.mono(12, weight: .regular)).frame(width: 40, alignment: .trailing)
-                            Text(r.avgDelayS.map(RideFormat.delayLabel) ?? "—")
+                            Text(r.avgDelayS.map(RideFormat.delayLabel) ?? "")
                                 .font(Theme.mono(11, weight: .regular))
                                 .foregroundStyle(RideFormat.delayTone(r.avgDelayS))
                                 .frame(width: 72, alignment: .trailing)
@@ -84,9 +84,9 @@ struct RideStatsView: View {
 
             RideChartFrame(title: "Rekordjaid") {
                 VStack(spacing: 10) {
-                    RideRecordCard(icon: "point.topleft.down.to.point.bottomright.curvepath", label: "Leghosszabb út", value: s.longest.map { "\(RideFormat.oneDecimal($0.value / 1000)) km" } ?? "—", legs: s.longest?.legs, day: Self.day)
-                    RideRecordCard(icon: "timer", label: "Legtöbb plusz idő a buszon", value: s.mostDelayed.map { "+\(RideFormat.minutes(Int(($0.value / 60).rounded())))" } ?? "—", legs: s.mostDelayed?.legs, day: Self.day)
-                    RideRecordCard(icon: "clock", label: "Leghosszabb ideig", value: s.longestTime.map { RideFormat.minutes(Int($0.value)) } ?? "—", legs: s.longestTime?.legs, day: Self.day)
+                    RideRecordCard(icon: "point.topleft.down.to.point.bottomright.curvepath", label: "Leghosszabb út", value: s.longest.map { "\(RideFormat.oneDecimal($0.value / 1000)) km" } ?? "", legs: s.longest?.legs, day: Self.day)
+                    RideRecordCard(icon: "timer", label: "Legtöbb plusz idő a buszon", value: s.mostDelayed.map { "+\(RideFormat.minutes(Int(($0.value / 60).rounded())))" } ?? "", legs: s.mostDelayed?.legs, day: Self.day)
+                    RideRecordCard(icon: "clock", label: "Leghosszabb ideig", value: s.longestTime.map { RideFormat.minutes(Int($0.value)) } ?? "", legs: s.longestTime?.legs, day: Self.day)
                 }
             }
 
@@ -113,8 +113,8 @@ struct RideStatsView: View {
         let fmt = { (sec: Double) in RideFormat.minutes(Int((sec / 60).rounded())) }
         if total < 60 {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Eddig nem vett el tőled időt a késés").font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.foreground)
-                Text(measured).font(.system(size: 12)).foregroundStyle(Theme.mutedForeground)
+                Text("Eddig nem vett el tőled időt a késés").font(Theme.sans(18, weight: .semibold)).foregroundStyle(Theme.foreground)
+                Text(measured).font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -122,7 +122,7 @@ struct RideStatsView: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 (Text(fmt(total)).fontWeight(.bold).foregroundColor(Theme.late) + Text(" ment el a késések miatt"))
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(Theme.sans(20, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 GeometryReader { proxy in
                     HStack(spacing: 2) {
@@ -140,7 +140,7 @@ struct RideStatsView: View {
                 }
                 .padding(.top, 16)
                 Rectangle().fill(Theme.border.opacity(0.6)).frame(height: 1).padding(.top, 16)
-                Text(measured).font(.system(size: 11.5)).foregroundStyle(Theme.mutedForeground).padding(.top, 12)
+                Text(measured).font(Theme.sans(11.5)).foregroundStyle(Theme.mutedForeground).padding(.top, 12)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -152,10 +152,10 @@ struct RideStatsView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 2).fill(swatch).frame(width: 10, height: 10)
-                Text(label).font(.system(size: 13)).foregroundStyle(Theme.mutedForeground)
+                Text(label).font(Theme.sans(13)).foregroundStyle(Theme.mutedForeground)
             }
-            Text(value).font(.system(size: 18, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.foreground).padding(.leading, 18)
-            Text(note).font(.system(size: 12)).foregroundStyle(Theme.mutedForeground).padding(.leading, 18)
+            Text(value).font(Theme.sans(18, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.foreground).padding(.leading, 18)
+            Text(note).font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground).padding(.leading, 18)
         }
     }
 
@@ -171,13 +171,13 @@ struct RideStatsView: View {
         }
         .chartXAxis {
             AxisMarks(values: Array(stride(from: 0, through: 21, by: 3))) { value in
-                AxisValueLabel { Text("\(value.as(Int.self) ?? 0)").font(.system(size: 10)).foregroundStyle(Theme.mutedForeground) }
+                AxisValueLabel { Text("\(value.as(Int.self) ?? 0)").font(Theme.sans(10)).foregroundStyle(Theme.mutedForeground) }
             }
         }
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
                 AxisGridLine().foregroundStyle(Theme.border.opacity(0.6))
-                AxisValueLabel().font(.system(size: 10)).foregroundStyle(Theme.mutedForeground)
+                AxisValueLabel().font(Theme.sans(10)).foregroundStyle(Theme.mutedForeground)
             }
         }
         .frame(height: 150)
@@ -194,7 +194,7 @@ struct RideStatsView: View {
                             .frame(height: 48 * CGFloat(stats.weekdays[i]) / CGFloat(max))
                     }
                     .frame(height: 48)
-                    Text(Self.weekdays[i]).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
+                    Text(Self.weekdays[i]).font(Theme.sans(10.5, weight: .semibold)).foregroundStyle(Theme.mutedForeground)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .ignore)
@@ -223,8 +223,8 @@ struct RideChartFrame<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .semibold)).tracking(-0.2).foregroundStyle(Theme.foreground)
-                    if let hint { Text(hint).font(.system(size: 11.5)).foregroundStyle(Theme.mutedForeground) }
+                    Text(title).font(Theme.sans(14, weight: .semibold)).tracking(-0.2).foregroundStyle(Theme.foreground)
+                    if let hint { Text(hint).font(Theme.sans(11.5)).foregroundStyle(Theme.mutedForeground) }
                 }
                 Spacer(minLength: 8)
                 if let icon { Image(systemName: icon).font(.system(size: 15)).foregroundStyle(Theme.mutedForeground) }
@@ -247,20 +247,20 @@ struct RideStatTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label.uppercased())
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(Theme.sans(10.5, weight: .semibold))
                 .tracking(0.7)
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Text(value)
-                .font(.system(size: 20, weight: .bold))
+                .font(Theme.sans(20, weight: .bold))
                 .tracking(-0.3)
                 .foregroundStyle(tone)
                 .padding(.top, 6)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
             if let sub {
-                Text(sub).font(.system(size: 11)).foregroundStyle(Theme.mutedForeground).padding(.top, 6).fixedSize(horizontal: false, vertical: true)
+                Text(sub).font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground).padding(.top, 6).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
@@ -285,7 +285,7 @@ struct RideRankBars: View {
     var body: some View {
         if rows.isEmpty {
             Text("Ehhez még nincs elég mérés.")
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(maxWidth: .infinity, minHeight: 96)
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg).stroke(Theme.border.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -297,9 +297,9 @@ struct RideRankBars: View {
                         Text("\(i + 1).").font(Theme.mono(11, weight: .regular)).foregroundStyle(Theme.mutedForeground).frame(width: 20, alignment: .trailing)
                         VStack(spacing: 4) {
                             HStack {
-                                Text(r.label).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.foreground).lineLimit(1)
+                                Text(r.label).font(Theme.sans(12.5, weight: .medium)).foregroundStyle(Theme.foreground).lineLimit(1)
                                 Spacer(minLength: 8)
-                                Text(r.display).font(.system(size: 12.5, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.foreground)
+                                Text(r.display).font(Theme.sans(12.5, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.foreground)
                             }
                             GeometryReader { proxy in
                                 ZStack(alignment: .leading) {
@@ -346,14 +346,14 @@ private struct RideStopChips: View {
         VStack(alignment: .leading, spacing: 12) {
             FlowLayout(spacing: 6) {
                 ForEach(all ? stops : Array(stops.prefix(Self.folded))) { s in
-                    RideChip { Text(s.name).font(.system(size: 12.5, weight: .medium)) } count: { s.n }
+                    RideChip { Text(s.name).font(Theme.sans(12.5, weight: .medium)) } count: { s.n }
                 }
             }
             if stops.count > Self.folded {
                 Button(all ? "Kevesebb" : "Mind a \(stops.count) megálló") {
                     withAnimation(Theme.Motion.normalAnimation) { all.toggle() }
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .foregroundStyle(Theme.primary)
             }
         }
@@ -371,22 +371,22 @@ private struct RideRecordCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: icon).font(.system(size: 12))
-                Text(label.uppercased()).font(.system(size: 10.5, weight: .semibold)).tracking(0.5)
+                Text(label.uppercased()).font(Theme.sans(10.5, weight: .semibold)).tracking(0.5)
             }
             .foregroundStyle(Theme.mutedForeground)
             if let first = legs?.first, let last = legs?.last {
-                Text(value).font(.system(size: 18, weight: .bold)).foregroundStyle(Theme.foreground).padding(.top, 6)
+                Text(value).font(Theme.sans(18, weight: .bold)).foregroundStyle(Theme.foreground).padding(.top, 6)
                 HStack(spacing: 6) {
                     RouteTile(short: first.route, colorHex: first.color, textHex: first.text, size: .small)
                     Text("\(first.fromStopName ?? "?") → \(last.toStopName ?? "?")").lineLimit(1)
                 }
-                .font(.system(size: 11.5))
+                .font(Theme.sans(11.5))
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 4)
                 Text(day.string(from: Date(timeIntervalSince1970: first.boardedAt)))
-                    .font(.system(size: 11)).foregroundStyle(Theme.mutedForeground).padding(.top, 2)
+                    .font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground).padding(.top, 2)
             } else {
-                Text("Még nincs mérés").font(.system(size: 14)).foregroundStyle(Theme.mutedForeground).padding(.top, 6)
+                Text("Még nincs mérés").font(Theme.sans(14)).foregroundStyle(Theme.mutedForeground).padding(.top, 6)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

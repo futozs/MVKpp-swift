@@ -178,7 +178,7 @@ struct StatsVehiclePanel: View {
                     }
                 } label: {
                     Text(shownDate.map { "\($0) · \(StatsFormat.shortWeekday($0))" } ?? "")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.foreground)
                         .frame(minWidth: 140, minHeight: 36)
@@ -199,7 +199,7 @@ struct StatsVehiclePanel: View {
 
                 if !days.isEmpty {
                     Text("\(days.count) nap adat")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.leading, 4)
                 }
@@ -273,7 +273,7 @@ struct StatsVehiclePanel: View {
                 ForEach(Array(runs.enumerated()), id: \.element.id) { i, r in
                     GridRow {
                         Text(routeLabel(r.route_short))
-                            .font(.system(size: 11, weight: .bold))
+                            .font(Theme.sans(11, weight: .bold))
                             .foregroundStyle(Theme.background)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -293,11 +293,11 @@ struct StatsVehiclePanel: View {
                             .foregroundStyle(Theme.mutedForeground)
                             .padding(8)
                         Text(status(r))
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                             .padding(8)
                     }
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .monospacedDigit()
                     .foregroundStyle(Theme.foreground)
                     if i < runs.count - 1 { Divider().overlay(Theme.border) }
@@ -309,7 +309,7 @@ struct StatsVehiclePanel: View {
 
     private func th(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 10, weight: .semibold))
+            .font(Theme.sans(10, weight: .semibold))
             .tracking(0.8)
             .foregroundStyle(Theme.mutedForeground)
             .padding(8)
@@ -364,11 +364,11 @@ struct StatsVehiclePanel: View {
                             .padding(.top, 2)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(incidentTitle(inc.kind))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(Theme.foreground)
                             if let note = inc.note {
                                 Text(note)
-                                    .font(.system(size: 11))
+                                    .font(Theme.sans(11))
                                     .foregroundStyle(Theme.mutedForeground)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -376,11 +376,11 @@ struct StatsVehiclePanel: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(inc.kind == "absence" && inc.absent_days != nil ? "\(inc.absent_days ?? 0) nap" : StatsFormat.duration(inc.duration_s))
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(Theme.sans(11, weight: .semibold))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.foreground)
                             Text("\(String(inc.service_date.dropFirst(5))) · \(inc.confidence)%")
-                                .font(.system(size: 10))
+                                .font(Theme.sans(10))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.mutedForeground)
                         }
@@ -394,7 +394,7 @@ struct StatsVehiclePanel: View {
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.ontime)
                 Text("Ehhez a járműhöz nincs rögzített üzemzavar.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity)
@@ -440,7 +440,7 @@ struct StatsRunTimeline: View {
                             let w = max(3, Double(r.sched_end_s - r.sched_start_s) / span * track)
                             let y = CGFloat(i) * rowH + 4
                             Text(StatsFormat.schedTime(r.sched_start_s))
-                                .font(.system(size: 10))
+                                .font(Theme.sans(10))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.mutedForeground)
                                 .offset(x: 0, y: y + 1)
@@ -451,7 +451,7 @@ struct StatsRunTimeline: View {
                                 .overlay(alignment: .leading) {
                                     if w > 26 {
                                         Text(label(r.route_short))
-                                            .font(.system(size: 10, weight: .bold))
+                                            .font(Theme.sans(10, weight: .bold))
                                             .foregroundStyle(Theme.background)
                                             .lineLimit(1)
                                             .padding(.leading, 6)
@@ -471,7 +471,7 @@ struct StatsRunTimeline: View {
 
                 if let picked, let r = runs[statsSafe: picked] {
                     Text("\(label(r.route_short)) · \(r.headsign ?? "")\nterv \(StatsFormat.schedTime(r.sched_start_s))–\(StatsFormat.schedTime(r.sched_end_s)) · megálló \(r.stops_seen)/\(r.stops_total) (\(r.quality)%) · indulási késés: \(StatsFormat.delay(r.start_delay_s))")
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -515,7 +515,7 @@ struct StatsTrackTrace: View {
                         Text("nap eleje")
                     }
                 }
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
             }
         }

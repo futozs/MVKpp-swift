@@ -21,7 +21,7 @@ struct HereChip: View {
             resolved(position)
         } else if location.status == .denied || location.status == .unavailable {
             Text(location.errorMessage ?? "A helymeghatározás nem érhető el.")
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(secondary)
         } else {
             askButton
@@ -37,7 +37,7 @@ struct HereChip: View {
                     .font(.system(size: 10))
                     .symbolEffect(.pulse, isActive: location.status == .requesting)
                 Text(location.status == .requesting ? "Helyzet keresése…" : "Hol vagyok?")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
             }
             .foregroundStyle(Theme.early)
             .padding(.horizontal, 10)
@@ -62,12 +62,12 @@ struct HereChip: View {
                 .opacity(location.isStale ? 0.5 : 1)
 
             Text("Itt vagy")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .foregroundStyle(secondary)
 
             if let hit {
                 Text(hit.item.name)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(Theme.sans(11, weight: .medium))
                     .foregroundStyle(primary)
                     .lineLimit(1)
                 Text(Geo.formatDistance(hit.km))
@@ -76,7 +76,7 @@ struct HereChip: View {
                     .layoutPriority(1)
             } else {
                 Text("a megállólistán kívül")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(secondary)
             }
         }

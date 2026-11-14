@@ -85,7 +85,7 @@ struct AppTabBar: View {
                 }
                 .frame(width: 48, height: 28)
                 Text(tab.short)
-                    .font(.system(size: 10.5, weight: isActive ? .semibold : .medium))
+                    .font(Theme.sans(10.5, weight: isActive ? .semibold : .medium))
                     .tracking(-0.1)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

@@ -52,7 +52,7 @@ struct ArrivalRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(arrival.title)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Theme.sans(12, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     if variant == .drawer, arrival.live, !arrival.isCancelled || arrival.vehicle != nil {
@@ -71,7 +71,7 @@ struct ArrivalRowView: View {
 
                 if let progress = arrival.progressDesc {
                     Text(progress)
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(1)
                 }
@@ -121,7 +121,7 @@ struct ArrivalRowView: View {
             if arrival.isCancelled {
                 if variant == .drawer {
                     Text("törölve")
-                        .font(.system(size: 10.5, weight: .bold))
+                        .font(Theme.sans(10.5, weight: .bold))
                         .textCase(.uppercase)
                         .tracking(0.5)
                         .foregroundStyle(Theme.destructive)
@@ -148,7 +148,7 @@ struct ArrivalRowView: View {
         Group {
             if arrival.isCancelled && variant == .card {
                 Text("nem jön")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.destructive)
             } else if arrival.etaMin <= 0 {
                 Text("most")
@@ -161,7 +161,7 @@ struct ArrivalRowView: View {
                         .font(Theme.mono(size))
                         .foregroundStyle(Theme.foreground)
                     Text(parts.unit == "perc" ? "p" : parts.unit)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }

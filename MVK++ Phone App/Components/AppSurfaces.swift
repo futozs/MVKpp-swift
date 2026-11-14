@@ -74,7 +74,7 @@ struct SectionLabel: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(text.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.mutedForeground)
             Spacer(minLength: 8)
@@ -93,7 +93,7 @@ struct ErrorNotice: View {
 
     var body: some View {
         Text(message)
-            .font(.caption)
+            .font(Theme.sans(12))
             .foregroundStyle(Theme.destructive)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)

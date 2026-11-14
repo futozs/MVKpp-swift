@@ -34,7 +34,7 @@ struct StopDetailSheet: View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(stop.name)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Theme.sans(14, weight: .bold))
                     .tracking(-0.2)
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
@@ -56,7 +56,7 @@ struct StopDetailSheet: View {
                         HStack(spacing: 6) {
                             LiveDot()
                             Text("valós idejű")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(Theme.sans(11, weight: .semibold))
                         }
                         .foregroundStyle(Theme.live)
                     }
@@ -110,7 +110,7 @@ struct StopDetailSheet: View {
         if let error = model.error, model.arrivals.isEmpty {
             ScrollView {
                 Text(error.reason)
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.destructive)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
@@ -131,7 +131,7 @@ struct StopDetailSheet: View {
             Spacer(minLength: 0)
         } else if model.arrivals.isEmpty {
             Text("Nincs közelgő indulás erről a megállóról.")
-                .font(.system(size: 14))
+                .font(Theme.sans(14))
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)

@@ -228,7 +228,7 @@ final class VehicleAnnotationView: MKAnnotationView {
         addSubview(ring)
 
         tile.textAlignment = .center
-        tile.font = .systemFont(ofSize: 11, weight: .heavy)
+        tile.font = Theme.uiSans(11, weight: .heavy)
         tile.layer.cornerCurve = .continuous
         tile.layer.borderColor = UIColor.black.withAlphaComponent(0.55).cgColor
         tile.clipsToBounds = true
@@ -241,7 +241,7 @@ final class VehicleAnnotationView: MKAnnotationView {
         layer.addSublayer(dash)
 
         plate.textAlignment = .center
-        plate.font = .monospacedDigitSystemFont(ofSize: 9.5, weight: .bold)
+        plate.font = Theme.uiMono(9.5)
         plate.backgroundColor = UIColor(Theme.popover).withAlphaComponent(0.97)
         plate.layer.cornerRadius = 5
         plate.layer.cornerCurve = .continuous
@@ -320,7 +320,7 @@ final class VehicleAnnotationView: MKAnnotationView {
             : UIColor(Theme.Shadow.color).cgColor
 
         let label = vehicle.labelText.map { ", \($0)" } ?? ""
-        accessibilityLabel = "\(vehicle.routeShort) — \(vehicle.headsign)\(label)"
+        accessibilityLabel = "\(vehicle.routeShort), \(vehicle.headsign)\(label)"
     }
 }
 

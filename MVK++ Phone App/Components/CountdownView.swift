@@ -41,7 +41,7 @@ struct CountdownView: View {
     private var value: some View {
         if etaMin <= 0 {
             Text("Most")
-                .font(.system(size: size == .large ? 14 : 12, weight: .heavy))
+                .font(Theme.sans(size == .large ? 14 : 12, weight: .heavy))
                 .textCase(.uppercase)
                 .tracking(0.4)
                 .foregroundStyle(Theme.primaryForeground)
@@ -55,7 +55,7 @@ struct CountdownView: View {
                     .font(Theme.mono(size == .large ? 32 : 20))
                     .foregroundStyle(Theme.foreground)
                 Text(parts.unit)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.mutedForeground)
             }
         }

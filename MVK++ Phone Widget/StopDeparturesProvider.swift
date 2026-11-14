@@ -163,7 +163,7 @@ struct StopDeparturesProvider: AppIntentTimelineProvider {
             return "Nincs kapcsolat a szerverrel."
         }
         return OfflineDepartures.knowsStop(stopId)
-            ? "Nincs kapcsolat — a menetrend szerint innen ma már nem indul járat."
+            ? "Nincs kapcsolat. A menetrend szerint innen ma már nem indul járat."
             : "Nincs kapcsolat, és ez a megálló nincs a letöltött menetrendben."
     }
 

@@ -137,7 +137,7 @@ extension APIClient {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             switch http.statusCode {
             case 404: throw StatsEngineError(message: "Erre a vonalra nincs adat.")
-            case 503: throw StatsEngineError(message: "A menetrend még töltődik próbáld újra pár másodperc múlva.")
+            case 503: throw StatsEngineError(message: "A menetrend még töltődik. Próbáld újra pár másodperc múlva.")
             default: throw StatsEngineError(message: "Hiba (\(http.statusCode))")
             }
         }

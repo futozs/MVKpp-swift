@@ -117,7 +117,7 @@ private struct RideStopsSummary: View {
         } else if state.phase == .turn {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Körbeutazás · \(state.turnName ?? "")").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.primary)
-                Text(state.destName.map { "Leszállás: \($0)" } ?? "Maradj ülve — a busz hamarosan továbbindul")
+                Text(state.destName.map { "Leszállás: \($0)" } ?? "Maradj ülve, a busz hamarosan továbbindul")
                     .font(.system(size: 13)).foregroundStyle(Theme.foreground).lineLimit(1)
             }
         } else if state.phase == .setup {

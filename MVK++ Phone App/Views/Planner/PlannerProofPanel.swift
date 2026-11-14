@@ -20,12 +20,12 @@ struct PlannerProofPanel: View {
                         Image(systemName: "checkmark.rectangle.stack")
                             .font(.system(size: 12, weight: .semibold))
                         Text("IGAZOLÁS")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(Theme.sans(11, weight: .semibold))
                             .tracking(0.6)
                     }
                     .foregroundStyle(Theme.mutedForeground)
                     Text("Bemásolható szöveg, pl. tanárnak vagy munkahelynek.")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -52,7 +52,7 @@ struct PlannerProofPanel: View {
                 }
                 row("Járművek") { vehicles }
             }
-            .font(.system(size: 12))
+            .font(Theme.sans(12))
             .foregroundStyle(Theme.foreground)
             .padding(.top, 12)
 
@@ -62,7 +62,7 @@ struct PlannerProofPanel: View {
                         .font(.system(size: 12))
                         .padding(.top, 1)
                     Text("A mért idők szerint az átszállás itt nem jött volna össze: \(missed.at). A tényleges érkezés ennél későbbi lett volna.")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(Theme.late)
@@ -76,8 +76,8 @@ struct PlannerProofPanel: View {
             if o.partial {
                 Text(o.untrackedRoutes.count < o.rideCount
                     ? "Részleges mérés: a(z) \(o.untrackedRoutes.joined(separator: ", ")) menetéről nincs adatunk."
-                    : "Erről az útról nincs mérésünk igazolásra nem alkalmas, csak a menetrendet mutatja.")
-                    .font(.system(size: 11))
+                    : "Erről az útról nincs mérésünk, igazolásra nem alkalmas, csak a menetrendet mutatja.")
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
@@ -140,7 +140,7 @@ private struct PlannerCopyButton: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(state == .copied ? Theme.ontime : Theme.foreground)
                 Text(state == .copied ? "Másolva" : "Másolás")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Theme.sans(12, weight: .medium))
                     .foregroundStyle(Theme.foreground)
                     .contentTransition(.opacity)
             }

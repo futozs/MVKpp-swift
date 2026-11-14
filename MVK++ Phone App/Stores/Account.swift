@@ -95,7 +95,7 @@ enum AccountService {
             }
             guard let object else {
                 if allowRetry { return await postJSON(path, body: body, session: session, allowRetry: false) }
-                return .failure(.reason("A szerver érvénytelen választ adott — próbáld újra."))
+                return .failure(.reason("A szerver érvénytelen választ adott. Próbáld újra."))
             }
             return .success(object)
         } catch {
@@ -125,7 +125,7 @@ enum AccountService {
         switch await postJSON("/account/passkey/register-verify", body: ["email": email, "response": credential]) {
         case .failure(let failure): return .failure(failure)
         case .success(let object):
-            guard let session = sessionFrom(object) else { return .failure(.reason("A szerver érvénytelen választ adott — próbáld újra.")) }
+            guard let session = sessionFrom(object) else { return .failure(.reason("A szerver érvénytelen választ adott. Próbáld újra.")) }
             AccountSession.store(session)
             return .success(session)
         }
@@ -146,7 +146,7 @@ enum AccountService {
         switch await postJSON("/account/passkey/login-verify", body: ["email": email, "response": credential]) {
         case .failure(let failure): return .failure(failure)
         case .success(let object):
-            guard let session = sessionFrom(object) else { return .failure(.reason("A szerver érvénytelen választ adott — próbáld újra.")) }
+            guard let session = sessionFrom(object) else { return .failure(.reason("A szerver érvénytelen választ adott. Próbáld újra.")) }
             AccountSession.store(session)
             return .success(session)
         }
@@ -215,7 +215,7 @@ private final class PasskeyCeremony: NSObject, ASAuthorizationControllerDelegate
               let user = options["user"] as? [String: Any],
               let userId = (user["id"] as? String).flatMap(Data.init(base64URL:)),
               let name = user["name"] as? String
-        else { return .failure(.reason("A szerver érvénytelen választ adott — próbáld újra.")) }
+        else { return .failure(.reason("A szerver érvénytelen választ adott. Próbáld újra.")) }
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: AccountService.relyingParty)
         let request = provider.createCredentialRegistrationRequest(challenge: challenge, name: name, userID: userId)
         if let exclude = options["excludeCredentials"] as? [[String: Any]] {
@@ -227,7 +227,7 @@ private final class PasskeyCeremony: NSObject, ASAuthorizationControllerDelegate
 
     static func assert(options: [String: Any]) async -> Result<[String: Any], AccountService.Failure> {
         guard let challenge = (options["challenge"] as? String).flatMap(Data.init(base64URL:)) else {
-            return .failure(.reason("A szerver érvénytelen választ adott — próbáld újra."))
+            return .failure(.reason("A szerver érvénytelen választ adott. Próbáld újra."))
         }
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: AccountService.relyingParty)
         let request = provider.createCredentialAssertionRequest(challenge: challenge)

@@ -55,7 +55,6 @@ struct MultiStopScreen: View {
         .sheet(isPresented: $isPickerOpen) {
             AddStopSheet(stops: store.stops)
                 .presentationDetents([.large])
-                .presentationBackground(Theme.background)
         }
         .onChange(of: nearestId) { _, id in
             guard id != nil, !isReordering else { return }
@@ -97,7 +96,7 @@ struct MultiStopScreen: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: item.2).font(.system(size: 12, weight: .semibold))
-                        Text(item.1).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                        Text(item.1).font(Theme.sans(12, weight: .semibold)).lineLimit(1)
                     }
                     .foregroundStyle(on ? Theme.foreground : Theme.mutedForeground)
                     .frame(maxWidth: .infinity, minHeight: 32)
@@ -188,7 +187,7 @@ struct MultiStopScreen: View {
                     CommuteCard()
                     if store.stops.isEmpty && !favorites.stopIds.isEmpty {
                         Text("Megállók betöltése…")
-                            .font(.system(size: 14))
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .padding(.vertical, 40)
                     } else {
@@ -330,7 +329,7 @@ struct MultiStopScreen: View {
                 .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
 
             Text("A figyelő üres")
-                .font(.system(size: 18, weight: .bold))
+                .font(Theme.sans(18, weight: .bold))
                 .tracking(-0.2)
                 .foregroundStyle(Theme.foreground)
                 .padding(.top, 16)
@@ -339,19 +338,15 @@ struct MultiStopScreen: View {
                 isPickerOpen = true
             } label: {
                 Label("Megállók böngészése", systemImage: "plus")
-                    .font(.system(size: 15, weight: .semibold))
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 44)
             }
-            .buttonStyle(.glassProminent)
-            .tint(Theme.primary)
+            .buttonStyle(.mvk(size: .large))
             .padding(.top, 20)
 
             HairlineDivider()
                 .padding(.top, 32)
 
             Text("Gyakori csomópontok")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(0.5)
                 .foregroundStyle(Theme.mutedForeground)
@@ -363,17 +358,8 @@ struct MultiStopScreen: View {
                         addByName(preset.match)
                     } label: {
                         Text(preset.label)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Theme.foreground)
-                            .padding(.horizontal, 12)
-                            .frame(minHeight: 36)
-                            .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                                    .strokeBorder(Theme.input, lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.mvk(.outline, size: .small))
                 }
             }
             .padding(.top, 12)

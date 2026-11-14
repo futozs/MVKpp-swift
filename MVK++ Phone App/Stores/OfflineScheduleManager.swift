@@ -222,7 +222,7 @@ final class OfflineScheduleManager: ObservableObject {
 
         if stored.isEmpty {
             errorMessage = lastError?.localizedDescription
-                ?? "A menetrend letöltése nem sikerült — ellenőrizd a hálózatot."
+                ?? "A menetrend letöltése nem sikerült. Ellenőrizd a hálózatot."
         } else if failures > 0 {
             errorMessage = "\(failures) nap nem jött le; a többi elérhető offline."
         }

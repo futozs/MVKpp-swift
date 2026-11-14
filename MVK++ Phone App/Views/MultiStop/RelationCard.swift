@@ -57,7 +57,7 @@ struct RelationCard: View {
                         .foregroundStyle(Theme.mutedForeground)
                     Text(toName).lineLimit(1)
                 }
-                .font(.system(size: 16, weight: .bold))
+                .font(Theme.sans(16, weight: .bold))
                 .tracking(-0.2)
                 .foregroundStyle(Theme.foreground)
 
@@ -66,7 +66,7 @@ struct RelationCard: View {
                         .font(.system(size: 10))
                     Text("Viszonylat · közvetlen járatok")
                 }
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,7 +110,7 @@ struct RelationCard: View {
                 RouteTile(short: Self.tileText(next), colorHex: next.color, textHex: next.text, size: .large)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(Self.title(next))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     HStack(spacing: 8) {
@@ -122,14 +122,14 @@ struct RelationCard: View {
                         if !next.cancelled { DelayBar(delaySec: next.depDelaySec) }
                     }
                     Text("\(next.durationMin) perc · \(next.stops - 2 > 0 ? "\(next.stops - 2) megálló közben" : "megállás nélkül")")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if next.cancelled {
                     Text("nem jön")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.destructive)
                         .padding(.top, 4)
                 } else {
@@ -161,7 +161,7 @@ struct RelationCard: View {
             RouteTile(short: Self.tileText(row), colorHex: row.color, textHex: row.text)
             VStack(alignment: .leading, spacing: 4) {
                 Text(Self.title(row))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Theme.sans(12, weight: .medium))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                 HStack(spacing: 8) {
@@ -174,7 +174,7 @@ struct RelationCard: View {
                     if !row.cancelled { DelayBar(delaySec: row.depDelaySec, showLabel: false) }
                     if !row.today {
                         Text("holnap")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Theme.sans(10, weight: .semibold))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                 }

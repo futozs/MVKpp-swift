@@ -36,11 +36,11 @@ struct AddStopSheet: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Felvétel a figyelőre")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(Theme.sans(18, weight: .semibold))
                     .tracking(-0.2)
                     .foregroundStyle(Theme.foreground)
                 Text(description)
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,7 +65,7 @@ struct AddStopSheet: View {
             HairlineDivider()
             HStack(spacing: 12) {
                 Text(footerText)
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button {
@@ -73,17 +73,13 @@ struct AddStopSheet: View {
                     dismiss()
                 } label: {
                     Text("Kész")
-                        .font(.system(size: 14, weight: .semibold))
-                        .padding(.horizontal, 6)
-                        .frame(minHeight: 32)
                 }
-                .buttonStyle(.glassProminent)
-                .tint(Theme.primary)
+                .buttonStyle(.mvk(size: .small))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
-        .background(Theme.background.ignoresSafeArea())
+        .mvkDialog()
         .task(id: trainSearchKey) { await searchTrains() }
     }
 
@@ -126,7 +122,7 @@ struct AddStopSheet: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: item.icon).font(.system(size: 12, weight: .semibold))
-                        Text(item.label).font(.system(size: 12, weight: .semibold))
+                        Text(item.label).font(Theme.sans(12, weight: .semibold))
                     }
                     .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                     .frame(maxWidth: .infinity, minHeight: 36)
@@ -147,7 +143,7 @@ struct AddStopSheet: View {
             if tab == .relation, let relFrom {
                 HStack(spacing: 8) {
                     Text(relFrom.name)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.sans(12, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -155,7 +151,7 @@ struct AddStopSheet: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                     Text("hová?")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                     Button {
                         self.relFrom = nil
@@ -195,7 +191,7 @@ struct AddStopSheet: View {
             if results.isEmpty {
                 let needle = query.trimmingCharacters(in: .whitespaces)
                 Text(needle.isEmpty ? "Megállók betöltése…" : "Nincs „\(needle)” nevű megálló a menetrendben.")
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -233,11 +229,11 @@ struct AddStopSheet: View {
                     .background(selected ? Theme.primary : Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(stop.name)
-                        .font(.system(size: 14, weight: selected ? .semibold : .medium))
+                        .font(Theme.sans(14, weight: selected ? .semibold : .medium))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     Text(kind)
-                        .font(kind == stop.id ? Theme.mono(11, weight: .regular) : .system(size: 11))
+                        .font(kind == stop.id ? Theme.mono(11, weight: .regular) : Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -354,7 +350,7 @@ struct AddStopSheet: View {
                 )
                 .accessibilityLabel("Vonatszám")
                 Text("A vonat minden nap ugyanazzal a számmal jár: a kártya mindig a ma (vagy ha már elment, a holnap) közlekedőt mutatja.")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -372,11 +368,11 @@ struct AddStopSheet: View {
                                 .frame(width: 32, height: 32)
                                 .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                             Text("\(HungarianText.withSuffix(train)) vonat")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Theme.sans(14, weight: .semibold))
                                 .foregroundStyle(Theme.foreground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Button("Levétel") { watches.toggleTrain(train) }
-                                .font(.system(size: 13, weight: .medium))
+                                .font(Theme.sans(13, weight: .medium))
                                 .buttonStyle(.plain)
                                 .foregroundStyle(Theme.foreground)
                                 .padding(.horizontal, 10)
@@ -398,11 +394,11 @@ struct AddStopSheet: View {
                                     .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(hit.name)
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(Theme.sans(14, weight: .medium))
                                         .foregroundStyle(Theme.foreground)
                                         .lineLimit(1)
                                     Text("\(hit.from) \(hit.departure) → \(hit.headsign)\(hit.today ? "" : " · holnap")")
-                                        .font(.system(size: 11))
+                                        .font(Theme.sans(11))
                                         .foregroundStyle(Theme.mutedForeground)
                                         .lineLimit(1)
                                 }
@@ -422,7 +418,7 @@ struct AddStopSheet: View {
                     }
                     if (2...6).contains(number.count), let trainHits, trainHits.isEmpty, !watches.trains.contains(number) {
                         Text("Ma és holnap nincs \(HungarianText.withSuffix(number)) vonat a megyét érintve.")
-                            .font(.system(size: 14))
+                            .font(Theme.sans(14))
                             .foregroundStyle(Theme.mutedForeground)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 20)
@@ -450,7 +446,7 @@ struct SearchField: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.mutedForeground))
-                .font(mono ? Theme.mono(14, weight: .regular) : .system(size: 14))
+                .font(mono ? Theme.mono(14, weight: .regular) : Theme.sans(14))
                 .foregroundStyle(Theme.foreground)
                 .keyboardType(keyboard)
                 .autocorrectionDisabled()

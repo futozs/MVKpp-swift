@@ -71,7 +71,7 @@ struct PlatformBadge: View {
                     .font(Theme.mono(10.5, weight: .bold))
                 if !compact {
                     Text(rail ? "vg." : "k.áll.")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(Theme.sans(10, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
@@ -114,7 +114,7 @@ struct NoticeList: View {
                             .foregroundStyle(Theme.late)
                             .padding(.top, 1)
                         Text(notice)
-                            .font(.system(size: compact ? 10.5 : 11.5))
+                            .font(Theme.sans(compact ? 10.5 : 11.5))
                             .foregroundStyle(Theme.mutedForeground)
                             .lineLimit(compact ? 1 : nil)
                             .fixedSize(horizontal: false, vertical: !compact)
@@ -136,7 +136,7 @@ struct SharedStopTag: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                 Text("közös megálló")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .foregroundStyle(Theme.foreground.opacity(0.8))
             }
             .accessibilityHint("Az MVK- és a Volán-megálló egy helyen áll: a táblán mindkettő járatai (a Beállításokban állítható).")
@@ -177,8 +177,8 @@ struct PredictedVehicleTag: View {
     static func isLoop(_ predicted: PredictedVehicle) -> Bool { predicted.method == "loop" }
 
     static func title(_ predicted: PredictedVehicle) -> String {
-        if predicted.method == "matched" { return "Már úton van a GPS-nyomvonal alapján ez a busz viszi" }
-        if isLoop(predicted) { return "Ez a busz most a végállomás felé jár, és ugyanonnan fordul vissza nem tipp" }
+        if predicted.method == "matched" { return "Már úton van: a GPS-nyomvonal alapján ez a busz viszi" }
+        if isLoop(predicted) { return "Ez a busz most a végállomás felé jár, és ugyanonnan fordul vissza, nem tipp" }
         return "Előrejelzés a korábbi fordák alapján, \(Int((predicted.confidence * 100).rounded()))% bizonyossággal"
     }
 }
@@ -205,7 +205,7 @@ struct CancelledTag: View {
     var body: some View {
         if prominent {
             Text("Törölve")
-                .font(.system(size: 10, weight: .bold))
+                .font(Theme.sans(10, weight: .bold))
                 .textCase(.uppercase)
                 .tracking(0.5)
                 .foregroundStyle(Theme.destructive)
@@ -218,7 +218,7 @@ struct CancelledTag: View {
                 )
         } else {
             Text("törölve")
-                .font(.system(size: 10, weight: .bold))
+                .font(Theme.sans(10, weight: .bold))
                 .textCase(.uppercase)
                 .foregroundStyle(Theme.destructive)
                 .padding(.horizontal, 6)

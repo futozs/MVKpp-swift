@@ -23,7 +23,7 @@ struct RoutePlannerScreen: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Útvonaltervező")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(Theme.sans(18, weight: .bold))
                             .tracking(-0.3)
                             .foregroundStyle(Theme.foreground)
                             .padding(.horizontal, 4)
@@ -66,7 +66,7 @@ struct RoutePlannerScreen: View {
                 .accessibilityLabel("Keresés…")
         case .error(let message):
             Text(message)
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.destructive)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
@@ -100,7 +100,7 @@ private struct PlannerResults: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(plan.from.name) → \(plan.to.name)")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                         .fixedSize(horizontal: false, vertical: true)
@@ -109,7 +109,7 @@ private struct PlannerResults: View {
                         Image(systemName: "calendar.badge.clock")
                             .font(.system(size: 11))
                         Text("\(PlannerFormat.longDate(PlannerFormat.localIsoDate(plan.at))) · \(when)")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(Theme.mutedForeground)
@@ -126,7 +126,7 @@ private struct PlannerResults: View {
                         .foregroundStyle(PlannerAmber.a300)
                         .padding(.top, 1)
                     Text("Az MVK erre a napra nem adott ki menetrendet, ezért \(PlannerFormat.dateAdjective(fallback)) menetrend alapján terveztünk. A valóságban eltérhet.")
-                        .font(.system(size: 12))
+                        .font(Theme.sans(12))
                         .foregroundStyle(PlannerAmber.a200)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -140,10 +140,10 @@ private struct PlannerResults: View {
             if plan.trips.isEmpty {
                 VStack(spacing: 4) {
                     Text("Ebben az időpontban nincs kapcsolat a két hely között.")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
-                    Text(emptyHint ?? "Éjszaka és hétvégén kevesebb járat közlekedik próbálj másik időpontot.")
-                        .font(.system(size: 12))
+                    Text(emptyHint ?? "Éjszaka és hétvégén kevesebb járat közlekedik, próbálj másik időpontot.")
+                        .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 .multilineTextAlignment(.center)
@@ -157,7 +157,7 @@ private struct PlannerResults: View {
                 )
             } else {
                 Text(Self.modeNote[plan.mode] ?? "")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .lineSpacing(3)
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
@@ -182,7 +182,7 @@ private struct PlannerResults: View {
                     .font(.system(size: 10, weight: .semibold))
             }
             Text(Self.modeTag[plan.mode] ?? "")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
         }
         .foregroundStyle(live ? Theme.live : Theme.foreground)
         .padding(.horizontal, 8)

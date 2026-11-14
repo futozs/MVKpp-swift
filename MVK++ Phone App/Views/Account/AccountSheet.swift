@@ -11,7 +11,6 @@ import SwiftUI
 struct AccountSheet: View {
     private enum Mode { case new, existing }
 
-    @Environment(\.dismiss) private var dismiss
     @State private var session = AccountSession.current
     @State private var mode: Mode = .new
     @State private var email = ""
@@ -25,7 +24,7 @@ struct AccountSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SheetHeader(icon: "person.crop.circle", title: "Fiók és felhős mentés", onClose: { dismiss() })
+            SheetHeader(icon: "person.crop.circle", title: "Fiók és felhős mentés")
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let session {
@@ -98,7 +97,7 @@ struct AccountSheet: View {
         let isOn = mode == value
         return Button { mode = value } label: {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
@@ -132,12 +131,12 @@ struct AccountSheet: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Theme.primary)
                     Text(session.email)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
                 Text(statusBusy ? "Állapot lekérdezése…" : "Utolsó szinkron: \(Self.when(status?.lastBackupAt)) · \(status?.credentialCount ?? 1) passkey")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .padding(14)
@@ -157,12 +156,12 @@ struct AccountSheet: View {
 
             if let actionNote {
                 Text(actionNote)
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
             }
 
             Text("Minden beállításod (figyelt megállók, kedvencek, értesítések, térkép- és szűrőbeállítások) automatikusan szinkronban van az összes bejelentkezett eszközöddel: ami itt változik, másodpercek alatt megjelenik a többin is. Ütközésnél a később módosított érték nyer.")
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)

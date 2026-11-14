@@ -42,9 +42,9 @@ struct TimetableTripPanel: View {
             heading
             if cancelled {
                 Text(day == .today
-                     ? "Az MVK kihúzta ezt a menetet ma nem közlekedik. Válassz másik indulást."
-                     : "Az MVK kihúzta ezt a menetet ezen a napon nem közlekedett.")
-                    .font(.system(size: 12))
+                     ? "Az MVK kihúzta ezt a menetet, ma nem közlekedik. Válassz másik indulást."
+                     : "Az MVK kihúzta ezt a menetet, ezen a napon nem közlekedett.")
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.destructive)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
@@ -97,7 +97,7 @@ struct TimetableTripPanel: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(trip.destinationName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                 Text(subtitle)
@@ -108,13 +108,13 @@ struct TimetableTripPanel: View {
                 if let variantLabel, let variant = trip.variant {
                     HStack(spacing: 6) {
                         Text(variant)
-                            .font(.system(size: 10, weight: .bold))
+                            .font(Theme.sans(10, weight: .bold))
                             .foregroundStyle(Theme.background)
                             .padding(.horizontal, 4)
                             .frame(minHeight: 16)
                             .background(Theme.early, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                         Text(variantLabel)
-                            .font(.system(size: 11.5, weight: .semibold))
+                            .font(Theme.sans(11.5, weight: .semibold))
                             .foregroundStyle(Theme.early)
                             .lineLimit(2)
                     }
@@ -122,7 +122,7 @@ struct TimetableTripPanel: View {
                 }
                 if !cancelled, let statusLabel, vehicle != nil || pastVehicleId != nil {
                     Text(statusLabel)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(state == .live ? Theme.live : Theme.mutedForeground)
                         .lineLimit(1)
                 }
@@ -151,7 +151,7 @@ struct TimetableTripPanel: View {
         if cancelled {
             HStack(spacing: 4) {
                 Image(systemName: "nosign").font(.system(size: 10, weight: .bold))
-                Text("TÖRÖLVE").font(.system(size: 11, weight: .bold)).tracking(0.5)
+                Text("TÖRÖLVE").font(Theme.sans(11, weight: .bold)).tracking(0.5)
             }
             .foregroundStyle(Theme.destructive)
             .padding(.horizontal, 8)
@@ -189,10 +189,10 @@ struct TimetableTripPanel: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(TimetablePressStyle(cornerRadius: 6))
-            .accessibilityLabel("\(TransitIds.vehicleIdTitle(pastVehicleId)) teljesítette ezt a menetet megnézem, hol jár most")
+            .accessibilityLabel("\(TransitIds.vehicleIdTitle(pastVehicleId)) teljesítette ezt a menetet. Megnézem, hol jár most")
         } else if let statusLabel {
             Text(statusLabel)
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(1)
                 .fixedSize()
@@ -205,7 +205,7 @@ struct TimetableTripPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             if !cancelled && state == .scheduled {
                 Text("Koppints egy megálló csengőjére, hogy szóljunk, mielőtt a busz odaér.")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.horizontal, 12)
                     .padding(.top, 8)
@@ -227,7 +227,7 @@ struct TimetableTripPanel: View {
         let actual = actuals.byStop[stop.id]
         return HStack(spacing: 8) {
             Text(stop.name)
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)

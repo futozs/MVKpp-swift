@@ -11,7 +11,6 @@ import UIKit
 /// do-not-disturb, the special alerts, the stop watches with editing, and the
 /// device's delivery log.
 struct NotificationsSheet: View {
-    @Environment(\.dismiss) private var dismiss
     @ObservedObject private var center = NotificationCenterStore.shared
     @ObservedObject private var alerts = AlertsStore.shared
     @ObservedObject private var push = PushService.shared
@@ -28,7 +27,7 @@ struct NotificationsSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SheetHeader(icon: "bell", title: "Értesítések", subtitle: "Mikor és milyen buszokról kapj figyelmeztetést.", onClose: { dismiss() })
+            SheetHeader(icon: "bell", title: "Értesítések", subtitle: "Mikor és milyen buszokról kapj figyelmeztetést.")
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     permissionRow
@@ -64,9 +63,9 @@ struct NotificationsSheet: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Értesítések ezen az eszközön")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                     Text(permissionText)
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                 }
                 Spacer(minLength: 8)
@@ -87,9 +86,9 @@ struct NotificationsSheet: View {
                 }
             }
             if enabledSaving {
-                Text("Mentés…").font(.system(size: 11)).foregroundStyle(Theme.mutedForeground)
+                Text("Mentés…").font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
             } else if let enabledNote {
-                Text(enabledNote).font(.system(size: 11)).foregroundStyle(Theme.early)
+                Text(enabledNote).font(Theme.sans(11)).foregroundStyle(Theme.early)
             }
         }
     }
@@ -113,7 +112,7 @@ struct NotificationsSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label {
-                    Text("Ne zavarj").font(.system(size: 14, weight: .semibold))
+                    Text("Ne zavarj").font(Theme.sans(14, weight: .semibold))
                 } icon: {
                     Image(systemName: "moon.stars").font(.system(size: 13)).foregroundStyle(Theme.primary)
                 }
@@ -128,15 +127,15 @@ struct NotificationsSheet: View {
                     timeField("Eddig", minutes: center.settings.dndEndMin) { value in applyDnd { $0.dndEndMin = value } }
                 }
             } else {
-                Text("Ilyenkor egyetlen értesítés sem érkezik sem a nyitott appban, sem lezárt telefonra.")
-                    .font(.system(size: 11))
+                Text("Ilyenkor egyetlen értesítés sem érkezik: sem a nyitott appban, sem lezárt telefonra.")
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if dndSaving {
-                Text("Mentés…").font(.system(size: 11)).foregroundStyle(Theme.mutedForeground)
+                Text("Mentés…").font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
             } else if let dndNote {
-                Text(dndNote).font(.system(size: 11)).foregroundStyle(Theme.early)
+                Text(dndNote).font(Theme.sans(11)).foregroundStyle(Theme.early)
             }
         }
         .padding(14)
@@ -147,7 +146,7 @@ struct NotificationsSheet: View {
 
     private func timeField(_ label: String, minutes: Int, onChange: @escaping (Int) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 11)).foregroundStyle(Theme.mutedForeground)
+            Text(label).font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
             DatePicker(label, selection: Binding(
                 get: { Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date() },
                 set: { date in
@@ -203,10 +202,10 @@ struct NotificationsSheet: View {
             if watches.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "bell.slash").font(.system(size: 13))
-                    Text("Egyetlen megállóra vagy indulásra sincs beállítva figyelés a menetrend vagy egy megálló kártyáján a csengő ikonnal adhatsz hozzá.")
+                    Text("Egyetlen megállóra vagy indulásra sincs beállítva figyelés. A menetrend vagy egy megálló kártyáján a csengő ikonnal adhatsz hozzá.")
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 16)
@@ -228,10 +227,10 @@ struct NotificationsSheet: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(watch.stopName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .lineLimit(1)
                 Text("\(Self.label(watch)) · \(watch.thresholdMin) percen belül\(watch.pushRegistered == true ? " · lezárt telefonra is" : "")")
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
             }
@@ -265,17 +264,17 @@ struct NotificationsSheet: View {
 
     private func editor(_ watch: NotifyWatch) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(watch.stopName).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+            Text(watch.stopName).font(Theme.sans(12, weight: .semibold)).lineLimit(1)
             HStack(alignment: .bottom, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Percen belül").font(.system(size: 11, weight: .medium))
+                    Text("Percen belül").font(Theme.sans(11, weight: .medium))
                     TextField("", value: $editThreshold, format: .number)
                         .textFieldStyle(MVKTextFieldStyle())
                         .keyboardType(.numberPad)
                         .frame(width: 80)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Járatok (üres = bármelyik)").font(.system(size: 11, weight: .medium))
+                    Text("Járatok (üres = bármelyik)").font(Theme.sans(11, weight: .medium))
                     TextField("", text: $editRoutes, prompt: Text("pl. 1, 2A").foregroundStyle(Theme.mutedForeground))
                         .textFieldStyle(MVKTextFieldStyle())
                         .textInputAutocapitalization(.characters)
@@ -349,9 +348,9 @@ struct AlertList: View {
                         HStack(spacing: 10) {
                             Image(systemName: d.icon).font(.system(size: 12)).foregroundStyle(Theme.primary)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(d.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                                Text(d.title).font(Theme.sans(12, weight: .semibold)).lineLimit(1)
                                 Text(d.sub + (alert.pushRegistered ? "" : " · push nélkül"))
-                                    .font(.system(size: 11))
+                                    .font(Theme.sans(11))
                                     .foregroundStyle(Theme.mutedForeground)
                                     .lineLimit(1)
                             }
@@ -417,9 +416,9 @@ struct DeliveryLog: View {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: m.icon).font(.system(size: 12)).foregroundStyle(m.tone).padding(.top, 2)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(row.title ?? row.stop_name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                            Text(row.title ?? row.stop_name).font(Theme.sans(12, weight: .medium)).lineLimit(1)
                             if let body = row.body {
-                                Text(body).font(.system(size: 11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
+                                Text(body).font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
                             }
                             Text("\(Self.when(row.created_at)) · \(m.label)\(row.attempts > 1 ? " · \(row.attempts). próbálkozásra" : "")\(row.status == "failed" ? row.last_error.map { " · \($0)" } ?? "" : "")")
                                 .font(Theme.mono(10, weight: .regular))

@@ -38,7 +38,7 @@ struct StatsPredictionOverview: View {
                     VStack(alignment: .leading, spacing: 2) {
                         StatsHeading("Rendszám-jóslás")
                         Text("Melyik busz viszi a még el nem indult menetet: a 30, 15 és 5 perccel előtte adott tippek, ahogy a menet indulásakor kiderült.")
-                            .font(.system(size: 12.5))
+                            .font(Theme.sans(12.5))
                             .foregroundStyle(Theme.mutedForeground)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -187,7 +187,7 @@ struct StatsPredictionOverview: View {
                 )
                 let strong = Text(verdict).fontWeight(.medium).foregroundStyle(Theme.foreground)
                 Text("\(strong) Zöld: legalább annyit talál, amennyit ígér; piros: kevesebbet.")
-                    .font(.system(size: 12))
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -233,12 +233,12 @@ struct StatsPredictionOverview: View {
                                 StatsRoutePill(route: r.route_short, color: r.color, text: r.text_color)
                                     .frame(width: 36, alignment: .leading)
                                 Text("\(StatsFormat.number(r.hits)) / \(StatsFormat.number(r.n)) tipp")
-                                    .font(.system(size: 11.5))
+                                    .font(Theme.sans(11.5))
                                     .foregroundStyle(Theme.mutedForeground)
                                     .lineLimit(1)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 Text(Self.pctLabel(p))
-                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .font(Theme.sans(12.5, weight: .semibold))
                                     .monospacedDigit()
                             }
                             GeometryReader { geo in
@@ -280,7 +280,7 @@ struct StatsPredictionOverview: View {
                                         Text("\(v.hits)/\(v.n)")
                                     }
                                 }
-                                .font(.system(size: 10.5))
+                                .font(Theme.sans(10.5))
                                 .monospacedDigit()
                                 .foregroundStyle(Theme.mutedForeground)
                                 .lineLimit(1)
@@ -306,7 +306,7 @@ struct StatsPredictionOverview: View {
                 }
                 if !onlyWrong.isEmpty {
                     Text("Csak téves tippben szerepelt: \(onlyWrong.map { "\($0.vehicle_id) (\($0.wrong_picks)×)" }.joined(separator: ", "))")
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -401,7 +401,7 @@ struct StatsPredictionTripList: View {
                     .foregroundStyle(Theme.foreground)
                 if multiDay {
                     Text("\(String(t.date.dropFirst(5)).replacingOccurrences(of: "-", with: ".")).")
-                        .font(.system(size: 10))
+                        .font(Theme.sans(10))
                         .monospacedDigit()
                         .foregroundStyle(Theme.mutedForeground)
                 }
@@ -411,7 +411,7 @@ struct StatsPredictionTripList: View {
                 HStack(spacing: 8) {
                     StatsRoutePill(route: t.route_short, color: t.color, text: t.text_color)
                     Text(t.headsign ?? "")
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(Theme.sans(12.5, weight: .medium))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                 }
@@ -419,7 +419,7 @@ struct StatsPredictionTripList: View {
                     ForEach(t.guesses, id: \.self) { g in guessChip(g) }
                     let actual = Text(t.actual).font(Theme.mono(11, weight: .semibold)).foregroundStyle(Theme.foreground)
                     Text("vitte: \(actual)")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(v == .hit ? Theme.ontime : v == .miss ? Theme.late : Theme.mutedForeground)
                 }
             }
@@ -442,7 +442,7 @@ struct StatsPredictionTripList: View {
                 .monospacedDigit()
                 .foregroundStyle(Theme.mutedForeground)
         }
-        .font(.system(size: 11))
+        .font(Theme.sans(11))
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background((g.ok ? Theme.ontime : Theme.late).opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))

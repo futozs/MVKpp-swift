@@ -86,11 +86,11 @@ struct KioskPicker: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Kijelző megállók")
-                    .font(.system(size: 18, weight: .bold))
+                Text("Kijelző: megállók")
+                    .font(Theme.sans(18, weight: .bold))
                     .tracking(-0.3)
                 Text("Legalább 1, legfeljebb \(KioskStops.maxCount) megálló, egymás mellett.")
-                    .font(.system(size: 12.5))
+                    .font(Theme.sans(12.5))
                     .foregroundStyle(Theme.mutedForeground)
             }
             Spacer(minLength: 0)
@@ -122,7 +122,7 @@ struct KioskPicker: View {
                         .font(Theme.mono(12, weight: .bold))
                         .foregroundStyle(Theme.mutedForeground)
                     Text(s?.name ?? id)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Theme.sans(14, weight: .semibold))
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if let tag = tag(s) {
@@ -148,7 +148,7 @@ struct KioskPicker: View {
             }
             if selected.isEmpty {
                 Text("Válassz megállót lent.")
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -163,7 +163,7 @@ struct KioskPicker: View {
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $query, prompt: Text(full ? "Legfeljebb \(KioskStops.maxCount) megálló" : "Megálló neve vagy kódja").foregroundStyle(Theme.mutedForeground))
-                .font(.system(size: 14))
+                .font(Theme.sans(14))
                 .focused($searchFocused)
                 .disabled(full)
                 .autocorrectionDisabled()
@@ -187,7 +187,7 @@ struct KioskPicker: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                 Text(s.name)
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -209,12 +209,8 @@ struct KioskPicker: View {
             onClose?()
         } label: {
             Text("Kijelző indítása")
-                .font(.system(size: 14, weight: .semibold))
-                .frame(maxWidth: .infinity, minHeight: 44)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(Theme.primary)
-        .foregroundStyle(Theme.primaryForeground)
+        .buttonStyle(.mvk(fullWidth: true, height: 44))
         .disabled(selected.isEmpty)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

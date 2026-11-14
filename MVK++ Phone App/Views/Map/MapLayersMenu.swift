@@ -61,13 +61,13 @@ struct MapLayersMenu: View {
                                     }
                                 }
                             Text(layer.short)
-                                .font(.system(size: 10, weight: on ? .semibold : .regular))
+                                .font(Theme.sans(10, weight: on ? .semibold : .regular))
                                 .foregroundStyle(on ? Theme.foreground : Theme.mutedForeground)
                                 .lineLimit(1)
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(layer.name) — \(layer.note)")
+                    .accessibilityLabel("\(layer.name), \(layer.note)")
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
@@ -79,11 +79,11 @@ struct MapLayersMenu: View {
                     SwiftUI.Toggle(isOn: Binding(get: { filters[keyPath: t.key] }, set: { filters[keyPath: t.key] = $0 })) {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(t.label)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(Theme.sans(13, weight: .medium))
                                 .foregroundStyle(Theme.foreground)
                             if let hint = t.hint {
                                 Text(hint)
-                                    .font(.system(size: 11))
+                                    .font(Theme.sans(11))
                                     .foregroundStyle(Theme.mutedForeground)
                             }
                             if t.traffic {
@@ -94,7 +94,7 @@ struct MapLayersMenu: View {
                                         .frame(width: 80, height: 6)
                                     Text("beállt")
                                 }
-                                .font(.system(size: 10))
+                                .font(Theme.sans(10))
                                 .foregroundStyle(Theme.mutedForeground)
                                 .padding(.top, 3)
                                 .accessibilityHidden(true)
@@ -116,7 +116,7 @@ struct MapLayersMenu: View {
 
     private func heading(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 11, weight: .semibold))
+            .font(Theme.sans(11, weight: .semibold))
             .tracking(0.5)
             .foregroundStyle(Theme.mutedForeground)
             .padding(.horizontal, 4)

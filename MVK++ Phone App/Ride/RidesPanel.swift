@@ -77,16 +77,16 @@ struct RidesPanel: View {
     private var header: some View {
         HStack(alignment: .bottom, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Utazásaim").font(.system(size: 18, weight: .bold)).tracking(-0.3).foregroundStyle(Theme.foreground)
+                Text("Utazásaim").font(Theme.sans(18, weight: .bold)).tracking(-0.3).foregroundStyle(Theme.foreground)
                 HStack(spacing: 6) {
                     Image(systemName: loggedIn ? "icloud" : "icloud.slash")
                         .font(.system(size: 12))
                         .foregroundStyle(loggedIn ? Theme.primary : Theme.mutedForeground)
                     Text(loggedIn
                          ? (store.unsyncedCount > 0 ? "\(store.unsyncedCount) utazás feltöltésre vár" : "Minden utazás a felhőben is megvan")
-                         : "Csak ezen az eszközön — jelentkezz be, és minden feltöltődik")
+                         : "Csak ezen az eszközön. Jelentkezz be, és minden feltöltődik")
                 }
-                .font(.system(size: 12.5))
+                .font(Theme.sans(12.5))
                 .foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,9 +99,9 @@ struct RidesPanel: View {
     private var empty: some View {
         VStack(spacing: 0) {
             Image(systemName: "map").font(.system(size: 22)).foregroundStyle(Theme.mutedForeground)
-            Text("Még nincs rögzített utazásod").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.foreground).padding(.top, 12)
+            Text("Még nincs rögzített utazásod").font(Theme.sans(14, weight: .semibold)).foregroundStyle(Theme.foreground).padding(.top, 12)
             Text("A térképen kövess egy buszt, és nyomd meg a „Felszálltam” gombot: megadod, hol szálltál fel és hol szállsz le (vagy hogy körbeutazol), a többit az app intézi. Egy korábbi utat a menetrendből is felvehetsz.")
-                .font(.system(size: 13))
+                .font(Theme.sans(13))
                 .foregroundStyle(Theme.mutedForeground)
                 .multilineTextAlignment(.center)
                 .padding(.top, 4)
@@ -205,7 +205,7 @@ struct JourneyRow: View {
                         RideEyebrow(text: "Körbeutazás · \(legs.count) menet", systemImage: "repeat", size: 10.5)
                     }
                     pathText(first: first, last: last)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.sans(13, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(2)
                     FlowLayout(spacing: 8) {
@@ -222,13 +222,13 @@ struct JourneyRow: View {
                             Text("utólag").padding(.horizontal, 4).background(Theme.muted, in: RoundedRectangle(cornerRadius: 4))
                         }
                     }
-                    .font(.system(size: 11.5))
+                    .font(Theme.sans(11.5))
                     .foregroundStyle(Theme.mutedForeground)
                     .padding(.top, 2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
-                    if let onExtend { action("repeat", label: "\(what): a végállomáson a buszon maradtam — körbeutazás hozzáadása", run: onExtend) }
+                    if let onExtend { action("repeat", label: "\(what): a végállomáson a buszon maradtam, körbeutazás hozzáadása", run: onExtend) }
                     if let onFix { action("pencil", label: "\(what): hol szálltál fel és le", run: onFix) }
                     action("trash", label: "\(what) törlése", run: onDelete)
                 }

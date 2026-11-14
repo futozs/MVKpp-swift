@@ -35,7 +35,7 @@ enum Preferences {
 
     static let modeItems: [ModeItem] = [
         ModeItem(id: .tram, key: "mvk_pref_mode_tram", label: "Villamos (MVK)", short: "Villamos", hint: "Az MVK villamosai a térképen, a figyelőben, a menetrendben és a statisztikában."),
-        ModeItem(id: .bus, key: "mvk_pref_mode_bus", label: "Városi busz (MVK)", short: "Busz", hint: "Az MVK buszai a városi járatok."),
+        ModeItem(id: .bus, key: "mvk_pref_mode_bus", label: "Városi busz (MVK)", short: "Busz", hint: "Az MVK buszai: a városi járatok."),
         ModeItem(id: .coach, key: "mvk_pref_mode_coach", label: "Helyközi busz (Volán)", short: "Volán", hint: "A MÁV-Volán buszai Borsod-Abaúj-Zemplénben, a Búza téri autóbusz-állomással és a kocsiállásokkal."),
         ModeItem(id: .rail, key: "mvk_pref_mode_rail", label: "Vonat (MÁV)", short: "Vonat", hint: "A megyét érintő vonatok az egész útjukon: vágány, késés és oka, hol jár most."),
     ]
@@ -45,7 +45,7 @@ enum Preferences {
 
     static let stopMergeKey = "mvk_pref_stop_merge"
     static let stopMergeItems: [StopMergeItem] = [
-        StopMergeItem(id: .all, label: "Összevonva", hint: "Egy megálló, és minden járat, ami ott megáll MVK és Volán együtt."),
+        StopMergeItem(id: .all, label: "Összevonva", hint: "Egy megálló, és minden járat, ami ott megáll: MVK és Volán együtt."),
         StopMergeItem(id: .mvk, label: "Csak MVK", hint: "A közös megállókban csak az MVK járatai látszanak."),
         StopMergeItem(id: .coach, label: "Csak Volán", hint: "A közös megállókban csak a Volán-buszok látszanak."),
         StopMergeItem(id: .off, label: "Külön", hint: "Az MVK- és a Volán-megálló külön, ahogy a menetrendben szerepel."),
@@ -57,10 +57,10 @@ enum Preferences {
     static let watchFeatures: [PrefItem] = [
         PrefItem(id: "catch", key: WatchFeatures.Feature.catchBus.key, label: "„Elérem?” indulj most", hint: "A következő indulásnál: a helyzetedből mikor indulj el, hogy elérd, és a „Szólj” gomb."),
         PrefItem(id: "leaveTimes", key: WatchFeatures.Feature.leaveTimes.key, label: "Indulási idők a sorokban", hint: "Minden indulás mellett az idő, amikorra el kell indulnod hozzá."),
-        PrefItem(id: "startRisk", key: WatchFeatures.Feature.startRisk.key, label: "Késve indulás előrejelzése", hint: "Ha a menet busza még az előző menetén késik még mielőtt az MVK kihúzná."),
+        PrefItem(id: "startRisk", key: WatchFeatures.Feature.startRisk.key, label: "Késve indulás előrejelzése", hint: "Ha a menet busza még az előző menetén késik, még mielőtt az MVK kihúzná."),
         PrefItem(id: "traffic", key: WatchFeatures.Feature.traffic.key, label: "Dugó a busz előtt", hint: "Ha az ide tartó busz előtt beállt a forgalom, mennyi pluszidőt hoz."),
         PrefItem(id: "forecast", key: WatchFeatures.Feature.forecast.key, label: "„Legrosszabb esetben” becslés", hint: "A következő busz várható legnagyobb késése ennél a megállónál."),
-        PrefItem(id: "predictedVehicle", key: WatchFeatures.Feature.predictedVehicle.key, label: "Rendszám-előrejelzés", hint: "Mielőtt a busz élőben megjelenne, a várható rendszámát ~ jellel mutatjuk a korábbi fordák alapján. Ahol a busz a végállomáson visszafordul, ott ~ nélkül: azt már tudjuk."),
+        PrefItem(id: "predictedVehicle", key: WatchFeatures.Feature.predictedVehicle.key, label: "Rendszám-előrejelzés", hint: "Mielőtt a busz élőben megjelenne, a várható rendszámát ~ jellel mutatjuk, a korábbi fordák alapján. Ahol a busz a végállomáson visszafordul, ott ~ nélkül: azt már tudjuk."),
         PrefItem(id: "replacement", key: WatchFeatures.Feature.replacement.key, label: "Kihúzott menet helyett", hint: "A törölt menet mellett, mikor jön helyette a következő ugyanazzal a vonallal."),
         PrefItem(id: "vehicleTrack", key: WatchFeatures.Feature.vehicleTrack.key, label: "A következő busz doboza", hint: "Jármű, sebesség, hol jár most, és követés a térképen."),
         PrefItem(id: "commute", key: WatchFeatures.Feature.commute.key, label: "„Szokásos utad” kártya", hint: "Az utazásnaplódból felismert rendszeres út a Figyelő tetején, a szokásos idő előtt."),

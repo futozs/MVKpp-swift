@@ -35,10 +35,10 @@ struct BaseMapList: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(layer.name)
-                            .font(.system(size: 15, weight: selected ? .semibold : .medium))
+                            .font(Theme.sans(15, weight: selected ? .semibold : .medium))
                             .foregroundStyle(Theme.foreground)
                         Text(layer.note)
-                            .font(.system(size: 12))
+                            .font(Theme.sans(12))
                             .foregroundStyle(Theme.mutedForeground)
                     }
 

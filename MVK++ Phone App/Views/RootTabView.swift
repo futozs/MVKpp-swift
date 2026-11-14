@@ -61,10 +61,10 @@ struct RootTabView: View {
             )
         }
         .background(Theme.background.ignoresSafeArea())
-        .sheet(isPresented: $navigation.isSettingsOpen) { SettingsSheet().mvkSheet() }
-        .sheet(isPresented: $navigation.isNotificationsOpen) { NotificationsSheet().mvkSheet() }
-        .sheet(isPresented: $navigation.isAccountOpen) { AccountSheet().mvkSheet() }
-        .sheet(isPresented: $navigation.isDisruptionsOpen) { DisruptionsSheet().mvkSheet() }
+        .sheet(isPresented: $navigation.isSettingsOpen) { SettingsSheet().mvkDialog(cornerRadius: Theme.Radius.xl) }
+        .sheet(isPresented: $navigation.isNotificationsOpen) { NotificationsSheet().mvkDialog(cornerRadius: Theme.Radius.xl) }
+        .sheet(isPresented: $navigation.isAccountOpen) { AccountSheet().mvkDialog(cornerRadius: Theme.Radius.xl) }
+        .sheet(isPresented: $navigation.isDisruptionsOpen) { DisruptionsSheet().mvkDialog() }
         .fullScreenCover(isPresented: kioskBinding) {
             KioskScreen(stopIds: navigation.kioskStopIds ?? []) { navigation.kioskStopIds = nil }
         }

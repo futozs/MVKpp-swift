@@ -128,7 +128,7 @@ struct StopDeparturesView: View {
                     Image(systemName: "antenna.radiowaves.left.and.right.slash")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Theme.offline)
-                        .accessibilityLabel("Offline — menetrend szerinti idők")
+                        .accessibilityLabel("Offline, menetrend szerinti idők")
                 }
 
                 // The tap opens the Megállófigyelő on this stop, so the

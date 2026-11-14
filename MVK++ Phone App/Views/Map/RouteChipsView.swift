@@ -29,7 +29,7 @@ struct RouteChipsView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 TextField("Járatszám vagy útvonal", text: $query)
-                    .font(.system(size: 13))
+                    .font(Theme.sans(13))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
@@ -39,7 +39,7 @@ struct RouteChipsView: View {
 
             if visibleRoutes.isEmpty {
                 Text("Nincs „\(query)” jelzésű járat.")
-                    .font(.caption)
+                    .font(Theme.sans(12))
                     .foregroundStyle(Theme.mutedForeground)
             } else {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 6) {
@@ -63,7 +63,7 @@ struct RouteChipsView: View {
             Button("Egy sem") { selectedRoutes = [] }
                 .disabled(selectedRoutes.isEmpty)
         }
-        .font(.system(size: 11, weight: .semibold))
+        .font(Theme.sans(11, weight: .semibold))
         .buttonStyle(.bordered)
         .buttonBorderShape(.roundedRectangle(radius: Theme.Radius.sm))
         .controlSize(.small)
@@ -88,7 +88,7 @@ struct RouteChipsView: View {
                 }
 
                 Text(route.short)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(Theme.sans(12, weight: .bold))
                     .monospacedDigit()
 
                 if liveCount > 0 {

@@ -55,7 +55,7 @@ struct PlannerForm: View {
                     PlannerDateField(value: $model.form.date, label: model.form.arriveBy ? "Érkezés napja" : "Indulás napja")
                     PlannerTimeField(value: $model.form.time, label: model.form.arriveBy ? "Érkezés ideje" : "Indulás ideje")
                     Button("Most") { model.setNow() }
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Theme.sans(12, weight: .medium))
                         .foregroundStyle(Theme.primary)
                         .padding(.horizontal, 8)
                         .frame(height: 32)
@@ -69,7 +69,7 @@ struct PlannerForm: View {
                 .padding(.top, 8)
 
             Text(model.form.from.isEmpty || model.form.from != model.form.to ? Self.hint[mode] ?? "" : "A kiinduló- és a célpont ugyanaz.")
-                .font(.system(size: 11))
+                .font(Theme.sans(11))
                 .foregroundStyle(mode == .past ? Theme.early : Theme.mutedForeground)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 12)
@@ -88,7 +88,7 @@ struct PlannerForm: View {
                 Image(systemName: mode == .past ? "clock.arrow.circlepath" : "magnifyingglass")
                     .font(.system(size: 14, weight: .semibold))
                 Text(model.isLoading ? "Keresés…" : mode == .past ? "Mi történt akkor?" : "Útvonal keresése")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Theme.sans(14, weight: .medium))
             }
             .foregroundStyle(Theme.primaryForeground)
             .frame(maxWidth: .infinity)
@@ -127,7 +127,7 @@ private struct PlannerSegmented: View {
             withAnimation(Theme.Motion.fastAnimation) { arriveBy = value }
         } label: {
             Text(label)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.sans(12, weight: .semibold))
                 .foregroundStyle(selected ? Theme.primaryForeground : Theme.mutedForeground)
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
@@ -160,7 +160,7 @@ struct PlannerPlaceSelect: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.mutedForeground)
 
@@ -173,12 +173,12 @@ struct PlannerPlaceSelect: View {
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Theme.primary)
                         Text(selected.name)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Theme.sans(14, weight: .semibold))
                             .foregroundStyle(Theme.foreground)
                             .lineLimit(1)
                         Spacer(minLength: 8)
                         Text("módosít")
-                            .font(.system(size: 11))
+                            .font(Theme.sans(11))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                     .padding(.horizontal, 12)
@@ -195,7 +195,7 @@ struct PlannerPlaceSelect: View {
                 .accessibilityHint("módosít")
             } else {
                 TextField("", text: $text, prompt: Text("Megálló neve…").foregroundStyle(Theme.mutedForeground))
-                    .font(.system(size: 14))
+                    .font(Theme.sans(14))
                     .foregroundStyle(Theme.foreground)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -224,7 +224,7 @@ struct PlannerPlaceSelect: View {
                                         .font(.system(size: 12))
                                         .foregroundStyle(Theme.mutedForeground)
                                     Text(place.name)
-                                        .font(.system(size: 13))
+                                        .font(Theme.sans(13))
                                         .foregroundStyle(Theme.foreground)
                                         .lineLimit(1)
                                     Spacer(minLength: 0)
@@ -243,7 +243,7 @@ struct PlannerPlaceSelect: View {
                     .transition(.opacity)
                 } else if !text.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text("Nincs ilyen nevű megálló.")
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 4)
                 }
@@ -294,7 +294,7 @@ private struct PlannerTravelModes: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("MIVEL UTAZNÁL?")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.sans(11, weight: .semibold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.mutedForeground)
             FlowLayout(spacing: 8, lineSpacing: 8) {
@@ -325,7 +325,7 @@ private struct PlannerTravelModes: View {
                 .frame(width: 16, height: 16)
                 .opacity(locked ? 0.7 : 1)
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(checked ? Theme.foreground : Theme.mutedForeground)
             }
             .padding(.horizontal, 12)
@@ -361,7 +361,7 @@ private struct PlannerDateField: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.mutedForeground)
                 Text(PlannerFormat.shortDate(value))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(Theme.foreground)
             }
@@ -403,7 +403,7 @@ private struct PlannerCalendar: View {
                 monthButton("chevron.left", "Előző hónap", -1)
                 Spacer()
                 Text("\(PlannerFormat.monthNames[viewMonth].capitalized) \(String(viewYear))")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                 Spacer()
                 monthButton("chevron.right", "Következő hónap", 1)
@@ -412,7 +412,7 @@ private struct PlannerCalendar: View {
                 GridRow {
                     ForEach(Self.weekdays, id: \.self) { day in
                         Text(day.uppercased())
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Theme.sans(10, weight: .semibold))
                             .foregroundStyle(Theme.mutedForeground)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 4)
@@ -435,7 +435,7 @@ private struct PlannerCalendar: View {
                 open = false
             } label: {
                 Text("Ma")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.sans(11, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
@@ -520,7 +520,7 @@ private struct PlannerTimeField: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.mutedForeground)
                 Text(value)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .monospacedDigit()
                     .lineLimit(1)
                     .fixedSize()

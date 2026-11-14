@@ -75,7 +75,7 @@ struct TrainCard: View {
                 RouteTile(short: tile, colorHex: data?.route?.color ?? "1E5AA8", textHex: data?.route?.text ?? "FFFFFF", size: .large, capsule: true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(Theme.sans(16, weight: .bold))
                         .tracking(-0.2)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
@@ -84,7 +84,7 @@ struct TrainCard: View {
                             .font(.system(size: 10))
                         Text(subtitle)
                     }
-                    .font(.system(size: 11))
+                    .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
                 }
             }
@@ -144,14 +144,14 @@ struct TrainCard: View {
             .padding(.bottom, 8)
 
             Text(line)
-                .font(.system(size: 14, weight: .semibold))
+                .font(Theme.sans(14, weight: .semibold))
                 .foregroundStyle(Theme.foreground)
 
             if data.cancelled != true {
                 HStack(spacing: 8) {
                     DelayBar(delaySec: delay)
                     Text(DelayFormat.sentence(delay))
-                        .font(.system(size: 11))
+                        .font(Theme.sans(11))
                         .foregroundStyle(Theme.mutedForeground)
                     if let speed = data.vehicle?.speed {
                         Text("\(Int((speed * 3.6).rounded())) km/h")
@@ -184,7 +184,7 @@ struct TrainCard: View {
                 .fill(stop.passed ? Theme.mutedForeground.opacity(0.5) : Theme.primary)
                 .frame(width: 8, height: 8)
             Text(stop.name)
-                .font(.system(size: 12, weight: .medium))
+                .font(Theme.sans(12, weight: .medium))
                 .foregroundStyle(Theme.foreground)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)

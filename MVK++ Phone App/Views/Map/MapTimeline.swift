@@ -163,8 +163,7 @@ struct MapTimelineBar: View {
             if let error = days.error {
                 status(error) {
                     Button("Újra") { Task { await days.load() } }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .buttonStyle(.mvk(.outline, size: .small))
                 }
             } else if let list = days.days {
                 if list.isEmpty {
@@ -189,7 +188,7 @@ struct MapTimelineBar: View {
     private func status<Extra: View>(_ text: String, @ViewBuilder extra: () -> Extra) -> some View {
         HStack(spacing: 12) {
             Text(text)
-                .font(.system(size: 12))
+                .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(maxWidth: .infinity, alignment: .leading)
             extra()
@@ -208,7 +207,7 @@ struct MapTimelineExitButton: View {
                 Image(systemName: "dot.radiowaves.left.and.right")
                 Text("Vissza élőbe")
             }
-            .font(.system(size: compact ? 12 : 13, weight: .semibold))
+            .font(Theme.sans(compact ? 12 : 13, weight: .semibold))
             .foregroundStyle(Theme.secondaryForeground)
             .padding(.horizontal, 12)
             .frame(minHeight: compact ? 44 : 36)
@@ -396,7 +395,7 @@ private struct MapTimelinePlayer: View {
     private var clock: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(MapHistoryTime.clock(playback.cursor))
-                .font(.system(size: 26, weight: .bold, design: .monospaced))
+                .font(Theme.mono(26, weight: .bold))
                 .tracking(-0.5)
                 .foregroundStyle(Theme.foreground)
                 .lineLimit(1)
@@ -406,7 +405,7 @@ private struct MapTimelinePlayer: View {
                 Text("·").accessibilityHidden(true)
                 statusView
             }
-            .font(.system(size: 11))
+            .font(Theme.sans(11))
             .foregroundStyle(Theme.mutedForeground)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -416,15 +415,15 @@ private struct MapTimelinePlayer: View {
     private var statusView: some View {
         if !playback.stats.ready || playback.buffering {
             if frames.error != nil {
-                Button("Betöltési hiba újra") { frames.retry() }
-                    .font(.system(size: 11, weight: .semibold))
+                Button("Betöltési hiba. Újra") { frames.retry() }
+                    .font(Theme.sans(11, weight: .semibold))
                     .foregroundStyle(Theme.destructive)
                     .underline()
                     .buttonStyle(.plain)
             } else {
                 HStack(spacing: 6) {
                     Circle().fill(Theme.primary).frame(width: 6, height: 6)
-                        .symbolEffect(.pulse)
+                        .loadingPulse()
                     Text("Betöltés…")
                 }
                 .foregroundStyle(Theme.primary)
@@ -446,7 +445,7 @@ private struct MapTimelinePlayer: View {
         } label: {
             HStack(spacing: 8) {
                 Text(MapHistoryTime.dayLabel(day, short: true))
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Theme.sans(14, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                 Spacer(minLength: 4)

@@ -27,8 +27,8 @@ enum TimetableGroup: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .all: return ""
-        case .mvk: return "MVK busz és villamos"
-        case .coach: return "Volán helyközi busz"
+        case .mvk: return "MVK: busz és villamos"
+        case .coach: return "Volán: helyközi busz"
         case .rail: return "Vonat"
         }
     }

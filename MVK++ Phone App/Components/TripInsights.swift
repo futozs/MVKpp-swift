@@ -16,7 +16,7 @@ enum TripInsightText {
 
     static func catchText(_ verdict: CatchBus.Verdict) -> String {
         switch verdict.state {
-        case .relax: return "Ráérsz indulj \(BudapestClock.hm(verdict.leaveAtUnix))-kor"
+        case .relax: return "Ráérsz, indulj \(BudapestClock.hm(verdict.leaveAtUnix))-kor"
         case .go: return "Indulj most"
         case .run: return "Csak futva éred el (\(minutes(verdict.runS)))"
         case .missed: return "Ezt már nem éred el"
@@ -96,7 +96,7 @@ struct CatchLine: View {
                                     .font(.system(size: 10, weight: .bold))
                             }
                             Text(alertOn ? "Szólok" : "Szólj")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(Theme.sans(11, weight: .bold))
                                 .underline(alertOn, pattern: .dot)
                         }
                         .padding(.horizontal, 6)
@@ -107,10 +107,10 @@ struct CatchLine: View {
                     .buttonStyle(.plain)
                     .disabled(alertBusy)
                     .accessibilityAddTraits(alertOn ? .isSelected : [])
-                    .accessibilityHint(alertOn ? "Szólok, amikor indulni kell koppints a kikapcsoláshoz" : "Szólj, amikor indulnom kell (a sétával együtt számolva)")
+                    .accessibilityHint(alertOn ? "Szólok, amikor indulni kell. Koppints a kikapcsoláshoz" : "Szólj, amikor indulnom kell (a sétával együtt számolva)")
                 }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(Theme.sans(12, weight: .semibold))
             .foregroundStyle(tone.fg)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -141,7 +141,7 @@ struct StartRiskLine: View {
                     .fixedSize(horizontal: false, vertical: !compact)
                     .lineLimit(compact ? 1 : nil)
             }
-            .font(.system(size: compact ? 10.5 : 11.5, weight: .semibold))
+            .font(Theme.sans(compact ? 10.5 : 11.5, weight: .semibold))
             .foregroundStyle(missed ? Theme.late : TransitTone.amber)
         }
     }
@@ -176,7 +176,7 @@ struct TrafficLine: View {
                     .fixedSize(horizontal: false, vertical: !compact)
                     .lineLimit(compact ? 1 : nil)
             }
-            .font(.system(size: compact ? 10.5 : 11.5, weight: .semibold))
+            .font(Theme.sans(compact ? 10.5 : 11.5, weight: .semibold))
             .foregroundStyle(heavy ? Theme.late : TransitTone.amber)
             .accessibilityHint("\(traffic.fromName) → \(traffic.toName)")
         }
@@ -209,7 +209,7 @@ struct ReplacementNote: View {
                         .foregroundStyle(Theme.mutedForeground)
                 }
             }
-            .font(.system(size: compact ? 10.5 : 11.5, weight: .semibold))
+            .font(Theme.sans(compact ? 10.5 : 11.5, weight: .semibold))
             .foregroundStyle(Theme.ontime)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
@@ -217,8 +217,8 @@ struct ReplacementNote: View {
             .fixedSize()
             .padding(.top, compact ? 0 : 8)
         } else if !compact {
-            Text("Az MVK kihúzta a közeli indulások között nincs helyette ugyanilyen.")
-                .font(.system(size: 11.5, weight: .semibold))
+            Text("Az MVK kihúzta, a közeli indulások között nincs helyette ugyanilyen.")
+                .font(Theme.sans(11.5, weight: .semibold))
                 .foregroundStyle(Theme.destructive)
                 .fixedSize(horizontal: false, vertical: true)
         }

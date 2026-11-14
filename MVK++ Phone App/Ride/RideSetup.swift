@@ -57,7 +57,7 @@ struct RideSetupView: View {
         VStack(alignment: .leading, spacing: 0) {
             RideStepHead(
                 title: "Hol szállsz le?",
-                hint: "Ha a busz odaért, magától lezárom az utazást — akkor is, ha közben nem nyitod meg az appot.",
+                hint: "Ha a busz odaért, magától lezárom az utazást, akkor is, ha közben nem nyitod meg az appot.",
                 onBack: canClose ? { controller.step = nil } : { controller.step = .from }
             )
             Button {
@@ -67,7 +67,7 @@ struct RideSetupView: View {
                     Image(systemName: "mappin").font(.system(size: 11))
                     Text("Felszállás: ") + Text(trip.stops.indices.contains(fromIdx) ? trip.stops[fromIdx].name : "").fontWeight(.semibold).foregroundColor(Theme.foreground)
                 }
-                .font(.system(size: 11.5))
+                .font(Theme.sans(11.5))
                 .foregroundStyle(Theme.mutedForeground)
                 .contentShape(Rectangle())
             }
@@ -91,17 +91,11 @@ struct RideSetupView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "repeat").foregroundStyle(Theme.primary)
-                        Text("Körbeutazok — \(terminus)-nál a buszon maradok").lineLimit(1)
+                        Text("Körbeutazok, \(terminus)-nál a buszon maradok").lineLimit(1)
                         Spacer(minLength: 0)
                     }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Theme.foreground)
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 38)
-                    .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).stroke(Theme.primary.opacity(0.5), lineWidth: 1))
                 }
-                .buttonStyle(RidePressStyle())
+                .buttonStyle(.mvk(.outline, fullWidth: true, border: Theme.primary.opacity(0.5)))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
@@ -139,7 +133,7 @@ struct RideLoopStep: View {
         VStack(alignment: .leading, spacing: 0) {
             RideStepHead(
                 title: "Körbeutazás: hol szállsz le?",
-                hint: "\(terminus)-nál a buszon maradsz. Válaszd ki, hol szállsz le a következő menetéből — odáig magától viszem tovább az utazást.",
+                hint: "\(terminus)-nál a buszon maradsz. Válaszd ki, hol szállsz le a következő menetéből, odáig magától viszem tovább az utazást.",
                 onBack: onBack
             )
             switch loaded {
@@ -172,7 +166,7 @@ struct RideLoopStep: View {
     private var fallback: some View {
         VStack(spacing: 12) {
             Text("Még nem látom, melyik menettel megy tovább a busz.")
-                .font(.system(size: 14)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
+                .font(Theme.sans(14)).foregroundStyle(Theme.mutedForeground).multilineTextAlignment(.center)
             RideButton(title: "Körbeutazok, a leszállást később adom meg", systemImage: "repeat") {
                 onLoop(LoopPlan(stopId: nil, stopName: nil, tripId: nil))
             }
@@ -188,7 +182,7 @@ struct RideLoopStep: View {
             (Text("\(next.headsign) · indul ") + Text(next.depTime).font(Theme.mono(12, weight: .semibold)).foregroundColor(Theme.foreground))
                 .lineLimit(1)
         }
-        .font(.system(size: 12))
+        .font(Theme.sans(12))
         .foregroundStyle(Theme.mutedForeground)
         .padding(.horizontal, 16)
         .padding(.bottom, 4)
@@ -230,18 +224,18 @@ struct TurnCard: View {
             let late = next.map { max(0, now - $0.depTs) } ?? 0
             VStack(alignment: .leading, spacing: 0) {
                 RideEyebrow(text: "Körbeutazás · \(turn.terminusName)", systemImage: "repeat")
-                Text("Beért \(BudapestClock.hm(turn.arrivedAt))-kor. \(next != nil ? "Maradj ülve — a busz innen így megy tovább:" : "Keresem, mikor és merre indul tovább a busz…")")
-                    .font(.system(size: 12)).foregroundStyle(Theme.mutedForeground).padding(.top, 2)
+                Text("Beért \(BudapestClock.hm(turn.arrivedAt))-kor. \(next != nil ? "Maradj ülve, a busz innen így megy tovább:" : "Keresem, mikor és merre indul tovább a busz…")")
+                    .font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground).padding(.top, 2)
                 if let next {
                     HStack(spacing: 10) {
                         RouteTile(short: next.route, colorHex: next.color, textHex: next.text)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(next.headsign).font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.foreground).lineLimit(1)
+                            Text(next.headsign).font(Theme.sans(14, weight: .bold)).foregroundStyle(Theme.foreground).lineLimit(1)
                             (Text("indul ") + Text(next.depTime).font(Theme.mono(12, weight: .bold)).foregroundColor(Theme.foreground)
                                 + Text(" · \(next.departed ? "elindult" : late > 60 ? "\(Int((late / 60).rounded())) perce esedékes" : Self.inLabel(next.depTs - now))")
                                 + Text(next.kind == "nearby" ? " · a szomszédos kocsiállásból (\(next.firstStopName))" : "")
                                 + Text(next.cancelled ? " · törölték" : ""))
-                                .font(.system(size: 12))
+                                .font(Theme.sans(12))
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -250,12 +244,12 @@ struct TurnCard: View {
                 }
                 Group {
                     if let name = plan.stopName {
-                        Text("Leszállás: ") + Text(name).fontWeight(.semibold).foregroundColor(Theme.foreground) + Text(" — ha odaértél, magától lezárom.")
+                        Text("Leszállás: ") + Text(name).fontWeight(.semibold).foregroundColor(Theme.foreground) + Text(". Ha odaértél, magától lezárom.")
                     } else {
                         Text("Ha a busz elindul, kiválaszthatod, hol szállsz le.")
                     }
                 }
-                .font(.system(size: 11.5))
+                .font(Theme.sans(11.5))
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 8)
                 RideButton(title: "Mégis itt szálltam le", systemImage: "rectangle.portrait.and.arrow.right", variant: .outline, size: .small, fullWidth: true, action: onAlight)
