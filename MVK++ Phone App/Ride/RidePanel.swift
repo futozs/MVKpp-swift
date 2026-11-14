@@ -35,7 +35,6 @@ struct RidePanel: View {
             content
         }
         .frame(maxWidth: .infinity)
-        .fixedSize(horizontal: false, vertical: true)
         .background {
             UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xxl, topTrailingRadius: Theme.Radius.xxl, style: .continuous)
                 .fill(Theme.card)

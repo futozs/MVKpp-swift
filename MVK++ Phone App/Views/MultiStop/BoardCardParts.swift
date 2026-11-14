@@ -123,7 +123,7 @@ struct RowEta: View {
                     .font(Theme.mono(16))
                     .foregroundStyle(Theme.live)
             } else {
-                let parts = Countdown.parts(minutes: minutes)
+                let parts = Countdown.parts(minutes: minutes, hours: false)
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(parts.value)
                         .font(Theme.mono(16))

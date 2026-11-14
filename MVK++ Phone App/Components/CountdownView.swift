@@ -34,7 +34,7 @@ struct CountdownView: View {
         .lineLimit(1)
         .fixedSize()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(etaMin <= 0 ? "Beérkezik" : Countdown.spoken(minutes: etaMin))
+        .accessibilityLabel(etaMin <= 0 ? "Beérkezik" : Countdown.spoken(minutes: etaMin, hours: false))
     }
 
     @ViewBuilder
@@ -49,7 +49,7 @@ struct CountdownView: View {
                 .padding(.vertical, 4)
                 .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         } else {
-            let parts = Countdown.parts(minutes: etaMin)
+            let parts = Countdown.parts(minutes: etaMin, hours: false)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(parts.value)
                     .font(Theme.mono(size == .large ? 32 : 20))

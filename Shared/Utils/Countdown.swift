@@ -18,8 +18,10 @@ enum Countdown {
 
     /// The big number and its unit, split so the two can be typeset at
     /// different sizes.
-    static func parts(minutes: Int) -> (value: String, unit: String) {
-        guard minutes >= hoursAfterMin else { return ("\(minutes)", "perc") }
+    /// The phone matches the web, which always counts in minutes; the
+    /// watch and widgets switch to hours where minutes stop being legible.
+    static func parts(minutes: Int, hours: Bool = true) -> (value: String, unit: String) {
+        guard hours, minutes >= hoursAfterMin else { return ("\(minutes)", "perc") }
         return ("\(minutes / 60)ó", "\(minutes % 60) p")
     }
 
@@ -30,8 +32,8 @@ enum Countdown {
     }
 
     /// Spelled out for VoiceOver.
-    static func spoken(minutes: Int) -> String {
-        guard minutes >= hoursAfterMin else { return "\(minutes) perc múlva" }
+    static func spoken(minutes: Int, hours allowHours: Bool = true) -> String {
+        guard allowHours, minutes >= hoursAfterMin else { return "\(minutes) perc múlva" }
         let hours = minutes / 60
         let rest = minutes % 60
         return rest == 0

@@ -9,12 +9,17 @@ import SwiftUI
 /// alive" backdrop replacing the flat black default.
 struct AppBackground: View {
     var body: some View {
+        #if os(watchOS)
         LinearGradient(
             colors: [Theme.hex("0F241C"), Theme.background, Color.black],
             startPoint: .top,
             endPoint: .bottom
         )
         .ignoresSafeArea()
+        #else
+        // The web app's page is one flat `--background`.
+        Theme.background.ignoresSafeArea()
+        #endif
     }
 }
 

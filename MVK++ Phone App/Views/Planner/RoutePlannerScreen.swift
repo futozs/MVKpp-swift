@@ -19,8 +19,7 @@ struct RoutePlannerScreen: View {
     @State private var resultsVisible = true
 
     var body: some View {
-        NavigationStack {
-            ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Útvonaltervező")
@@ -51,9 +50,7 @@ struct RoutePlannerScreen: View {
                     }
                 }
             }
-            .background(AppBackground())
-            .toolbar(.hidden, for: .navigationBar)
-        }
+        .background(AppBackground())
         .task(id: store.stops.count) { model.updateCatalog(store.stops) }
         .onChange(of: scenePhase) { _, phase in model.isActive = phase == .active && isTabActive }
         .onChange(of: isTabActive) { _, active in model.isActive = active && scenePhase == .active }

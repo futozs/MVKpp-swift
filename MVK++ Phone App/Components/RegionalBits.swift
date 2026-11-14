@@ -148,6 +148,9 @@ struct SharedStopTag: View {
 /// up live. A loop vehicle is not a guess, so it has no tilde.
 struct PredictedVehicleTag: View {
     let predicted: PredictedVehicle
+    /// The sentence under the next departure („Várhatóan a 1673 jön”) says
+    /// it is a guess in words, so its tag drops the tilde (web `StopCard`).
+    var inSentence = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -161,12 +164,12 @@ struct PredictedVehicleTag: View {
                 .background(Theme.primary.opacity(0.12), in: shape)
                 .accessibilityHint(PredictedVehicleTag.title(predicted))
         } else {
-            Text("~\(id)")
+            Text(inSentence ? id : "~\(id)")
                 .font(Theme.mono(11, weight: .bold))
-                .foregroundStyle(Theme.primary.opacity(0.8))
+                .foregroundStyle(Theme.primary.opacity(inSentence ? 1 : 0.8))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
-                .overlay(shape.strokeBorder(Theme.primary.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                .overlay(shape.strokeBorder(Theme.primary.opacity(inSentence ? 0.5 : 0.4), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
                 .accessibilityHint(PredictedVehicleTag.title(predicted))
         }
     }

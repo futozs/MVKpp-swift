@@ -62,8 +62,11 @@ enum TileLayerCatalog {
         all.first { $0.id == id } ?? all[0]
     }
 
+    /// The web app opens on "Halvány" until the rider picks another.
+    static let defaultId = "light"
+
     static var saved: TileLayerOption {
-        layer(id: UserDefaults.standard.string(forKey: storageKey))
+        layer(id: UserDefaults.standard.string(forKey: storageKey) ?? defaultId)
     }
 
     static func save(_ id: String) {

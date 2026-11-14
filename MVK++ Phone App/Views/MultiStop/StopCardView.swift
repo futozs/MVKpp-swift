@@ -276,7 +276,7 @@ struct StopCardView: View {
         let loop = PredictedVehicleTag.isLoop(predicted)
         return HStack(spacing: 4) {
             Text(loop ? "A" : "Várhatóan a")
-            PredictedVehicleTag(predicted: predicted)
+            PredictedVehicleTag(predicted: predicted, inSentence: true)
             Text(loop ? "jön: most a végállomás felé tart, onnan fordul vissza" : "jön")
                 .lineLimit(2)
         }

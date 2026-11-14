@@ -116,7 +116,7 @@ struct ParkingScreen: View {
             // The type switch and the Volán toggle share a row when they fit; otherwise the toggle wraps below.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) {
-                    kindPicker
+                    kindPicker.fixedSize(horizontal: true, vertical: false)
                     if canRegional { regionalToggle }
                 }
                 VStack(alignment: .leading, spacing: 8) {
