@@ -171,7 +171,9 @@ final class PushService: ObservableObject {
 
     /// Hands an ActivityKit push token to the server, which then pushes the
     /// followed trip's progress (`content-state`) until the trip ends.
-    func registerLiveActivity(token: Data, tripId: String, vehicleId: String?, stopId: String?) async -> Bool {
+    /// `stopId` is where the rider gets off, `fromStopId` where they got on:
+    /// the server counts progress and stops left between the two.
+    func registerLiveActivity(token: Data, tripId: String, vehicleId: String?, stopId: String?, fromStopId: String? = nil) async -> Bool {
         var body: [String: Any] = [
             "token": token.map { String(format: "%02x", $0) }.joined(),
             "env": Self.environment,
@@ -180,6 +182,7 @@ final class PushService: ObservableObject {
         ]
         if let vehicleId { body["vehicleId"] = vehicleId }
         if let stopId { body["stopId"] = stopId }
+        if let fromStopId { body["fromStopId"] = fromStopId }
         let status = (try? await send("POST", "/push/live-activity", body)) ?? 0
         return (200..<300).contains(status)
     }

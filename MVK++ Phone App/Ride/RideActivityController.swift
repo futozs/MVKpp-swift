@@ -9,20 +9,67 @@ import UIKit
 import UserNotifications
 
 /// Starts, updates and ends the ride's Live Activity from local state —
-/// only when something the rider sees has changed.
+/// only when something the rider sees has changed. Its push token goes to
+/// the server, which keeps it fresh while the app is suspended.
 @MainActor
 final class RideActivityController {
     private var activity: Activity<RideActivityAttributes>?
     private var rideId: String?
     private var lastState: RideActivityAttributes.ContentState?
+    private var pushToken: Data?
+    private var tokenTask: Task<Void, Never>?
+    /// What the server should follow, and what it was last told.
+    private var tracked: PushTarget?
+    private var registered: PushTarget?
+
+    private struct PushTarget: Equatable {
+        let tripId: String
+        let vehicleId: String
+        let fromStopId: String?
+        let stopId: String?
+    }
+
+    /// The server follows a plain ride; a loop journey's turns and legs only
+    /// the phone knows, so its pushes would blank them.
+    private static func pushTarget(ride: ActiveRide, trip: TripLive?) -> PushTarget? {
+        guard ride.loopPlan == nil, ride.turn == nil else { return nil }
+        let stopId = { (idx: Int?) -> String? in
+            guard let idx, let stops = trip?.stops, stops.indices.contains(idx) else { return nil }
+            return stops[idx].id
+        }
+        return PushTarget(tripId: ride.tripId, vehicleId: ride.vehicleId,
+                          fromStopId: stopId(ride.fromIdx) ?? ride.fromStopId, stopId: stopId(ride.destIdx) ?? ride.destStopId)
+    }
+
+    private func registerPush() {
+        guard let pushToken, let target = tracked, target != registered else { return }
+        registered = target
+        Task {
+            _ = await PushService.shared.registerLiveActivity(token: pushToken, tripId: target.tripId, vehicleId: target.vehicleId,
+                                                              stopId: target.stopId, fromStopId: target.fromStopId)
+        }
+    }
+
+    /// The server stops following the current token (it sends one last "end").
+    private func releasePush() {
+        tokenTask?.cancel()
+        tokenTask = nil
+        if registered != nil, let token = pushToken {
+            Task { await PushService.shared.endLiveActivity(token: token) }
+        }
+        pushToken = nil
+        registered = nil
+    }
 
     func update(ride: ActiveRide, trip: TripLive?, controller: RideController) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let state = Self.state(ride: ride, trip: trip, controller: controller)
+        tracked = Self.pushTarget(ride: ride, trip: trip)
         if rideId != ride.id || activity == nil {
             startActivity(ride: ride, state: state)
             return
         }
+        registerPush()
         guard state != lastState, let activity else { return }
         lastState = state
         var stamped = state
@@ -51,12 +98,15 @@ final class RideActivityController {
             state.progress = 1
         }
         lastState = nil
+        tracked = nil
         Task {
             await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: ride == nil ? .immediate : .after(Date().addingTimeInterval(10 * 60)))
         }
+        releasePush()
     }
 
     private func startActivity(ride: ActiveRide, state: RideActivityAttributes.ContentState) {
+        releasePush()
         for stale in Activity<RideActivityAttributes>.activities {
             Task { await stale.end(nil, dismissalPolicy: .immediate) }
         }
@@ -72,9 +122,18 @@ final class RideActivityController {
         do {
             var stamped = state
             stamped.updatedAt = Date().timeIntervalSince1970.rounded()
-            activity = try Activity.request(attributes: attributes, content: ActivityContent(state: stamped, staleDate: nil))
+            let started = try Activity.request(attributes: attributes, content: ActivityContent(state: stamped, staleDate: nil), pushType: .token)
+            activity = started
             rideId = ride.id
             lastState = state
+            tokenTask = Task { [weak self] in
+                for await token in started.pushTokenUpdates {
+                    guard let self else { return }
+                    self.pushToken = token
+                    self.registered = nil
+                    self.registerPush()
+                }
+            }
         } catch {
             activity = nil
             rideId = nil
