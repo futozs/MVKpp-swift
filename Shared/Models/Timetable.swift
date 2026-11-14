@@ -27,6 +27,20 @@ struct TimetableRoute: Decodable, Hashable, Identifiable {
     let color: String
     let text: String
     let directions: [TimetableDirection]
+    /// v3 (`?modes=`): mode, statistics key, operator.
+    var mode: TransitMode?
+    var key: String?
+    var `operator`: String?
+
+    /// The route's mode; the old list leaves it to the GTFS type.
+    var transitMode: TransitMode {
+        if let mode { return mode }
+        switch TransitFeed.of(id: id) {
+        case .coach: return .coach
+        case .rail: return .rail
+        case .mvk: return type == "900" || type == "0" ? .tram : .bus
+        }
+    }
 }
 
 struct TimetableRoutesResponse: Decodable {
@@ -60,9 +74,21 @@ struct TimetableTrip: Decodable, Hashable, Identifiable {
     let deviates: Bool
     /// The run's headsign differs from the direction's own.
     let headsignDiffers: Bool
+    /// Route-variant letter for a run off the base path; explained in
+    /// `TimetableResponse.variants`.
+    var variant: String?
     let times: [String?]
 
     var id: String { tripId }
+}
+
+/// "A = Avas városközpont érintésével" — how a lettered run differs.
+struct TimetableVariant: Decodable, Hashable, Identifiable {
+    let code: String
+    let label: String
+    let trips: Int
+
+    var id: String { code }
 }
 
 struct TimetableResponse: Decodable {
@@ -73,4 +99,5 @@ struct TimetableResponse: Decodable {
     let stops: [TimetableStop]
     let trips: [TimetableTrip]
     let note: String?
+    var variants: [TimetableVariant]?
 }

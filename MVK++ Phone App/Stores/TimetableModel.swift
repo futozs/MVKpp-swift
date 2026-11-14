@@ -6,214 +6,429 @@
 import Combine
 import Foundation
 
-/// The timetable's data for one day: which routes run, which runs were pulled,
-/// and what the gateway actually observed.
-///
-/// Everything here is keyed on a date, because the timetable is the one screen
-/// that looks backwards as well as forwards.
+/// Which runs the timetable lists: every enabled mode, or one group. Synced
+/// across devices under the web's `mvk_pref_tt_group` key.
+enum TimetableGroup: String, CaseIterable, Identifiable {
+    case all, mvk, coach, rail
+
+    static let preferenceKey = "mvk_pref_tt_group"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: return "Mind"
+        case .mvk: return "MVK"
+        case .coach: return "Volán"
+        case .rail: return "Vonat"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .all: return ""
+        case .mvk: return "MVK busz és villamos"
+        case .coach: return "Volán helyközi busz"
+        case .rail: return "Vonat"
+        }
+    }
+
+    var modes: [TransitMode] {
+        switch self {
+        case .all: return []
+        case .mvk: return [.bus, .tram]
+        case .coach: return [.coach]
+        case .rail: return [.rail]
+        }
+    }
+
+    static func of(_ route: TimetableRoute) -> TimetableGroup {
+        switch route.transitMode {
+        case .coach: return .coach
+        case .rail: return .rail
+        case .tram, .bus: return .mvk
+        }
+    }
+
+    var order: Int {
+        switch self {
+        case .mvk: return 0
+        case .coach: return 1
+        case .rail: return 2
+        case .all: return 3
+        }
+    }
+}
+
+/// The timetable's state: the chosen service day, the routes running on it,
+/// the open route and direction, its board, and the selected run. A port of
+/// the web `TimetableView`'s state, with the trip journal and cancellations
+/// kept live from the server.
 @MainActor
 final class TimetableModel: ObservableObject {
 
     @Published private(set) var routes: [TimetableRoute] = []
     @Published private(set) var routesError: String?
-    @Published private(set) var isLoadingRoutes = false
-    /// The board on screen was read off the downloaded pack, not the gateway.
-    /// Cancellations and the trip journal are live-only, so they are missing —
-    /// the screen says so rather than showing a clean board that isn't.
+    /// The list on screen was read off the downloaded pack, not the gateway.
     @Published private(set) var isOffline = false
 
-    @Published private(set) var cancelledTripIds: Set<String> = []
-    @Published private(set) var cancelledTrips: [CancelledTrip] = []
-    @Published private(set) var journal: [String: TripJournalEntry] = [:]
+    @Published var selectedRouteId: String?
+    @Published var selectedDir = ""
+    @Published private(set) var table: TimetableResponse?
+    @Published private(set) var isTableOffline = false
+    @Published private(set) var tableLoading = false
+    @Published private(set) var tableError = false
+    @Published private(set) var selectedTrip: TimetableTrip?
 
-    /// Seconds since midnight, ticked every 15 s — drives "next departure",
-    /// the current-hour highlight and the past/future split.
-    @Published private(set) var nowSec: Int = TimetableModel.secondsSinceMidnight()
-
-    @Published var date: String = TimetableModel.todayIso() {
-        didSet {
-            guard date != oldValue else { return }
-            Task { await reloadForDate() }
-        }
+    @Published var group: TimetableGroup {
+        didSet { UserDefaults.standard.set(group.rawValue, forKey: TimetableGroup.preferenceKey) }
     }
 
+    /// Seconds since the service day's midnight (24:xx after midnight), ticked every 15 s.
+    @Published private(set) var nowSec: Int
+    @Published private(set) var date: String
+
+    let journal = TripJournalFeed()
+    let cancelled = CancelledTripsFeed()
+
+    private(set) var minIso: String?
+    private(set) var maxIso: String?
+    private let mountDay: String
+    private var pendingTripId: String?
+    private var selectedTripIntent: String?
+    private var routesTask: Task<Void, Never>?
+    private var tableTask: Task<Void, Never>?
     private var clockTask: Task<Void, Never>?
-    private var journalTask: Task<Void, Never>?
+    private var cancellables: Set<AnyCancellable> = []
+    private var modesKey = TransitMode.param()
 
-    // MARK: - Date helpers
+    init() {
+        let today = Self.serviceNow().iso
+        date = today
+        mountDay = today
+        nowSec = Self.serviceNow().secOfDay
+        let stored = UserDefaults.standard.string(forKey: TimetableGroup.preferenceKey)?
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        group = stored.flatMap(TimetableGroup.init(rawValue:)) ?? .all
 
-    static func todayIso() -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+        let restored = ViewStateStore.initialTimetableView()
+        selectedRouteId = restored?.routeId
+        selectedDir = restored?.dir ?? ""
+        pendingTripId = restored?.tripId
+        selectedTripIntent = restored?.tripId
+
+        journal.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
+        cancelled.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &cancellables)
+
+        // Opening may have used the device clock; once the server's arrives and
+        // the rider has not paged away, follow the server's today.
+        RealtimeClient.shared.$clockVersion
+            .dropFirst()
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.followServerToday() }
+            }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3($selectedRouteId, $selectedDir, $selectedTrip)
+            .dropFirst()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { routeId, dir, trip in
+                ViewStateStore.save(ViewStateStore.TimetableView(routeId: routeId, dir: dir, tripId: trip?.tripId))
+            }
+            .store(in: &cancellables)
     }
 
-    /// The gateway takes `yyyyMMdd`; the UI works in ISO.
-    static func isoToYmd(_ iso: String) -> String {
-        iso.replacingOccurrences(of: "-", with: "")
+    static func serviceNow() -> ServiceClock {
+        ServiceClock.at(Int(RealtimeClient.shared.serverNow))
     }
 
-    static func ymdToIso(_ ymd: String) -> String? {
-        guard ymd.count == 8 else { return nil }
-        let year = ymd.prefix(4)
-        let month = ymd.dropFirst(4).prefix(2)
-        let day = ymd.dropFirst(6).prefix(2)
-        return "\(year)-\(month)-\(day)"
-    }
+    static func todayIso() -> String { serviceNow().iso }
 
-    static func secondsSinceMidnight(_ date: Date = Date()) -> Int {
-        let parts = Calendar.current.dateComponents([.hour, .minute, .second], from: date)
-        return (parts.hour ?? 0) * 3600 + (parts.minute ?? 0) * 60 + (parts.second ?? 0)
-    }
+    // MARK: - Derived
 
     var isToday: Bool { date == Self.todayIso() }
-
     var day: DayRelation { TripStatus.dayRelation(date, todayIso: Self.todayIso()) }
+    var ymd: String { ServiceClock.isoToYmd(date) }
 
-    /// "szept. 5." — the day itself.
-    var dateLabel: String { formatted("MMMd") }
-
-    /// "péntek" — spelled out, because a timetable is read by weekday.
-    var weekdayLabel: String { formatted("EEEE") }
-
-    private func formatted(_ template: String) -> String {
-        guard let parsed = Self.parse(date) else { return date }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "hu_HU")
-        formatter.setLocalizedDateFormatFromTemplate(template)
-        return formatter.string(from: parsed)
+    var selectedRoute: TimetableRoute? {
+        guard let selectedRouteId else { return nil }
+        return routes.first { $0.id == selectedRouteId }
     }
 
-    func goToToday() { date = Self.todayIso() }
+    var enabledModes: [TransitMode] { TransitMode.enabled() }
 
-    static func parse(_ iso: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: iso)
+    /// "Mind" plus each group with at least one enabled mode.
+    var groups: [TimetableGroup] {
+        let modes = enabledModes
+        return TimetableGroup.allCases.filter { $0 == .all || $0.modes.contains(where: modes.contains) }
     }
 
-    func shiftDate(by days: Int, min: String?, max: String?) {
-        guard let current = Self.parse(date),
-              let next = Calendar.current.date(byAdding: .day, value: days, to: current)
-        else { return }
+    var activeGroup: TimetableGroup { groups.contains(group) ? group : .all }
 
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        let iso = formatter.string(from: next)
-
-        if let min, iso < min { return }
-        if let max, iso > max { return }
-        date = iso
-    }
-
-    // MARK: - Lifecycle
-
-    func start() async {
-        startClock()
-        await reloadForDate()
-    }
-
-    func stop() {
-        clockTask?.cancel()
-        clockTask = nil
-        journalTask?.cancel()
-        journalTask = nil
-    }
-
-    private func startClock() {
-        guard clockTask == nil else { return }
-        clockTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(15))
-                await MainActor.run { self?.nowSec = TimetableModel.secondsSinceMidnight() }
+    func visibleRoutes(query: String) -> [TimetableRoute] {
+        let needle = query.trimmingCharacters(in: .whitespaces)
+        let active = activeGroup
+        let inGroup = active == .all ? routes : routes.filter { TimetableGroup.of($0) == active }
+        let sorted = inGroup.enumerated()
+            .sorted { lhs, rhs in
+                let a = TimetableGroup.of(lhs.element).order, b = TimetableGroup.of(rhs.element).order
+                return a == b ? lhs.offset < rhs.offset : a < b
             }
+            .map(\.element)
+        guard !needle.isEmpty else { return sorted }
+        return sorted.filter { route in
+            route.short.containsNormalized(needle)
+                || route.long.containsNormalized(needle)
+                || (route.operator?.containsNormalized(needle) ?? false)
+                || route.directions.contains { $0.headsign.containsNormalized(needle) }
         }
     }
 
-    private func reloadForDate() async {
-        let ymd = Self.isoToYmd(date)
-        async let routesLoad: Void = loadRoutes(ymd: ymd)
-        async let cancelledLoad: Void = loadCancelled(ymd: ymd)
-        _ = await (routesLoad, cancelledLoad)
-        startJournalRefresh(ymd: ymd)
-    }
-
-    private func loadRoutes(ymd: String) async {
-        isLoadingRoutes = true
-        defer { isLoadingRoutes = false }
-        do {
-            routes = try await APIClient.shared.timetableRoutes(date: ymd).routes
-            routesError = nil
-            isOffline = false
-        } catch {
-            // The downloaded pack holds the gateway's own answer for this day,
-            // stored verbatim — so the list is the same list, just older.
-            if let stored = OfflineScheduleStore.timetableRoutes(ymd: ymd), !stored.routes.isEmpty {
-                routes = stored.routes
-                routesError = nil
-                isOffline = true
-            } else {
-                routes = []
-                isOffline = false
-                routesError = OfflineScheduleStore.manifest.isEmpty
-                    ? error.localizedDescription
-                    : "Erre a napra nincs letöltött menetrend, és a szerver sem érhető el."
-            }
-        }
-    }
-
-    private func loadCancelled(ymd: String) async {
-        do {
-            let response = try await APIClient.shared.cancelledTrips(date: ymd)
-            cancelledTrips = response.trips
-            cancelledTripIds = Set(response.tripIds)
-        } catch {
-            // No cancellation feed just means nothing is struck through.
-            cancelledTrips = []
-            cancelledTripIds = []
-        }
-    }
-
-    /// The journal only keeps changing for today; past days are settled and
-    /// need one fetch.
-    private func startJournalRefresh(ymd: String) {
-        journalTask?.cancel()
-        let repeats = day == .today
-
-        journalTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                await self.loadJournal(ymd: ymd)
-                guard repeats else { return }
-                try? await Task.sleep(for: .seconds(60))
-            }
-        }
-    }
-
-    private func loadJournal(ymd: String) async {
-        do {
-            journal = try await APIClient.shared.tripJournal(date: ymd).trips
-        } catch {
-            journal = [:]
-        }
-    }
-
-    /// How many runs were pulled on each route, for the badge in the list.
     var cancelledCountByRoute: [String: Int] {
-        cancelledTrips.reduce(into: [:]) { counts, trip in
+        cancelled.trips.reduce(into: [:]) { counts, trip in
             guard !trip.routeId.isEmpty else { return }
             counts[trip.routeId, default: 0] += 1
         }
     }
 
+    /// The button's counter is always about today, like the sheet it opens.
+    var todayCancelledCount: Int { isToday ? cancelled.ids.count : 0 }
+
+    /// „péntek” — the weekday, spelled out.
+    var weekdayLabel: String {
+        guard let parsed = Self.parse(date) else { return date }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "hu_HU")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: parsed)
+    }
+
+    /// „2026. nov. 14.” — the date field's label.
+    var dateFieldLabel: String { Self.fieldLabel(date) }
+
+    static func fieldLabel(_ iso: String) -> String {
+        guard let parsed = parse(iso) else { return iso }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "hu_HU")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.setLocalizedDateFormatFromTemplate("yMMMd")
+        return formatter.string(from: parsed)
+    }
+
+    /// Noon UTC of an ISO day, so weekday maths never slips across a zone.
+    static func parse(_ iso: String) -> Date? {
+        let parts = iso.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: 12))
+    }
+
+    // MARK: - Date
+
+    func setRange(minIso: String?, maxIso: String?) {
+        guard minIso != self.minIso || maxIso != self.maxIso else { return }
+        self.minIso = minIso
+        self.maxIso = maxIso
+        setDate(clamp(date))
+    }
+
+    func setDate(_ iso: String) {
+        let next = clamp(iso)
+        guard next != date else { return }
+        date = next
+        reloadDay()
+    }
+
+    func shiftDate(by days: Int) {
+        let next = ServiceClock.shiftIso(date, by: days)
+        if let minIso, next < minIso { return }
+        if let maxIso, next > maxIso { return }
+        setDate(next)
+    }
+
+    var canGoBack: Bool { minIso.map { date > $0 } ?? true }
+    var canGoForward: Bool { maxIso.map { date < $0 } ?? true }
+
+    private func clamp(_ iso: String) -> String {
+        if let minIso, iso < minIso { return minIso }
+        if let maxIso, iso > maxIso { return maxIso }
+        return iso
+    }
+
+    private func followServerToday() {
+        let today = Self.todayIso()
+        guard today != mountDay, date == mountDay else { return }
+        setDate(today)
+    }
+
+    // MARK: - Lifecycle
+
+    func start() {
+        if clockTask == nil {
+            clockTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(15))
+                    self?.nowSec = Self.serviceNow().secOfDay
+                }
+            }
+        }
+        let modes = TransitMode.param()
+        if routes.isEmpty || modes != modesKey {
+            modesKey = modes
+            reloadDay()
+        } else {
+            refreshFeeds()
+        }
+    }
+
+    func stop() {
+        clockTask?.cancel()
+        clockTask = nil
+    }
+
+    private func reloadDay() {
+        refreshFeeds()
+        loadRoutes()
+        loadTable()
+    }
+
+    private func refreshFeeds() {
+        cancelled.set(ymd: ymd, isToday: isToday)
+        journal.set(ymd: ymd, pollInterval: day == .today ? 60 : 0)
+    }
+
+    private func loadRoutes() {
+        routesTask?.cancel()
+        let ymd = self.ymd
+        let modes = modesKey
+        routesTask = Task { [weak self] in
+            do {
+                let response = try await APIClient.shared.timetableRoutes(date: ymd, modes: modes)
+                guard !Task.isCancelled, let self, self.ymd == ymd else { return }
+                self.routes = response.routes
+                self.routesError = nil
+                self.isOffline = false
+            } catch {
+                guard !Task.isCancelled, let self, self.ymd == ymd else { return }
+                if let stored = OfflineScheduleStore.timetableRoutes(ymd: ymd), !stored.routes.isEmpty {
+                    self.routes = stored.routes
+                    self.routesError = nil
+                    self.isOffline = true
+                } else {
+                    self.isOffline = false
+                    self.routesError = OfflineScheduleStore.manifest.isEmpty
+                        ? error.localizedDescription
+                        : "Erre a napra nincs letöltött menetrend, és a szerver sem érhető el."
+                }
+            }
+        }
+    }
+
+    // MARK: - Route, direction, run
+
+    func selectRoute(_ route: TimetableRoute) {
+        let withService = route.directions.first { $0.tripsToday > 0 } ?? route.directions.first
+        open(routeId: route.id, dir: withService?.dir ?? "")
+    }
+
+    func open(routeId: String, dir: String) {
+        guard routeId != selectedRouteId || dir != selectedDir else { return }
+        selectedRouteId = routeId
+        selectedDir = dir
+        loadTable()
+    }
+
+    func selectDir(_ dir: String) {
+        guard dir != selectedDir else { return }
+        selectedDir = dir
+        loadTable()
+    }
+
+    func closeRoute() {
+        selectedRouteId = nil
+        tableTask?.cancel()
+        table = nil
+        chooseTrip(nil)
+    }
+
+    /// The intent is noted at selection time, not after: a reload and a day
+    /// change can land in the same turn, and the run must survive both.
+    func chooseTrip(_ trip: TimetableTrip?) {
+        selectedTripIntent = trip?.tripId
+        selectedTrip = trip
+    }
+
+    func toggleTrip(_ trip: TimetableTrip) {
+        chooseTrip(selectedTrip?.tripId == trip.tripId ? nil : trip)
+    }
+
+    func retryTable() {
+        loadTable()
+    }
+
+    /// A run picked from the disruption summary: today, its route and direction, the run selected.
+    func openTrip(tripId: String, routeId: String, dir: String) {
+        let today = Self.todayIso()
+        if date == today, selectedRouteId == routeId, selectedDir == dir, let table {
+            if let hit = table.trips.first(where: { $0.tripId == tripId }) { chooseTrip(hit) }
+            return
+        }
+        pendingTripId = tripId
+        selectedRouteId = routeId
+        selectedDir = dir
+        if date != today {
+            date = clamp(today)
+            reloadDay()
+        } else {
+            loadTable()
+        }
+    }
+
+    private func loadTable() {
+        tableTask?.cancel()
+        guard let routeId = selectedRouteId else {
+            table = nil
+            return
+        }
+        let dir = selectedDir
+        let ymd = self.ymd
+        tableLoading = true
+        tableError = false
+        if pendingTripId == nil { pendingTripId = selectedTripIntent }
+        selectedTrip = nil
+
+        tableTask = Task { [weak self] in
+            do {
+                let response = try await APIClient.shared.timetable(routeId: routeId, dir: dir, date: ymd)
+                guard !Task.isCancelled, let self else { return }
+                self.apply(response, offline: false)
+            } catch {
+                guard !Task.isCancelled, let self else { return }
+                if let stored = OfflineScheduleStore.timetable(routeId: routeId, dir: dir, ymd: ymd) {
+                    self.apply(stored, offline: true)
+                } else {
+                    self.table = nil
+                    self.tableError = true
+                    self.tableLoading = false
+                }
+            }
+        }
+    }
+
+    private func apply(_ response: TimetableResponse, offline: Bool) {
+        table = response
+        isTableOffline = offline
+        tableLoading = false
+        guard let pending = pendingTripId else { return }
+        pendingTripId = nil
+        if let hit = response.trips.first(where: { $0.tripId == pending }) { chooseTrip(hit) }
+    }
+
     deinit {
         clockTask?.cancel()
-        journalTask?.cancel()
+        routesTask?.cancel()
+        tableTask?.cancel()
     }
 }
