@@ -146,6 +146,11 @@ final class AppNavigation: ObservableObject {
             tab = .map
         case .tab(let target):
             tab = target
+        case .ride:
+            tab = .map
+            NotificationCenter.default.post(name: .mvkRideCommand, object: WatchRideCommand.start(nil))
+        case .disruptions:
+            isDisruptionsOpen = true
         }
     }
 }

@@ -1,6 +1,6 @@
 //
 //  APIClient+Modes.swift
-//  MVK++ Phone App
+//  MVK++ (shared by the Phone and Watch targets)
 //
 
 import Foundation

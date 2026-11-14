@@ -1,6 +1,6 @@
 //
 //  WidgetStopResolver.swift
-//  MVK++ Widget
+//  MVK++ (shared by the Watch, Phone and Widget targets)
 //
 
 import CoreLocation

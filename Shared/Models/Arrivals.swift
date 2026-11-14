@@ -32,8 +32,21 @@ struct ArrivalItem: Decodable, Hashable, Identifiable {
     let currentStopName: String?
     let distanceToStopKm: Double?
     let progressDesc: String?
+    /// v3: MVK pulled this run; it is listed so the gap is visible.
+    var cancelled: Bool? = nil
+    /// v3: "tram", "bus", "coach" or "rail".
+    var mode: String? = nil
+    /// v3: the vehicle expected to run this trip before it reports live.
+    var predictedVehicle: PredictedVehicle? = nil
 
     var id: String { "\(tripId)-\(time)" }
+
+    var isCancelled: Bool { cancelled == true }
+
+    struct PredictedVehicle: Decodable, Hashable {
+        let id: String
+        let confidence: Double?
+    }
 
     /// Built from the gateway's JSON in normal use. The explicit initializer
     /// exists so the offline pack can produce the same rows from the stored

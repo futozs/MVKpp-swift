@@ -49,6 +49,7 @@ struct AppRoot: View {
             .task {
                 CloudSync.shared.start()
                 PushService.shared.start()
+                PhoneWatchBridge.shared.start()
                 if let pending = PhoneAppDelegate.pendingLink {
                     PhoneAppDelegate.pendingLink = nil
                     open(pending)

@@ -1,6 +1,6 @@
 //
 //  DeepLink.swift
-//  MVK++ (shared by the Phone and Widget targets)
+//  MVK++ (shared by the Phone, Watch and Widget targets)
 //
 
 import Foundation
@@ -22,6 +22,10 @@ enum DeepLink: Equatable {
     case home
     /// One of the six views (the web's `#stats`, `#parking` … hash links).
     case tab(AppTab)
+    /// "Felszálltam": the ride in progress, or the boarding flow without one.
+    case ride
+    /// Mai zavarok.
+    case disruptions
 
     static let scheme = "mvkpp"
 
@@ -47,6 +51,12 @@ enum DeepLink: Equatable {
         case .tab(let tab):
             components.host = "tab"
             components.path = "/\(tab.rawValue)"
+        case .ride:
+            components.host = "ride"
+            components.path = ""
+        case .disruptions:
+            components.host = "disruptions"
+            components.path = ""
         }
         // Every case above produces a well-formed URL; the fallback exists
         // only so callers do not have to handle an impossible optional.
@@ -74,6 +84,10 @@ enum DeepLink: Equatable {
         case "tab":
             guard let value, let tab = AppTab(rawValue: value) else { return nil }
             self = .tab(tab)
+        case "ride":
+            self = .ride
+        case "disruptions":
+            self = .disruptions
         default:
             return nil
         }

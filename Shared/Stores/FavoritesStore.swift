@@ -6,7 +6,6 @@
 import Combine
 import Foundation
 import SwiftUI
-import WatchConnectivity
 import WidgetKit
 
 /// Watched stop IDs + the "nearest first" toggle + the single stop shown on
@@ -14,11 +13,11 @@ import WidgetKit
 /// `mvk_monitored_stops` / `mvk_watch_nearest_first` localStorage keys.
 ///
 /// Backed by the App Group suite for same-device persistence, and by
-/// `WatchConnectivity` for cross-device sync — an App Group alone only
-/// shares storage between apps on the *same* device, which does nothing
+/// `WatchLink` (WatchConnectivity) for cross-device sync — an App Group alone
+/// only shares storage between apps on the *same* device, which does nothing
 /// for a Watch and its paired iPhone (two separate devices/OSes).
 @MainActor
-final class FavoritesStore: NSObject, ObservableObject {
+final class FavoritesStore: ObservableObject {
     /// The web app lets riders watch as many stops as they like; twelve is
     /// where a phone carousel stops being navigable, and it is far above what
     /// anyone puts on a watch.
@@ -75,16 +74,18 @@ final class FavoritesStore: NSObject, ObservableObject {
         suite.bool(forKey: widgetNearestKey)
     }
 
-    private let session: WCSession? = WCSession.isSupported() ? .default : nil
+    private var cancellable: AnyCancellable?
 
-    override init() {
+    init() {
         stopIds = (Self.suite.array(forKey: Self.storageKey) as? [String]) ?? ["SP1"]
         nearestFirstEnabled = Self.suite.bool(forKey: Self.nearestFirstKey)
         widgetStopId = Self.suite.string(forKey: Self.widgetStopKey)
         widgetNearestEnabled = Self.suite.bool(forKey: Self.widgetNearestKey)
-        super.init()
-        session?.delegate = self
-        session?.activate()
+        cancellable = WatchLink.shared.received.sink { [weak self] payload in
+            self?.apply(payload)
+        }
+        WatchLink.shared.activate()
+        pushContext()
     }
 
     func add(_ stopId: String) {
@@ -137,43 +138,32 @@ final class FavoritesStore: NSObject, ObservableObject {
     }
 
     private func pushContext() {
-        guard let session, session.activationState == .activated else { return }
-        var context: [String: Any] = [
-            "stopIds": stopIds,
-            "nearestFirstEnabled": nearestFirstEnabled,
-            "widgetNearestEnabled": widgetNearestEnabled,
+        var values: [String: Any] = [
+            WatchSyncKey.stopIds: stopIds,
+            WatchSyncKey.nearestFirst: nearestFirstEnabled,
+            WatchSyncKey.widgetNearest: widgetNearestEnabled,
         ]
-        context["widgetStopId"] = widgetStopId
-        try? session.updateApplicationContext(context)
-    }
-}
-
-extension FavoritesStore: WCSessionDelegate {
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        Task { @MainActor in self.pushContext() }
+        values[WatchSyncKey.widgetStopId] = widgetStopId
+        WatchLink.shared.update(values, removing: widgetStopId == nil ? [WatchSyncKey.widgetStopId] : [])
     }
 
-    #if os(iOS)
-    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
-    nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }
-    #endif
-
-    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        Task { @MainActor in
-            if let stopIds = applicationContext["stopIds"] as? [String], stopIds != self.stopIds {
-                self.stopIds = stopIds
-                Self.suite.set(stopIds, forKey: Self.storageKey)
-            }
-            if let nearestFirst = applicationContext["nearestFirstEnabled"] as? Bool {
-                self.nearestFirstEnabled = nearestFirst
-            }
-            if let widgetNearest = applicationContext["widgetNearestEnabled"] as? Bool {
-                self.widgetNearestEnabled = widgetNearest
-            }
-            let remoteWidgetStop = applicationContext["widgetStopId"] as? String
-            if remoteWidgetStop != self.widgetStopId {
-                self.widgetStopId = remoteWidgetStop
-            }
+    /// The other device's watchlist, as it arrives.
+    private func apply(_ payload: [String: Any]) {
+        guard payload.keys.contains(WatchSyncKey.stopIds) else { return }
+        if let remote = payload[WatchSyncKey.stopIds] as? [String], remote != stopIds {
+            stopIds = remote
+            Self.suite.set(remote, forKey: Self.storageKey)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+        if let nearestFirst = payload[WatchSyncKey.nearestFirst] as? Bool {
+            nearestFirstEnabled = nearestFirst
+        }
+        if let widgetNearest = payload[WatchSyncKey.widgetNearest] as? Bool {
+            widgetNearestEnabled = widgetNearest
+        }
+        let remoteWidgetStop = payload[WatchSyncKey.widgetStopId] as? String
+        if remoteWidgetStop != widgetStopId {
+            widgetStopId = remoteWidgetStop
         }
     }
 }
