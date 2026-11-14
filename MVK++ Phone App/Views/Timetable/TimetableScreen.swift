@@ -13,6 +13,7 @@ struct TimetableScreen: View {
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
     @EnvironmentObject private var navigation: AppNavigation
     @Environment(\.isTabActive) private var isTabActive
+    @Environment(\.tabActivation) private var tabActivation
 
     @StateObject private var model = TimetableModel()
     @State private var query = ""
@@ -44,6 +45,7 @@ struct TimetableScreen: View {
         .onChange(of: isTabActive) { _, active in
             if active { model.start() } else { model.stop() }
         }
+        .onChange(of: tabActivation) { _, _ in model.reactivate() }
         .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
     }
 

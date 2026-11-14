@@ -36,7 +36,9 @@ final class TripProgressModel: ObservableObject {
             progress = try await APIClient.shared.tripProgress(tripId: tripId, vehicleId: vehicleId)
             errorMessage = nil
         } catch {
-            if progress == nil { errorMessage = error.localizedDescription }
+            // Like the web rail: a failed poll replaces the rail with the
+            // reason until the next one succeeds.
+            errorMessage = error.localizedDescription
         }
     }
 

@@ -93,7 +93,7 @@ final class TimetableModel: ObservableObject {
 
     private(set) var minIso: String?
     private(set) var maxIso: String?
-    private let mountDay: String
+    private var mountDay: String
     private var pendingTripId: String?
     private var selectedTripIntent: String?
     private var routesTask: Task<Void, Never>?
@@ -125,6 +125,13 @@ final class TimetableModel: ObservableObject {
             .sink { [weak self] _ in
                 Task { @MainActor in self?.followServerToday() }
             }
+            .store(in: &cancellables)
+
+        // Settings can switch modes while the Menetrend is open: the route list
+        // and the Mind/MVK/Volán/Vonat picker follow at once.
+        LocalStore.shared.objectWillChange
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] in self?.modesMayHaveChanged() }
             .store(in: &cancellables)
 
         Publishers.CombineLatest3($selectedRouteId, $selectedDir, $selectedTrip)
@@ -255,6 +262,16 @@ final class TimetableModel: ObservableObject {
         return iso
     }
 
+    /// Back on the tab (the web remounts the Menetrend, opening on today): a
+    /// day left on "today" rolls over to the new today; a day the rider paged
+    /// to stays.
+    func reactivate() {
+        let today = Self.todayIso()
+        let wasToday = date == mountDay
+        mountDay = today
+        if wasToday { setDate(today) }
+    }
+
     private func followServerToday() {
         let today = Self.todayIso()
         guard today != mountDay, date == mountDay else { return }
@@ -279,6 +296,15 @@ final class TimetableModel: ObservableObject {
         } else {
             refreshFeeds()
         }
+    }
+
+    private func modesMayHaveChanged() {
+        objectWillChange.send()
+        let modes = TransitMode.param()
+        // A stopped tab catches up in `start()`.
+        guard modes != modesKey, clockTask != nil else { return }
+        modesKey = modes
+        reloadDay()
     }
 
     func stop() {
