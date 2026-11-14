@@ -39,7 +39,7 @@ struct RideButton: View {
                     .truncationMode(.tail)
             }
             .foregroundStyle(foreground)
-            .padding(.horizontal, size == .small ? 12 : 16)
+            .padding(.horizontal, variant == .ghost ? 8 : (size == .small ? 12 : 16))
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: size == .small ? 34 : 38)
             .background(background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
             .overlay {
