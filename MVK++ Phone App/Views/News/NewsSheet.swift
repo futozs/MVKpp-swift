@@ -17,22 +17,19 @@ struct NewsButton: View {
 
     var body: some View {
         let unseen = news.unseenCount
-        GlassCircleButton {
+        MapControlButton(systemImage: "info.circle", label: "Hírek", active: isOpen) {
             fresh = news.markAllSeen()
             news.refreshIfOld()
             isOpen = true
-        } label: {
-            Image(systemName: "info.circle")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(isOpen ? Theme.primary : Theme.foreground)
-                .overlay(alignment: .topTrailing) {
-                    if unseen > 0 {
-                        Circle().fill(Theme.primary)
-                            .frame(width: 8, height: 8)
-                            .overlay(Circle().strokeBorder(Theme.card, lineWidth: 2).padding(-2))
-                            .offset(x: 3, y: -2)
-                    }
-                }
+        }
+        .overlay(alignment: .topTrailing) {
+            if unseen > 0 {
+                Circle().fill(Theme.primary)
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().strokeBorder(Theme.card, lineWidth: 2).padding(-2))
+                    .padding(9)
+                    .allowsHitTesting(false)
+            }
         }
         .accessibilityLabel(unseen > 0 ? "Hírek, \(unseen) új" : "Hírek")
         .task { news.start() }

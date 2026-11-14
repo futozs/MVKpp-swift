@@ -10,7 +10,7 @@ import SwiftUI
 /// The live network map (`TransitMap.tsx` with the parts of `App.tsx` that
 /// sit on it: the ride layer and the followed vehicle's dock). Every control
 /// floating over the map is Liquid Glass, one per corner as on the web:
-/// filter top left, base map / layers and 3D top right, search bottom left,
+/// filter top left, base map / layers, 3D and news top right, search bottom left,
 /// timeline and location bottom right.
 struct MapScreen: View {
 
@@ -261,6 +261,7 @@ struct MapScreen: View {
                 map3dFlag = is3D ? "0" : "1"
             }
             .accessibilityHint(is3D ? "Vissza a 2D térképre" : "3D város: épületek, domborzat, követés a busz mögül")
+            NewsButton { navigation.filters.routes = [$0] }
         }
     }
 

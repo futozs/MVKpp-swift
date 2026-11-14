@@ -27,11 +27,6 @@ extension View {
     ) -> some View {
         modifier(FloatingGlassModifier(tint: tint, interactive: interactive, cornerRadius: cornerRadius))
     }
-
-    /// A circular glass control — the locate button, the stop-code jump.
-    func glassCircle(tint: Color? = nil, interactive: Bool = true) -> some View {
-        modifier(GlassCircleModifier(tint: tint, interactive: interactive))
-    }
 }
 
 private struct DataCardModifier: ViewModifier {
@@ -56,24 +51,6 @@ private struct FloatingGlassModifier: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         return content.glassEffect(glass, in: shape)
-    }
-
-    private var glass: Glass {
-        var glass = Glass.regular
-        if let tint { glass = glass.tint(tint) }
-        if interactive { glass = glass.interactive() }
-        return glass
-    }
-}
-
-private struct GlassCircleModifier: ViewModifier {
-    let tint: Color?
-    let interactive: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .frame(width: 44, height: 44)
-            .glassEffect(glass, in: Circle())
     }
 
     private var glass: Glass {
@@ -132,30 +109,3 @@ struct ErrorNotice: View {
     }
 }
 
-/// A round glass button whose tap target is the whole circle.
-///
-/// Applying `.glassCircle()` to a `Button` sizes the *glass* to 44 pt but
-/// leaves the button's hit area at whatever the label draws — for a single SF
-/// Symbol that is about 20 pt in the middle of a 44 pt disc, so four taps out
-/// of five land on nothing and the control reads as broken. Sizing inside the
-/// label, with an explicit `contentShape`, is what makes the visible circle
-/// and the tappable circle the same circle.
-struct GlassCircleButton<Label: View>: View {
-    var tint: Color?
-    var action: () -> Void
-    @ViewBuilder var label: () -> Label
-
-    /// Apple's minimum comfortable target, and the size the glass already
-    /// draws.
-    private static var diameter: CGFloat { 44 }
-
-    var body: some View {
-        Button(action: action) {
-            label()
-                .frame(width: Self.diameter, height: Self.diameter)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .glassCircle(tint: tint)
-    }
-}

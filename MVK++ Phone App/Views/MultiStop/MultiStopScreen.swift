@@ -15,7 +15,6 @@ struct MultiStopScreen: View {
     @EnvironmentObject private var location: LocationProvider
     @EnvironmentObject private var favorites: FavoritesStore
     @ObservedObject private var watches = TransitWatchesStore.shared
-    @Environment(\.openURL) private var openURL
 
     enum WatchView: String { case stops, rides }
 
@@ -83,7 +82,7 @@ struct MultiStopScreen: View {
         HStack(spacing: 8) {
             viewSwitcher
             if view == .stops {
-                if canNearest || canReorder || kioskURL != nil { moreMenu }
+                if canNearest || canReorder || !kioskStopIds.isEmpty { moreMenu }
                 addButton
             }
         }
@@ -142,9 +141,9 @@ struct MultiStopScreen: View {
                     Label(isReordering ? "Sorrend kész" : "Sorrend módosítása", systemImage: isReordering ? "checkmark" : "arrow.left.arrow.right")
                 }
             }
-            if let kioskURL {
+            if !kioskStopIds.isEmpty {
                 Button {
-                    openURL(kioskURL)
+                    navigation.kioskStopIds = kioskStopIds
                 } label: {
                     Label("Kijelző tévére", systemImage: "play.tv")
                 }
@@ -473,13 +472,7 @@ struct MultiStopScreen: View {
     private var canReorder: Bool { watchedStops.count > 1 && !sortsByDistance }
 
     /// The passenger-information display for a TV or tablet (up to 3 stops).
-    private var kioskURL: URL? {
-        guard !watchedStops.isEmpty else { return nil }
-        let ids = watchedStops.prefix(3).map(\.id).joined(separator: ",")
-        var components = URLComponents(url: APIConfig.baseURL.appendingPathComponent("kijelzo"), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "m", value: ids)]
-        return components?.url
-    }
+    private var kioskStopIds: [String] { watchedStops.prefix(3).map(\.id) }
 
     private func move(_ stopId: String, by delta: Int) {
         guard let from = favorites.stopIds.firstIndex(of: stopId) else { return }

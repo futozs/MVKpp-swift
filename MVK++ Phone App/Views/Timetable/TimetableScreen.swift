@@ -11,10 +11,10 @@ struct TimetableScreen: View {
 
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var lineFavorites: LineFavoritesStore
+    @EnvironmentObject private var navigation: AppNavigation
 
     @StateObject private var model = TimetableModel()
     @State private var query = ""
-    @State private var disruptionsOpen = false
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -29,16 +29,22 @@ struct TimetableScreen: View {
             .navigationDestination(isPresented: routeOpen) {
                 RouteTimetableView(model: model)
             }
-            .sheet(isPresented: $disruptionsOpen) {
-                DisruptionsSheet()
-            }
             .task {
                 model.setRange(minIso: minIso, maxIso: maxIso)
                 model.start()
+                openPendingTrip()
             }
+            .onChange(of: navigation.pendingTimetableTrip) { _, _ in openPendingTrip() }
             .onChange(of: rangeKey) { _, _ in model.setRange(minIso: minIso, maxIso: maxIso) }
             .onDisappear { model.stop() }
         }
+    }
+
+    /// A trip picked in "Mai zavarok" (here or on the Statisztika).
+    private func openPendingTrip() {
+        guard let request = navigation.pendingTimetableTrip else { return }
+        navigation.pendingTimetableTrip = nil
+        model.openTrip(tripId: request.tripId, routeId: request.routeId, dir: request.dir)
     }
 
     private var routeOpen: Binding<Bool> {
@@ -153,7 +159,7 @@ struct TimetableScreen: View {
     private var disruptionsButton: some View {
         let count = model.todayCancelledCount
         return Button {
-            disruptionsOpen = true
+            navigation.isDisruptionsOpen = true
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "nosign")
