@@ -6,188 +6,315 @@
 import Combine
 import Foundation
 
-/// Runs the A→B search and annotates the result with measured lateness.
-///
-/// Two different questions live here. For a moment in the future, MVK's own
-/// planner gives the authoritative itinerary. For one in the past it cannot
-/// answer at all, so the measured-history estimate takes over — that is how
-/// "how late did I actually get in yesterday?" gets a reply.
+/// The rider's regional picks for planning: MVK is always in, Volán and rail
+/// can be ticked. Until touched they follow the transport-mode settings.
+struct PlanTravel: Equatable {
+    var coach: Bool
+    var rail: Bool
+
+    /// With no result: what is still worth ticking.
+    var emptyHint: String? {
+        if coach && rail { return nil }
+        if !coach && !rail {
+            return "Lehet, hogy csak MVK-val nem érhető el pipáld be a Volánt vagy a vonatot, vagy próbálj másik időpontot."
+        }
+        return rail
+            ? "Lehet, hogy Volán nélkül nem érhető el pipáld be a Volánt, vagy próbálj másik időpontot."
+            : "Lehet, hogy vonat nélkül nem érhető el pipáld be a vonatot, vagy próbálj másik időpontot."
+    }
+}
+
+struct PlanFormValue: Equatable {
+    var from = ""
+    var to = ""
+    var arriveBy = false
+    /// YYYY-MM-DD, Budapest.
+    var date: String
+    /// HH:MM, Budapest.
+    var time: String
+}
+
+/// The route planner on top of our own `/engine/plan`: one request brings the
+/// timetable itinerary and, beside it, the measured departure and arrival for
+/// a past day, or the expected lateness (live or from earlier measurements)
+/// and the transfer risk for today and later.
 @MainActor
 final class RoutePlannerModel: ObservableObject {
 
-    @Published private(set) var trips: [RoutePlanTrip] = []
-    @Published private(set) var delays: [String: RouteDelayInfo] = [:]
-    @Published private(set) var historic: SegmentEstimate?
-    @Published private(set) var errorMessage: String?
-    @Published private(set) var isLoading = false
-
-    /// A departure a few minutes back is still "now" as far as the rider is
-    /// concerned; only beyond this does the historic path make sense.
-    private static let pastBuffer: TimeInterval = 3 * 60
-
-    static func isPast(_ date: Date) -> Bool {
-        date.timeIntervalSinceNow < -pastBuffer
+    enum Result {
+        case idle
+        case loading
+        case error(String)
+        case done(JourneyPlanResponse)
     }
 
-    func plan(from: Stop, to: Stop, at: Date) async {
-        isLoading = true
-        errorMessage = nil
-        trips = []
-        delays = [:]
-        historic = nil
-        defer { isLoading = false }
+    /// The backend's rule: more than 10 minutes ahead is "future".
+    static let nowWindowSec = 600.0
+    static let resultLimit = 4
+    /// A live plan is refreshed quietly this often.
+    static let liveRefresh: Duration = .seconds(60)
 
-        if Self.isPast(at) {
-            await loadHistoric(from: from, to: to, at: at)
-            return
-        }
+    private static let coachKey = "mvk_pref_plan_coach"
+    private static let railKey = "mvk_pref_plan_rail"
+    private static let mergeKey = "mvk_pref_stop_merge"
 
-        do {
-            let plan = try await APIClient.shared.planRoute(
-                from: RoutePlanPoint(lat: from.lat, lon: from.lon),
-                to: RoutePlanPoint(lat: to.lat, lon: to.lon),
-                departureTime: Self.mvkDepartureParam(at)
-            )
-            let transit = plan.trips.filter { $0.travelProfile == "TRANSIT" }
-            trips = transit
+    @Published var form: PlanFormValue
+    @Published private(set) var result: Result = .idle
+    @Published private(set) var places: [PlannerPlace] = []
+    @Published private(set) var travel: PlanTravel
 
-            guard !transit.isEmpty else {
-                errorMessage = "Nincs tömegközlekedéssel elérhető útvonal ebben az időpontban."
-                return
-            }
+    private var lastQuery: JourneyPlanQuery?
+    private var runTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
+    private var placesTask: Task<Void, Never>?
+    private var ownStops: (key: String, places: [PlannerPlace])?
+    private var catalog: [Stop] = []
+    private var lastModes: String?
 
-            await loadDelays(for: transit, at: at)
-        } catch {
-            errorMessage = error.localizedDescription
+    init() {
+        form = PlanFormValue(date: PlannerFormat.todayLocalIso(), time: PlannerFormat.nowLocalTime())
+        travel = PlanTravel(coach: false, rail: false)
+        travel = resolvedTravel()
+        lastModes = modes
+    }
+
+    var isLoading: Bool {
+        if case .loading = result { return true }
+        return false
+    }
+
+    var mode: JourneyMode {
+        if form.date < PlannerFormat.todayLocalIso() { return .past }
+        let at = Double(PlannerFormat.toUnix(date: form.date, time: form.time))
+        return at > RealtimeClient.shared.serverNow + Self.nowWindowSec ? .future : .now
+    }
+
+    var canSubmit: Bool {
+        !form.from.isEmpty && !form.to.isEmpty && form.from != form.to
+    }
+
+    /// The `?modes=` of this plan: tram and bus always, plus the ticked regional modes.
+    var modes: String {
+        var list: [TransitMode] = [.tram, .bus]
+        if travel.coach { list.append(.coach) }
+        if travel.rail { list.append(.rail) }
+        return TransitMode.param(list)
+    }
+
+    // MARK: - Travel modes
+
+    private func resolvedTravel() -> PlanTravel {
+        let enabled = TransitMode.enabled()
+        let defaults = UserDefaults.standard
+        return PlanTravel(
+            coach: defaults.object(forKey: Self.coachKey) as? Bool ?? enabled.contains(.coach),
+            rail: defaults.object(forKey: Self.railKey) as? Bool ?? enabled.contains(.rail)
+        )
+    }
+
+    func setTravel(coach: Bool? = nil, rail: Bool? = nil) {
+        if let coach { UserDefaults.standard.set(coach, forKey: Self.coachKey) }
+        if let rail { UserDefaults.standard.set(rail, forKey: Self.railKey) }
+        travel = resolvedTravel()
+        travelChanged()
+    }
+
+    // MARK: - Places
+
+    /// Called with the app's stop catalog; regional stops are fetched with
+    /// their feed and parent station so the list follows the ticks.
+    func updateCatalog(_ stops: [Stop]) {
+        catalog = stops
+        rebuildPlaces()
+        loadOwnStops()
+    }
+
+    private func loadOwnStops() {
+        let key = modes
+        guard ownStops?.key != key else { return }
+        placesTask?.cancel()
+        placesTask = Task { [weak self] in
+            guard let list = try? await APIClient.shared.plannerPlaces(modes: key), !Task.isCancelled else { return }
+            guard let self, self.modes == key else { return }
+            self.ownStops = (key, list)
+            self.rebuildPlaces()
+            self.dropGonePlaces()
         }
     }
 
-    private func loadHistoric(from: Stop, to: Stop, at: Date) async {
-        do {
-            historic = try await APIClient.shared.segmentEstimate(
-                from: from.id,
-                to: to.id,
-                at: Self.trueUtcIso(at)
-            )
-        } catch let error as StatsUnavailableError {
-            errorMessage = error.reason
-        } catch {
-            errorMessage = "Erre az útvonalra nincs történeti adatunk ehhez az időponthoz — ez csak olyan megállópárokra működik, amelyeket egyetlen járat közvetlenül, átszállás nélkül összeköt."
-        }
-    }
-
-    /// One batched call for every distinct (route, boarding stop) pair across
-    /// all itineraries, rather than a request per leg.
-    private func loadDelays(for trips: [RoutePlanTrip], at: Date) async {
-        var unique: [String: RouteDelayLeg] = [:]
+    private func rebuildPlaces() {
+        let source = ownStops?.key == modes ? ownStops?.places ?? [] : catalog.map(PlannerPlace.init(stop:))
+        let merge = UserDefaults.standard.string(forKey: Self.mergeKey).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) } ?? "all"
+        let ids = Set(source.map(\.id))
+        var byName: [String: PlannerPlace] = [:]
         var order: [String] = []
-
-        for trip in trips {
-            for leg in trip.legs {
-                guard let key = Self.delayKey(leg),
-                      let routeShort = leg.routeShortName,
-                      let stopId = leg.fromStopId,
-                      unique[key] == nil
-                else { continue }
-                unique[key] = RouteDelayLeg(routeShort: routeShort, stopId: stopId)
-                order.append(key)
-            }
+        for place in source {
+            if let parent = place.parent, ids.contains(parent) { continue }
+            let feed = place.resolvedFeed
+            let allowed = feed == .mvk || (feed == .coach ? travel.coach : travel.rail)
+            guard allowed else { continue }
+            if place.twinOf != nil && merge != "off" { continue }
+            guard byName[place.name] == nil else { continue }
+            byName[place.name] = place
+            order.append(place.name)
         }
+        let hungarian = Locale(identifier: "hu_HU")
+        places = order.compactMap { byName[$0] }.sorted { a, b in
+            let ra = Self.regionRank(a), rb = Self.regionRank(b)
+            if ra != rb { return ra < rb }
+            return a.name.compare(b.name, locale: hungarian) == .orderedAscending
+        }
+    }
 
-        guard !order.isEmpty else { return }
+    /// Stops inside the county first; regional lines run their whole route,
+    /// so Debrecen's bus station is on the list too — but at the back.
+    private static func regionRank(_ place: PlannerPlace) -> Int {
+        !TransitIds.isRegional(place.id) || PlannerRegion.contains(lat: place.lat, lon: place.lon) ? 0 : 1
+    }
 
-        do {
-            let response = try await APIClient.shared.routeDelays(
-                at: Self.trueUtcIso(at),
-                legs: order.compactMap { unique[$0] }
+    func placeName(_ id: String) -> PlannerPlace? {
+        places.first { $0.id == id }
+    }
+
+    // MARK: - Form
+
+    func setNow() {
+        form.date = PlannerFormat.todayLocalIso()
+        form.time = PlannerFormat.nowLocalTime()
+    }
+
+    func swap() {
+        let from = form.from
+        form.from = form.to
+        form.to = from
+    }
+
+    /// On re-ticking: a place no longer offered (e.g. Budapest-Keleti without
+    /// rail) is cleared; otherwise an existing plan is recomputed with the new modes.
+    private func travelChanged() {
+        guard modes != lastModes else { return }
+        lastModes = modes
+        rebuildPlaces()
+        loadOwnStops()
+        if dropGonePlaces() { return }
+        if lastQuery != nil { run() }
+    }
+
+    @discardableResult
+    private func dropGonePlaces() -> Bool {
+        let ids = Set(places.map(\.id))
+        var gone = false
+        if !form.from.isEmpty && !ids.contains(form.from) { form.from = ""; gone = true }
+        if !form.to.isEmpty && !ids.contains(form.to) { form.to = ""; gone = true }
+        guard gone else { return false }
+        runTask?.cancel()
+        lastQuery = nil
+        result = .idle
+        stopRefresh()
+        return true
+    }
+
+    // MARK: - Search
+
+    func submit() {
+        guard canSubmit, !isLoading else { return }
+        run()
+    }
+
+    func run(silent: Bool = false) {
+        let query: JourneyPlanQuery?
+        if silent {
+            if var last = lastQuery, !last.arriveBy {
+                last.at = Int(RealtimeClient.shared.serverNow)
+                query = last
+            } else {
+                query = lastQuery
+            }
+        } else if canSubmit {
+            query = JourneyPlanQuery(
+                from: "stop:\(form.from)",
+                to: "stop:\(form.to)",
+                at: PlannerFormat.toUnix(date: form.date, time: form.time),
+                arriveBy: form.arriveBy,
+                limit: Self.resultLimit,
+                modes: modes
             )
-            var map: [String: RouteDelayInfo] = [:]
-            for (index, key) in order.enumerated() where response.results.indices.contains(index) {
-                map[key] = response.results[index]
+        } else {
+            query = nil
+        }
+        guard let query else { return }
+        lastQuery = query
+        runTask?.cancel()
+        if !silent { result = .loading }
+        runTask = Task { [weak self] in
+            do {
+                let plan = try await APIClient.shared.planJourney(query)
+                guard !Task.isCancelled, let self else { return }
+                self.result = .done(plan)
+                TransferAlertStore.shared.evaluate(plan)
+                if plan.mode == .now { self.startRefresh() } else { self.stopRefresh() }
+            } catch {
+                guard !Task.isCancelled, !silent, let self else { return }
+                self.result = .error(Self.message(for: error))
             }
-            delays = map
-        } catch {
-            // Without measurements the itinerary still stands; it just shows
-            // scheduled times with no punctuality note.
         }
     }
 
-    static func delayKey(_ leg: RoutePlanLeg) -> String? {
-        guard !leg.isWalk, let routeShort = leg.routeShortName, let stopId = leg.fromStopId else {
-            return nil
+    private static func message(for error: Error) -> String {
+        if let planError = error as? JourneyPlanError { return planError.message }
+        if error is URLError {
+            return "Nem sikerült elérni a szervert. Ellenőrizd a kapcsolatot, és próbáld újra."
         }
-        return "\(routeShort)|\(stopId)"
+        return "Ismeretlen hiba történt."
     }
 
-    func delayInfo(for leg: RoutePlanLeg) -> RouteDelayInfo? {
-        Self.delayKey(leg).flatMap { delays[$0] }
-    }
+    // MARK: - Live refresh
 
-    // MARK: - Time formats
-    //
-    // The two backends want different things from the same instant, and
-    // getting this wrong silently shifts every result by the UTC offset.
-
-    /// MVK's planner reads `departureTime` literally as *its own* local time
-    /// and ignores the trailing "Z". Sending a genuinely converted UTC instant
-    /// would move the search two hours earlier in summer — so the local wall
-    /// clock digits go out, with a "Z" that is deliberately a lie.
-    static func mvkDepartureParam(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        return formatter.string(from: date) + "Z"
-    }
-
-    /// Our own warehouse wants a real UTC instant.
-    static func trueUtcIso(_ date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter.string(from: date)
-    }
-
-    /// Itinerary timestamps come back as naive local wall-clock strings
-    /// ("2026-09-05T16:34:57") — no "Z", no offset. `ISO8601DateFormatter`
-    /// refuses those outright, which would leave the raw string on screen, so
-    /// the zone-less form is parsed first and read as local time. The zoned
-    /// variants are handled too in case the gateway ever starts sending them.
-    static func hourMinute(_ iso: String) -> String {
-        guard let date = parseItineraryDate(iso) else { return iso }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "hu_HU")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
-
-    static func parseItineraryDate(_ iso: String) -> Date? {
-        let naive = DateFormatter()
-        naive.calendar = Calendar(identifier: .gregorian)
-        naive.locale = Locale(identifier: "en_US_POSIX")
-        naive.timeZone = .current
-
-        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm"] {
-            naive.dateFormat = format
-            if let date = naive.date(from: iso) { return date }
+    /// A live plan is refreshed every minute: delays and transfer odds move.
+    private func startRefresh() {
+        guard refreshTask == nil else { return }
+        refreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.liveRefresh)
+                guard !Task.isCancelled, let self, self.isActive else { continue }
+                self.run(silent: true)
+            }
         }
-
-        let zoned = ISO8601DateFormatter()
-        zoned.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return zoned.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
     }
 
-    static func minutes(_ sec: Int) -> String {
-        "\(Int((Double(sec) / 60).rounded())) perc"
+    private func stopRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
     }
 
-    /// "1 ó 5 p" / "12 p 30 mp" / "45 mp".
-    static func duration(_ sec: Int?) -> String {
-        guard let sec else { return "—" }
-        let s = abs(sec)
-        let h = s / 3600
-        let m = (s % 3600) / 60
-        if h > 0 { return "\(h) ó \(m) p" }
-        if m > 0 { return "\(m) p \(s % 60) mp" }
-        return "\(s) mp"
+    /// The scene is in the foreground (the web checks `visibilityState`).
+    var isActive = true
+
+    deinit {
+        runTask?.cancel()
+        refreshTask?.cancel()
+        placesTask?.cancel()
+    }
+}
+
+/// The regional coverage: the old Borsod-Abaúj-Zemplén county plus the
+/// Füzesabony rail junction (`@mvk/core/transit/region`).
+enum PlannerRegion {
+    private static let polygon: [(Double, Double)] = [
+        (48.3, 20.08), (48.3, 20.36), (48.47, 20.48), (48.56, 20.75), (48.55, 21.1), (48.52, 21.25), (48.57, 21.45),
+        (48.41, 21.7), (48.38, 22.12), (48.25, 21.93), (48.18, 21.7), (48.1, 21.42), (48.0, 21.1), (47.88, 21.09),
+        (47.64, 20.88), (47.7, 20.6), (47.7, 20.35), (47.95, 20.47), (48.08, 20.45), (48.12, 20.2), (48.2, 20.06),
+    ]
+
+    static func contains(lat: Double, lon: Double) -> Bool {
+        var inside = false
+        var j = polygon.count - 1
+        for i in polygon.indices {
+            let (yi, xi) = polygon[i]
+            let (yj, xj) = polygon[j]
+            if (yi > lat) != (yj > lat), lon < (xj - xi) * (lat - yi) / (yj - yi) + xi { inside.toggle() }
+            j = i
+        }
+        return inside
     }
 }

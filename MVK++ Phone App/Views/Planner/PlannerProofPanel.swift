@@ -1,0 +1,156 @@
+//
+//  PlannerProofPanel.swift
+//  MVK++ Phone App
+//
+
+import SwiftUI
+import UIKit
+
+/// A past journey summed up in a form that can be shown as proof.
+struct PlannerProofPanel: View {
+    let plan: JourneyPlanResponse
+    let trip: JourneyTrip
+
+    var body: some View {
+        let o = PastOutcome(trip)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.rectangle.stack")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("IGAZOLÁS")
+                            .font(.system(size: 11, weight: .semibold))
+                            .tracking(0.6)
+                    }
+                    .foregroundStyle(Theme.mutedForeground)
+                    Text("Bemásolható szöveg, pl. tanárnak vagy munkahelynek.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.mutedForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                PlannerCopyButton(text: PlannerProof.text(plan: plan, trip: trip))
+            }
+
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 4) {
+                row("Nap") { Text(PlannerFormat.longDate(PlannerFormat.localIsoDate(trip.start))) }
+                row("Útvonal") { Text("\(plan.from.name) → \(plan.to.name)") }
+                row("Menetrend") {
+                    Text("\(PlannerFormat.hm(trip.start)) → \(PlannerFormat.hm(trip.end))").monospacedDigit()
+                }
+                row("Valójában") {
+                    if let arrival = o.actualArrival, let delay = o.arrivalDelayS {
+                        (Text("érkezés \(PlannerFormat.hms(arrival))\(o.arrivalEstimated ? " (becsült)" : "") · ")
+                            + Text(PlannerFormat.delayExact(delay)).fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color))
+                            .monospacedDigit()
+                    } else {
+                        Text("az érkezésről nincs mérés").foregroundStyle(Theme.mutedForeground)
+                    }
+                }
+                row("Járművek") { vehicles }
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.foreground)
+            .padding(.top, 12)
+
+            if let missed = o.missedTransfer {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 12))
+                        .padding(.top, 1)
+                    Text("A mért idők szerint az átszállás itt nem jött volna össze: \(missed.at). A tényleges érkezés ennél későbbi lett volna.")
+                        .font(.system(size: 11))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Theme.late)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.late.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.late.opacity(0.4), lineWidth: 1))
+                .padding(.top, 12)
+            }
+            if o.partial {
+                Text(o.untrackedRoutes.count < o.rideCount
+                    ? "Részleges mérés: a(z) \(o.untrackedRoutes.joined(separator: ", ")) menetéről nincs adatunk."
+                    : "Erről az útról nincs mérésünk igazolásra nem alkalmas, csak a menetrendet mutatja.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+            }
+        }
+        .padding(12)
+        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Igazolás")
+    }
+
+    private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(Theme.mutedForeground)
+            content()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var vehicles: some View {
+        let rides = PlannerFormat.transitLegs(trip)
+        var text = Text("")
+        for (index, leg) in rides.enumerated() {
+            if index > 0 { text = text + Text(", ") }
+            if let id = leg.actual?.vehicleId {
+                text = text + Text(TransitIds.displayVehicleId(id)).font(Theme.mono(12, weight: .semibold))
+            } else {
+                text = text + Text("nincs mérés").foregroundColor(Theme.mutedForeground)
+            }
+            let route = "\(PlannerFormat.legTileText(leg)) \(leg.trainName ?? PlannerFormat.modeNoun(leg.mode))"
+            text = text + Text(" (\(route))").foregroundColor(Theme.mutedForeground)
+        }
+        return text
+    }
+}
+
+private struct PlannerCopyButton: View {
+    let text: String
+
+    private enum CopyState { case idle, copied }
+
+    @State private var state = CopyState.idle
+    @State private var resetTask: Task<Void, Never>?
+
+    var body: some View {
+        Button {
+            UIPasteboard.general.string = text
+            state = .copied
+            resetTask?.cancel()
+            resetTask = Task {
+                try? await Task.sleep(for: .milliseconds(2200))
+                guard !Task.isCancelled else { return }
+                state = .idle
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: state == .copied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(state == .copied ? Theme.ontime : Theme.foreground)
+                Text(state == .copied ? "Másolva" : "Másolás")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.foreground)
+                    .contentTransition(.opacity)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlannerPressStyle())
+        .sensoryFeedback(.success, trigger: state == .copied) { _, copied in copied }
+        .animation(Theme.Motion.fastAnimation, value: state == .copied)
+        .accessibilityLabel(state == .copied ? "Másolva" : "Másolás")
+    }
+}
