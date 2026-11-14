@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 /// The ride the rider is on, reduced to what fits on a wrist.
 ///
@@ -154,4 +155,16 @@ extension Notification.Name {
     /// A `WatchRideCommand` for the phone's ride store, from the watch, a
     /// control or the `mvkpp://ride` link.
     static let mvkRideCommand = Notification.Name("mvk-ride-command")
+}
+
+extension WatchRideSnapshot {
+    /// The route colour for bars and rings, unless it is too dark to see on
+    /// a black face (the 1VP's black), then the brand green.
+    var accentColor: Color {
+        let hex = color.replacingOccurrences(of: "#", with: "")
+        guard hex.count == 6, let rgb = UInt64(hex, radix: 16) else { return Theme.primary }
+        let r = Double((rgb >> 16) & 0xFF), g = Double((rgb >> 8) & 0xFF), b = Double(rgb & 0xFF)
+        let luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+        return luminance < 0.25 ? Theme.primary : Theme.hex(color)
+    }
 }

@@ -214,7 +214,7 @@ struct RideWidgetView: View {
             }
         }
         .gaugeStyle(.accessoryCircular)
-        .tint(Theme.hex(ride.color))
+        .tint(ride.accentColor)
     }
 
     private func corner(_ ride: WatchRideSnapshot) -> some View {
@@ -225,7 +225,7 @@ struct RideWidgetView: View {
                 Gauge(value: ride.progress ?? 0) {
                     Text(ride.route)
                 }
-                .tint(Theme.hex(ride.color))
+                .tint(ride.accentColor)
             }
     }
 
@@ -265,7 +265,7 @@ struct RideWidgetView: View {
                     EmptyView()
                 }
                 .gaugeStyle(.accessoryLinearCapacity)
-                .tint(Theme.hex(ride.color))
+                .tint(ride.accentColor)
                 if let left = ride.stopsLeft {
                     Text("\(left) megálló · \(ride.destinationStopName ?? ride.headsign)")
                         .font(.system(size: 10))

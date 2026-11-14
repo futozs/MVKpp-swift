@@ -34,6 +34,7 @@ final class RideController: ObservableObject {
     private var lastRide: WatchRideSnapshot?
 
     private static let pollInterval: Duration = .seconds(10)
+    private static let maxLocalRide: TimeInterval = 3 * 60 * 60
     private static let hapticsKey = "mvk_watch_haptics"
 
     var hapticsEnabled: Bool {
@@ -50,7 +51,13 @@ final class RideController: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] ride in self?.react(to: ride) }
         if let ride = WatchLink.shared.ride, ride.source == .watch, !ride.ended {
-            resume(ride)
+            // A follow the app was closed on hours ago is over, whatever the
+            // feed would say about that run now.
+            if Date().timeIntervalSince1970 - ride.boardedAt > Self.maxLocalRide {
+                WatchLink.shared.setLocalRide(nil)
+            } else {
+                resume(ride)
+            }
         }
     }
 
@@ -205,7 +212,7 @@ final class RideController: ObservableObject {
         let next = stops[nextIndex]
         ride.nextStopId = next.id
         ride.nextStopName = next.name
-        ride.nextStopAt = serviceDayStart().addingTimeInterval(Double(next.dep + (ride.delaySec ?? 0))).timeIntervalSince1970
+        ride.nextStopAt = due(secondsOfServiceDay: next.dep + (ride.delaySec ?? 0)).timeIntervalSince1970
         ride.stopsLeft = destIndex - nextIndex + 1
         let span = Double(max(1, destIndex - boardIndex))
         let travelled = Double(nextIndex - 1 - boardIndex) + (progress.segmentFraction ?? 0)
@@ -213,12 +220,18 @@ final class RideController: ObservableObject {
         return ride
     }
 
-    /// Midnight of the service day in Budapest; GTFS times count from there
-    /// and run past 24:00 for the night's last trips.
-    private static func serviceDayStart(_ now: Date = Date()) -> Date {
+    /// GTFS times count from midnight of the run's service day in Budapest
+    /// and go past 24:00 for the night's last trips, so a 26:50 run is still
+    /// yesterday's after 03:00 rolls the day over. Of today's and
+    /// yesterday's reading, the one nearer to now is the run's.
+    private static func due(secondsOfServiceDay seconds: Int, now: Date = Date()) -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Budapest") ?? .current
-        return calendar.startOfDay(for: now.addingTimeInterval(-3 * 3600))
+        let today = calendar.startOfDay(for: now)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        return [today, yesterday]
+            .map { $0.addingTimeInterval(Double(seconds)) }
+            .min { abs($0.timeIntervalSince(now)) < abs($1.timeIntervalSince(now)) } ?? today
     }
 
     // MARK: - Haptics

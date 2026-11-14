@@ -32,7 +32,7 @@ struct RideView: View {
                         }
                     }
                 }
-                .containerBackground(Theme.hex(ride.color).gradient.opacity(0.45), for: .navigation)
+                .containerBackground(ride.accentColor.gradient.opacity(0.45), for: .navigation)
             } else if rides.awaitingPhone {
                 ProgressView("A telefon indítja az utat…")
             } else {
@@ -127,7 +127,7 @@ struct RideProgress: View {
                 EmptyView()
             }
             .gaugeStyle(.linearCapacity)
-            .tint(Theme.hex(ride.color))
+            .tint(ride.accentColor)
             HStack {
                 if let left = ride.stopsLeft {
                     Text(left == 1 ? "1 megálló" : "\(left) megálló")
@@ -192,7 +192,7 @@ struct RideBanner: View {
                     RideProgress(ride: ride)
                 }
             }
-            .glassCard(tint: Theme.hex(ride.color), cornerRadius: 18)
+            .glassCard(tint: ride.accentColor, cornerRadius: 18)
         }
         .buttonStyle(.plain)
     }
