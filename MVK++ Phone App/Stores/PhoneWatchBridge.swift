@@ -5,9 +5,11 @@
 
 import Combine
 import Foundation
+import WidgetKit
 
-/// Keeps the watch on the phone's settings: transport modes, stop merge,
-/// timetable favourites and the predicted-vehicle switch. The watchlist rides
+/// Keeps the watch — and the phone's own widgets, through the App Group — on
+/// the phone's settings: transport modes, stop merge, timetable favourites
+/// and the predicted-vehicle switch. The watchlist rides
 /// on `FavoritesStore`; the ride store publishes its own snapshots through
 /// `WatchLink.shared.publish(ride:)`.
 @MainActor
@@ -42,6 +44,8 @@ final class PhoneWatchBridge {
         )
         guard settings != lastSent else { return }
         lastSent = settings
+        WatchSharedState.save(settings: settings)
         WatchLink.shared.publish(settings: settings)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

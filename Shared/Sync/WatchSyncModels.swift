@@ -121,8 +121,8 @@ enum WatchSyncAction: String {
     case startRide, endRide
 }
 
-/// The watch keeps the last ride and settings in the App Group so its
-/// complications can draw them without the app running.
+/// The last ride and the phone's settings in the App Group, so widgets on
+/// either device can draw them without their app running.
 enum WatchSharedState {
     private static let rideKey = "mvk_watch_ride"
     private static let settingsKey = "mvk_watch_settings"

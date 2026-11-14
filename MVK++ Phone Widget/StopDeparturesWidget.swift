@@ -31,7 +31,7 @@ struct StopDeparturesWidget: Widget {
         }
         .configurationDisplayName("Következő indulások")
         .description("Egy megálló élő indulásai: melyik járat, milyen rendszámmal, mennyit késik, és hány perc múlva ér oda.")
-        .supportedFamilies([.systemMedium, .systemLarge, .accessoryRectangular])
+        .supportedFamilies([.systemMedium, .systemLarge, .accessoryRectangular, .accessoryCircular, .accessoryInline])
     }
 }
 

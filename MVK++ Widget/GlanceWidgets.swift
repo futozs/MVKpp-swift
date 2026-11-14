@@ -4,6 +4,7 @@
 //
 
 import CoreLocation
+import RelevanceKit
 import SwiftUI
 import WidgetKit
 
@@ -162,8 +163,16 @@ struct RideProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<RideEntry>) -> Void) {
         let now = Date()
         let ride = WatchSharedState.ride
-        guard let ride, !ride.ended else {
-            completion(Timeline(entries: [RideEntry(date: now, ride: ride, relevance: TimelineEntryRelevance(score: 0))], policy: .never))
+        guard let ride else {
+            completion(Timeline(entries: [RideEntry(date: now, ride: nil, relevance: TimelineEntryRelevance(score: 0))], policy: .never))
+            return
+        }
+        // "Megérkeztél" stays for ten minutes, then the face goes back to
+        // offering "Felszálltam".
+        if ride.ended {
+            let arrived = RideEntry(date: now, ride: ride, relevance: TimelineEntryRelevance(score: 30, duration: 10 * 60))
+            let idle = RideEntry(date: Date(timeIntervalSince1970: ride.updatedAt + 10 * 60), ride: nil, relevance: TimelineEntryRelevance(score: 0))
+            completion(Timeline(entries: idle.date > now ? [arrived, idle] : [idle], policy: .never))
             return
         }
         let entries = (0..<10).map { minute in
