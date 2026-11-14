@@ -26,12 +26,13 @@ struct CountdownView: View {
                 .foregroundStyle(.black)
                 .clipShape(Capsule())
         } else {
+            let parts = Countdown.parts(minutes: etaMin)
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text("\(etaMin)")
-                    .font(.system(size: style == .hero ? 30 : 18, weight: .bold, design: .monospaced))
+                Text(parts.value)
+                    .font(.system(size: style == .hero ? 26 : 16, weight: .bold, design: .monospaced))
                     .monospacedDigit()
-                Text("perc")
-                    .font(.caption2)
+                Text(style == .hero || parts.unit != "perc" ? parts.unit : "p")
+                    .font(.system(size: style == .hero ? 11 : 10, weight: .semibold))
                     .foregroundStyle(Theme.mutedForeground)
             }
             .lineLimit(1)

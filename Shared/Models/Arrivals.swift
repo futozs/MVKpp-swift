@@ -86,6 +86,8 @@ struct ArrivalItem: Decodable, Hashable, Identifiable {
 
     var id: String { "\(tripId)-\(time)" }
 
+    var isCancelled: Bool { cancelled == true }
+
     /// Built from the gateway's JSON in normal use. The explicit initializer
     /// exists so the offline pack can produce the same rows from the stored
     /// timetable, and every screen keeps rendering one arrival type.

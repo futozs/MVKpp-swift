@@ -3,6 +3,7 @@
 //  MVK++ Phone Widget
 //
 
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -38,10 +39,11 @@ struct StopDeparturesView: View {
 
     var body: some View {
         Group {
-            if family == .accessoryRectangular {
-                accessory
-            } else {
-                board
+            switch family {
+            case .accessoryRectangular: accessory
+            case .accessoryCircular: circular
+            case .accessoryInline: inline
+            default: board
             }
         }
         .widgetURL(stopURL)
@@ -78,6 +80,21 @@ struct StopDeparturesView: View {
     /// actually look for, then the name. Tapping it opens that stop in the
     /// app — the header is the button.
     private var header: some View {
+        HStack(spacing: 8) {
+            stopLink
+            Button(intent: RefreshDeparturesIntent()) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Theme.primary.opacity(0.15)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Frissítés")
+        }
+    }
+
+    private var stopLink: some View {
         Link(destination: stopURL) {
             HStack(spacing: 8) {
                 if !entry.stopCode.isEmpty {
@@ -265,6 +282,39 @@ struct StopDeparturesView: View {
                 Text(entry.message ?? "Nincs induló járat")
                     .font(.system(size: 11))
                     .lineLimit(1)
+            }
+        }
+    }
+
+    /// The next bus as a ring that fills over the last quarter hour.
+    private var circular: some View {
+        Group {
+            if let departure = entry.departures.first {
+                let minutes = departure.minutes(at: entry.date)
+                Gauge(value: Double(max(0, 15 - min(minutes, 15))), in: 0...15) {
+                    Text(departure.route)
+                } currentValueLabel: {
+                    Text(minutes <= 0 ? "MOST" : "\(minutes)")
+                        .font(.system(size: minutes <= 0 ? 11 : 18, weight: .bold, design: .rounded))
+                }
+                .gaugeStyle(.accessoryCircular)
+            } else {
+                ZStack {
+                    AccessoryWidgetBackground()
+                    Image(systemName: "bus.fill")
+                        .font(.title3)
+                }
+            }
+        }
+    }
+
+    private var inline: some View {
+        Group {
+            if let departure = entry.departures.first {
+                let minutes = departure.minutes(at: entry.date)
+                Text("\(Image(systemName: "bus.fill")) \(departure.route) · \(minutes <= 0 ? "most" : "\(minutes) perc") · \(entry.stopName)")
+            } else {
+                Text(entry.message ?? entry.stopName)
             }
         }
     }

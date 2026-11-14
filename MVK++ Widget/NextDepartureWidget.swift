@@ -3,167 +3,261 @@
 //  MVK++ Widget
 //
 
+import AppIntents
 import SwiftUI
 import WidgetKit
 
 struct NextDepartureEntry: TimelineEntry {
     let date: Date
-    let stopName: String?
-    let arrival: ArrivalItem?
-    /// Locally-decremented ETA for the minutes between real network
-    /// refreshes, so the widget visibly counts down instead of sitting on
-    /// stale data until WidgetKit gets around to calling the provider again.
-    let etaOverride: Int?
+    let stopId: String?
+    let stopName: String
+    let departures: [DepartureSnapshot]
     let message: String?
+    var relevance: TimelineEntryRelevance?
+
+    var next: DepartureSnapshot? { departures.first { !$0.hasDeparted(at: date) } }
+    var upcoming: [DepartureSnapshot] { departures.filter { !$0.hasDeparted(at: date) } }
+
+    static func placeholder(_ date: Date = Date()) -> NextDepartureEntry {
+        NextDepartureEntry(
+            date: date,
+            stopId: nil,
+            stopName: "Búza tér",
+            departures: [
+                DepartureSnapshot(id: "a", route: "1", color: "47897B", textColor: "FFFFFF", headsign: "Tiszai pu.",
+                                  due: date.addingTimeInterval(180), delaySec: 60, isLive: true, vehicleId: "412", tripId: "a"),
+                DepartureSnapshot(id: "b", route: "21", color: "0B6FB8", textColor: "FFFFFF", headsign: "Egyetemváros",
+                                  due: date.addingTimeInterval(540), delaySec: nil, isLive: false, vehicleId: nil, tripId: "b"),
+            ],
+            message: nil
+        )
+    }
 }
 
-struct NextDepartureProvider: TimelineProvider {
-    func placeholder(in context: Context) -> NextDepartureEntry {
-        NextDepartureEntry(date: Date(), stopName: "Megálló", arrival: nil, etaOverride: nil, message: nil)
-    }
-
-    func getSnapshot(in context: Context, completion: @escaping (NextDepartureEntry) -> Void) {
-        if context.isPreview {
-            completion(NextDepartureEntry(date: Date(), stopName: "Megálló", arrival: nil, etaOverride: nil, message: nil))
-            return
+/// Fetches one stop's board and spreads it over a minute-by-minute timeline,
+/// so the countdown ticks between the refreshes WidgetKit grants.
+enum DepartureTimeline {
+    static func entry(stopId: String?, fallbackName: String?) async -> NextDepartureEntry {
+        let now = Date()
+        guard let stopId else {
+            return NextDepartureEntry(date: now, stopId: nil, stopName: "MVK++", departures: [], message: "Vegyél fel megállót a Figyelőre")
         }
-        Task { completion(await fetchEntry()) }
-    }
-
-    func getTimeline(in context: Context, completion: @escaping (Timeline<NextDepartureEntry>) -> Void) {
-        Task {
-            let base = await fetchEntry()
-            let now = Date()
-            var timelineEntries: [NextDepartureEntry] = []
-
-            if let arrival = base.arrival {
-                let steps = min(arrival.etaMin, 5)
-                for minute in 0...steps {
-                    let entryDate = Calendar.current.date(byAdding: .minute, value: minute, to: now) ?? now
-                    timelineEntries.append(
-                        NextDepartureEntry(
-                            date: entryDate,
-                            stopName: base.stopName,
-                            arrival: arrival,
-                            etaOverride: max(0, arrival.etaMin - minute),
-                            message: nil
-                        )
-                    )
-                }
-            } else {
-                timelineEntries = [base]
-            }
-
-            // A real re-fetch every few minutes — long enough to respect the
-            // system's refresh budget, short enough that vehicle/delay data
-            // doesn't go stale. The app itself also nudges a reload every
-            // ~20s via WidgetCenter while it's open and actively polling.
-            let nextRefresh = now.addingTimeInterval(3 * 60)
-            completion(Timeline(entries: timelineEntries, policy: .after(nextRefresh)))
-        }
-    }
-
-    private func fetchEntry() async -> NextDepartureEntry {
-        guard let stopId = await WidgetStopResolver.resolveStopId() else {
-            return NextDepartureEntry(date: Date(), stopName: nil, arrival: nil, etaOverride: nil, message: "Válassz widget megállót a telefonon")
-        }
+        let cachedName = fallbackName ?? SharedStopCache.stop(id: stopId)?.name ?? stopId
         do {
-            let response = try await APIClient.shared.arrivals(stopId: stopId, limit: 1)
-            guard let arrival = response.arrivals.first else {
-                return NextDepartureEntry(date: Date(), stopName: response.stop.name ?? stopId, arrival: nil, etaOverride: nil, message: "Nincs induló járat")
-            }
-            return NextDepartureEntry(date: Date(), stopName: response.stop.name ?? stopId, arrival: arrival, etaOverride: arrival.etaMin, message: nil)
+            let response = try await APIClient.shared.arrivals(stopId: stopId, limit: 4, boardKey: WatchSharedState.settings.boardKey)
+            let departures = DepartureSnapshot.list(response, now: now)
+            return NextDepartureEntry(
+                date: now,
+                stopId: stopId,
+                stopName: response.stop.name ?? cachedName,
+                departures: departures,
+                message: departures.isEmpty ? "Ma már nem indul járat" : nil
+            )
         } catch {
-            return NextDepartureEntry(date: Date(), stopName: stopId, arrival: nil, etaOverride: nil, message: "Nincs kapcsolat")
+            return NextDepartureEntry(date: now, stopId: stopId, stopName: cachedName, departures: [], message: "Nincs kapcsolat")
         }
+    }
+
+    static func timeline(from base: NextDepartureEntry) -> Timeline<NextDepartureEntry> {
+        var entries: [NextDepartureEntry] = []
+        for minute in 0..<15 {
+            let date = base.date.addingTimeInterval(Double(minute) * 60)
+            var entry = NextDepartureEntry(date: date, stopId: base.stopId, stopName: base.stopName, departures: base.departures, message: base.message)
+            guard minute == 0 || entry.next != nil else { break }
+            entry.relevance = relevance(entry)
+            entries.append(entry)
+        }
+        let refresh = base.date.addingTimeInterval(base.departures.isEmpty ? 15 * 60 : 5 * 60)
+        return Timeline(entries: entries, policy: .after(refresh))
+    }
+
+    /// The Smart Stack lifts a departure the rider can still make: most in
+    /// the few minutes before the bus, nothing once the board is empty.
+    private static func relevance(_ entry: NextDepartureEntry) -> TimelineEntryRelevance {
+        guard let next = entry.next else { return TimelineEntryRelevance(score: 0) }
+        let minutes = next.minutes(at: entry.date)
+        let score: Float = switch minutes {
+        case ...1: 60
+        case 2...10: 100
+        case 11...20: 50
+        default: 10
+        }
+        return TimelineEntryRelevance(score: score, duration: 60)
+    }
+}
+
+struct NextDepartureProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> NextDepartureEntry { .placeholder() }
+
+    func snapshot(for configuration: WatchStopConfigIntent, in context: Context) async -> NextDepartureEntry {
+        guard !context.isPreview else { return .placeholder() }
+        return await entry(for: configuration)
+    }
+
+    func timeline(for configuration: WatchStopConfigIntent, in context: Context) async -> Timeline<NextDepartureEntry> {
+        DepartureTimeline.timeline(from: await entry(for: configuration))
+    }
+
+    func recommendations() -> [AppIntentRecommendation<WatchStopConfigIntent>] {
+        WatchStopConfigIntent.presets()
+    }
+
+    private func entry(for configuration: WatchStopConfigIntent) async -> NextDepartureEntry {
+        let stopId: String?
+        if let stop = configuration.stop {
+            stopId = stop.id
+        } else {
+            stopId = await WidgetStopResolver.resolveStopId() ?? FavoritesStore.storedStopIds.first
+        }
+        return await DepartureTimeline.entry(stopId: stopId, fallbackName: configuration.stop?.name)
     }
 }
 
 struct NextDepartureWidgetView: View {
     let entry: NextDepartureEntry
-
-    private var routeLengthScale: CGFloat {
-        guard let route = entry.arrival?.route else { return 1.0 }
-        switch route.count {
-        case 0...1: return 1.0
-        case 2: return 0.88
-        case 3: return 0.76
-        default: return 0.66
-        }
-    }
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        if let arrival = entry.arrival {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    Text(arrival.route)
-                        .font(.system(size: 12 * routeLengthScale, design: .rounded))
-                        .fontWeight(.heavy)
-                        .padding(.horizontal, 5 * routeLengthScale)
-                        .padding(.vertical, 1)
-                        .background(Theme.hex(arrival.color.isEmpty ? "888888" : arrival.color))
-                        .foregroundStyle(Theme.hex(arrival.text.isEmpty ? "FFFFFF" : arrival.text))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    if let stopName = entry.stopName {
-                        Text(stopName)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
+        Group {
+            switch family {
+            case .accessoryCircular: circular
+            case .accessoryCorner: corner
+            case .accessoryInline: inline
+            default: rectangular
+            }
+        }
+        .widgetURL(entry.stopId.map { DeepLink.stop($0).url } ?? DeepLink.tab(.multistop).url)
+    }
+
+    private var circular: some View {
+        Group {
+            if let next = entry.next {
+                let minutes = next.minutes(at: entry.date)
+                Gauge(value: Double(max(0, 15 - min(minutes, 15))), in: 0...15) {
+                    Text(next.route)
+                } currentValueLabel: {
+                    Text(minutes <= 0 ? "most" : "\(minutes)")
+                        .font(.system(size: minutes <= 0 ? 12 : 18, weight: .bold, design: .rounded))
+                        .minimumScaleFactor(0.6)
                 }
-                HStack(spacing: 6) {
-                    if let vehicleId = arrival.vehicle?.id {
-                        Text("#\(vehicleId)")
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    delayText(arrival.delaySec)
-                    Spacer(minLength: 0)
-                    let etaMin = entry.etaOverride ?? arrival.etaMin
-                    Text(etaMin <= 0 ? "MOST" : "\(etaMin) perc")
-                        .font(.system(.callout, design: .monospaced))
-                        .fontWeight(.bold)
+                .gaugeStyle(.accessoryCircular)
+                .tint(Theme.hex(next.color))
+            } else {
+                ZStack {
+                    AccessoryWidgetBackground()
+                    Image(systemName: "bus.fill")
+                        .font(.title3)
+                        .widgetAccentable()
                 }
             }
-        } else {
-            Text(entry.message ?? "Nincs adat")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
         }
     }
 
-    private func delayText(_ delaySec: Int?) -> some View {
+    private var corner: some View {
         Group {
-            if let delaySec {
-                if abs(delaySec) < 45 {
-                    Text("0").foregroundStyle(Theme.ontime)
-                } else {
-                    let minutes = Int((Double(abs(delaySec)) / 60).rounded())
-                    Text(delaySec > 0 ? "+\(minutes)" : "-\(minutes)")
-                        .foregroundStyle(delaySec > 0 ? Theme.late : Theme.early)
-                }
+            if let next = entry.next {
+                let minutes = next.minutes(at: entry.date)
+                Text(minutes <= 0 ? "most" : "\(minutes)'")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .widgetCurvesContent()
+                    .widgetLabel {
+                        Text("\(next.route) · \(entry.stopName)")
+                    }
             } else {
-                Text("—").foregroundStyle(.secondary)
+                Image(systemName: "bus.fill")
+                    .widgetLabel { Text(entry.message ?? entry.stopName) }
             }
         }
-        .font(.system(.caption2, design: .monospaced))
-        .fontWeight(.semibold)
+    }
+
+    private var inline: some View {
+        Group {
+            if let next = entry.next {
+                let minutes = next.minutes(at: entry.date)
+                Text("\(Image(systemName: "bus.fill")) \(next.route) · \(minutes <= 0 ? "most" : "\(minutes) perc") · \(entry.stopName)")
+            } else {
+                Text(entry.message ?? entry.stopName)
+            }
+        }
+    }
+
+    private var rectangular: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "dot.radiowaves.up.forward")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.primary)
+                    .widgetAccentable()
+                Text(entry.stopName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+            }
+            if entry.upcoming.isEmpty {
+                Text(entry.message ?? "Nincs adat")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(entry.upcoming.prefix(2)) { departure in
+                WidgetDepartureLine(departure: departure, date: entry.date)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One departure on a rectangular complication: tile, headsign, delay,
+/// countdown.
+struct WidgetDepartureLine: View {
+    let departure: DepartureSnapshot
+    let date: Date
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(departure.route)
+                .font(.system(size: departure.route.count > 2 ? 10 : 12, weight: .heavy, design: .rounded))
+                .foregroundStyle(Theme.hex(departure.textColor))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .frame(minWidth: 24)
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Theme.hex(departure.color)))
+                .widgetAccentable()
+            Text(departure.headsign)
+                .font(.system(size: 12))
+                .lineLimit(1)
+            Spacer(minLength: 2)
+            if departure.isLive, DelayFormat.state(departure.delaySec) != .ontime, departure.delaySec != nil {
+                Text(DelayFormat.label(departure.delaySec).replacingOccurrences(of: " perc", with: ""))
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(DelayFormat.tone(departure.delaySec))
+            }
+            let minutes = departure.minutes(at: date)
+            Text(minutes <= 0 ? "most" : Countdown.compact(minutes: minutes))
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+        }
     }
 }
 
 struct NextDepartureWidget: Widget {
-    let kind = "NextDepartureWidget"
-
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: NextDepartureProvider()) { entry in
+        AppIntentConfiguration(kind: WidgetKinds.nextDeparture, intent: WatchStopConfigIntent.self, provider: NextDepartureProvider()) { entry in
             NextDepartureWidgetView(entry: entry)
-                .containerBackground(for: .widget) {
-                    Theme.card
-                }
+                .containerBackground(for: .widget) { Theme.card }
         }
-        .configurationDisplayName("MVK++")
-        .description("A kiválasztott vagy a legközelebbi figyelt megálló következő indulása.")
-        .supportedFamilies([.accessoryRectangular])
+        .configurationDisplayName("Következő indulás")
+        .description("A kiválasztott vagy a legközelebbi figyelt megálló következő indulásai.")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline, .accessoryCorner])
+    }
+}
+
+extension WatchStopConfigIntent {
+    /// watchOS has no widget editor: the face picker offers these presets —
+    /// "follow me", then each watched stop.
+    static func presets() -> [AppIntentRecommendation<WatchStopConfigIntent>] {
+        let automatic = AppIntentRecommendation(intent: WatchStopConfigIntent(stop: nil), description: "Legközelebbi figyelt megálló")
+        let cache = Dictionary(SharedStopCache.load().map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let watched = FavoritesStore.storedStopIds.compactMap { cache[$0] }.map { stop in
+            AppIntentRecommendation(intent: WatchStopConfigIntent(stop: StopEntity(stop)), description: LocalizedStringResource(stringLiteral: stop.name))
+        }
+        return [automatic] + watched
     }
 }

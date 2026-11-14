@@ -10,5 +10,9 @@ import WidgetKit
 struct MVKWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextDepartureWidget()
+        WatchedStopsWidget()
+        RideWidget()
+        DisruptionsWidget()
+        NearbyStopWidget()
     }
 }

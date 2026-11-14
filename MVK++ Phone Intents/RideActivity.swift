@@ -61,10 +61,9 @@ struct RideActivityAttributes: ActivityAttributes {
     var vehicleNoun: String
 }
 
-/// The app sets these at launch; the intents below run in the app's process.
+/// The app sets this at launch; the intent below runs in the app's process.
 enum RideIntentBridge {
     @MainActor static var alight: (() -> Void)?
-    @MainActor static var boardNearest: (() async -> String)?
 }
 
 /// „Leszálltam” from the Live Activity and Shortcuts.

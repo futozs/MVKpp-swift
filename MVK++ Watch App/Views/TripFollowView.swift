@@ -8,10 +8,11 @@ import SwiftUI
 
 /// "Pin" a specific trip: a full-screen live map — tiny stop dots, the
 /// route line, and the vehicle zoomed in close — with a minimal HUD
-/// (route, signed delay, vehicle id) floating over the bottom edge.
+/// (route, signed delay, vehicle id) floating over the bottom edge, and
+/// "Felszálltam" in the corner.
 struct TripFollowView: View {
-    let arrival: ArrivalItem
-    @EnvironmentObject private var coordinator: NavigationCoordinator
+    let trip: TripRef
+    @EnvironmentObject private var router: WatchRouter
     @StateObject private var viewModel = TripProgressViewModel()
     @State private var routeShape: [CLLocationCoordinate2D] = []
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -42,13 +43,21 @@ struct TripFollowView: View {
             }
             if routeShape.count > 1 {
                 MapPolyline(coordinates: routeShape)
-                    .stroke(Theme.hex(arrival.color), lineWidth: 3)
+                    .stroke(Theme.hex(trip.color), lineWidth: 3)
             }
             if let vehicle = viewModel.response?.vehicle {
                 Annotation("", coordinate: CLLocationCoordinate2D(latitude: vehicle.lat, longitude: vehicle.lon)) {
-                    RouteTile(short: arrival.route, colorHex: arrival.color, textHex: arrival.text, size: .small)
+                    if trip.route.isEmpty {
+                        Circle()
+                            .fill(Theme.primary)
+                            .frame(width: 12, height: 12)
+                            .overlay(Circle().stroke(.white, lineWidth: 2))
+                    } else {
+                        RouteTile(short: trip.route, colorHex: trip.color, textHex: trip.textColor, size: .small)
+                    }
                 }
             }
+            UserAnnotation()
         }
         .mapStyle(.standard(elevation: .flat))
         .mapControlVisibility(.hidden)
@@ -66,7 +75,18 @@ struct TripFollowView: View {
                 recenterButton
             }
         }
-        .task(id: arrival.tripId) {
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    router.push(.boardDestination(trip))
+                } label: {
+                    Image(systemName: "ticket")
+                        .foregroundStyle(Theme.primaryForeground)
+                }
+                .accessibilityLabel("Felszálltam")
+            }
+        }
+        .task(id: trip.tripId) {
             async let path: Void = loadPath()
             async let progress: Void = pollProgress()
             _ = await (path, progress)
@@ -76,12 +96,19 @@ struct TripFollowView: View {
     private var hud: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                RouteTile(short: arrival.route, colorHex: arrival.color, textHex: arrival.text, size: .small)
-                DelayIndicator(delaySec: viewModel.response?.scheduleDeviationSec ?? arrival.delaySec)
+                if !trip.route.isEmpty {
+                    RouteTile(short: trip.route, colorHex: trip.color, textHex: trip.textColor, size: .small)
+                }
+                if !trip.headsign.isEmpty {
+                    Text(trip.headsign)
+                        .font(.system(size: 11, weight: .semibold))
+                        .lineLimit(1)
+                }
                 Spacer(minLength: 0)
+                DelayIndicator(delaySec: viewModel.response?.scheduleDeviationSec ?? trip.delaySec)
             }
             HStack(spacing: 8) {
-                if let vehicleId = arrival.vehicle?.id ?? viewModel.response?.vehicle?.id {
+                if let vehicleId = trip.vehicleId ?? viewModel.response?.vehicle?.id {
                     Text("#\(vehicleId)")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(Theme.mutedForeground)
@@ -113,10 +140,6 @@ struct TripFollowView: View {
         .glassCard(cornerRadius: 18)
         .padding(.horizontal, 4)
         .offset(y: 16)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            coordinator.popToRoot()
-        }
     }
 
     private var recenterButton: some View {
@@ -140,7 +163,7 @@ struct TripFollowView: View {
     }
 
     private func loadPath() async {
-        guard let path = try? await APIClient.shared.tripPath(tripId: arrival.tripId, vehicleId: arrival.vehicle?.id) else { return }
+        guard let path = try? await APIClient.shared.tripPath(tripId: trip.tripId, vehicleId: trip.vehicleId) else { return }
         routeShape = path.shape.compactMap { point in
             guard point.count == 2 else { return nil }
             return CLLocationCoordinate2D(latitude: point[0], longitude: point[1])
@@ -151,7 +174,7 @@ struct TripFollowView: View {
     /// zoomed out still gets fresh vehicle, delay and next-stop data.
     private func pollProgress() async {
         while !Task.isCancelled {
-            await viewModel.refresh(tripId: arrival.tripId, vehicleId: arrival.vehicle?.id)
+            await viewModel.refresh(tripId: trip.tripId, vehicleId: trip.vehicleId)
             if isFollowingVehicle {
                 recenterOnVehicle()
             }

@@ -5,12 +5,12 @@
 
 import SwiftUI
 
-/// Stop search sheet, presented from the root list's "+" button.
-/// Filters the in-memory stop catalog by name or code, diacritic-insensitively.
+/// Stop search by name or number, diacritic-insensitively. A pick opens the
+/// stop; its star puts it on the Figyelő.
 struct StopSearchView: View {
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var catalog: StopsCatalog
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var router: WatchRouter
     @State private var query = ""
 
     private var filteredStops: [Stop] {
@@ -18,43 +18,40 @@ struct StopSearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List(filteredStops) { stop in
-                Button {
-                    favorites.add(stop.id)
-                    dismiss()
-                } label: {
+        List(filteredStops) { stop in
+            Button {
+                router.push(.stop(stop.id))
+            } label: {
+                HStack(spacing: 6) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.name)
-                        Text(stop.code)
+                            .font(.footnote.weight(.semibold))
+                        if let code = StopCode.short(stop.id) {
+                            StopCodePlate(code: code)
+                        }
+                    }
+                    Spacer(minLength: 2)
+                    if favorites.contains(stop.id) {
+                        Image(systemName: "star.fill")
                             .font(.caption2)
-                            .foregroundStyle(Theme.mutedForeground)
+                            .foregroundStyle(Theme.amber400)
                     }
                 }
-                .disabled(favorites.stopIds.contains(stop.id) || favorites.stopIds.count >= FavoritesStore.maxCount)
-                .listRowBackground(Color.clear)
-            }
-            .mvkBackground()
-            .searchable(text: $query, prompt: "Megálló neve")
-            .navigationTitle("Megálló hozzáadása")
-            .overlay {
-                if catalog.isLoading && catalog.stops.isEmpty {
-                    ProgressView()
-                } else if query.isEmpty {
-                    ContentUnavailableView("Keress megállóra", systemImage: "magnifyingglass")
-                } else if filteredStops.isEmpty {
-                    ContentUnavailableView.search
-                }
-            }
-            .task {
-                await catalog.loadIfNeeded()
             }
         }
+        .searchable(text: $query, prompt: "Megálló neve vagy száma")
+        .navigationTitle("Keresés")
+        .overlay {
+            if catalog.isLoading && catalog.stops.isEmpty {
+                ProgressView()
+            } else if query.isEmpty {
+                ContentUnavailableView("Keress megállóra", systemImage: "magnifyingglass")
+            } else if filteredStops.isEmpty {
+                ContentUnavailableView.search
+            }
+        }
+        .task {
+            await catalog.loadIfNeeded()
+        }
     }
-}
-
-#Preview {
-    StopSearchView()
-        .environmentObject(FavoritesStore())
-        .environmentObject(StopsCatalog())
 }

@@ -63,6 +63,8 @@ final class RideController: ObservableObject {
     private var hapticDestFor: String?
     private var pendingBoardNearest = false
     private let activity = RideActivityController()
+    /// The last ride state the watch was sent.
+    private var watchRide: WatchRideSnapshot?
 
     init(store: RideStore = .shared) {
         self.store = store
@@ -102,7 +104,13 @@ final class RideController: ObservableObject {
             }
             .store(in: &cancellables)
         RideIntentBridge.alight = { [weak self] in self?.alightNow() }
-        RideIntentBridge.boardNearest = { [weak self] in await self?.boardNearest() ?? "" }
+        NotificationCenter.default.publisher(for: .mvkRideCommand)
+            .compactMap { $0.object as? WatchRideCommand }
+            .sink { [weak self] command in
+                Task { @MainActor in self?.handle(command) }
+            }
+            .store(in: &cancellables)
+        WatchLink.shared.acceptsRideCommands = true
         store.syncRides()
         activeChanged(store.active)
     }
@@ -133,6 +141,7 @@ final class RideController: ObservableObject {
             lastPassed = nil
             location?.setRideTracking(false)
             activity.end(final: nil)
+            endWatchRide()
             detector.startMotion()
             return
         }
@@ -258,6 +267,7 @@ final class RideController: ObservableObject {
 
         guard let trip else {
             activity.update(ride: a, trip: nil, controller: self)
+            publishWatchRide(a, trip: nil)
             return
         }
 
@@ -328,6 +338,7 @@ final class RideController: ObservableObject {
         }
 
         activity.update(ride: a, trip: trip, controller: self)
+        publishWatchRide(a, trip: trip)
     }
 
     private func haptics(_ a: ActiveRide, _ trip: TripLive) {
@@ -585,5 +596,81 @@ final class RideController: ObservableObject {
         }
         RideBoarding.board(vehicle: vehicle, detected: .manual)
         return "Felszálltál: \(vehicle.routeShort) \(vehicle.headsign) felé."
+    }
+
+    // MARK: - Watch
+
+    /// „Felszálltam” from the watch, a control, Siri or the `mvkpp://ride`
+    /// link: a known trip boards at once, otherwise the vehicle beside the
+    /// rider; „Leszálltam” closes the ride where the bus is now.
+    private func handle(_ command: WatchRideCommand) {
+        switch command {
+        case .start(let request?):
+            guard store.active == nil else { return }
+            guard let vehicleId = request.vehicleId ?? transit?.liveVehicles.first(where: { $0.tripId == request.tripId })?.id else {
+                notice = "Nem látom élőben ezt a járművet. Nyisd meg a térképet, és válaszd ki, melyikre szálltál fel."
+                return
+            }
+            RideBoarding.board(
+                BoardInfo(tripId: request.tripId, vehicleId: vehicleId, route: request.route, color: request.color, text: request.textColor, headsign: request.headsign),
+                detected: .manual
+            )
+            if let destination = request.destinationStopId {
+                store.patchActive {
+                    $0.destStopId = destination
+                    $0.destStopName = request.destinationStopName
+                }
+            }
+        case .start(nil):
+            Task { notice = await boardNearest() }
+        case .end:
+            alightNow()
+        }
+    }
+
+    /// The ride as the watch draws it; sent only when something shown changed.
+    private func publishWatchRide(_ ride: ActiveRide, trip: TripLive?) {
+        let state = RideActivityController.state(ride: ride, trip: trip, controller: self)
+        let stops = trip?.stops ?? []
+        let stop = { (idx: Int?) in idx.flatMap { stops.indices.contains($0) ? stops[$0] : nil } }
+        var snapshot = WatchRideSnapshot(
+            rideId: ride.id,
+            tripId: ride.tripId,
+            vehicleId: ride.vehicleId,
+            route: ride.route,
+            color: ride.color.replacingOccurrences(of: "#", with: ""),
+            textColor: ride.text.replacingOccurrences(of: "#", with: ""),
+            headsign: ride.headsign,
+            mode: mode.rawValue,
+            boardedStopId: stop(ride.fromIdx)?.id ?? ride.fromStopId,
+            boardedStopName: stop(ride.fromIdx)?.name ?? ride.fromStopName,
+            destinationStopId: stop(ride.destIdx)?.id ?? ride.destStopId,
+            destinationStopName: state.destName ?? ride.destStopName,
+            nextStopId: state.nextStopId,
+            nextStopName: state.nextStopName,
+            nextStopAt: state.nextStopEtaUnix,
+            stopsLeft: state.stopsLeft,
+            delaySec: state.delaySec,
+            progress: state.progress,
+            boardedAt: ride.boardedAt,
+            updatedAt: 0,
+            ended: false,
+            source: .phone
+        )
+        guard snapshot != watchRide else { return }
+        watchRide = snapshot
+        snapshot.updatedAt = serverNow.rounded()
+        WatchLink.shared.publish(ride: snapshot)
+    }
+
+    /// One last "ended" state for the watch to say so, then nothing.
+    private func endWatchRide() {
+        if var last = watchRide {
+            last.ended = true
+            last.updatedAt = serverNow.rounded()
+            WatchLink.shared.publish(ride: last)
+        }
+        watchRide = nil
+        WatchLink.shared.publish(ride: nil)
     }
 }

@@ -11,5 +11,9 @@ struct MVKPhoneWidgetBundle: WidgetBundle {
     var body: some Widget {
         StopDeparturesWidget()
         RideLiveActivity()
+        WatchlistWidget()
+        WatchlistControl()
+        BoardedControl()
+        NextBusControl()
     }
 }

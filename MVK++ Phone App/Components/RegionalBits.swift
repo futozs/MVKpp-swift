@@ -32,8 +32,6 @@ extension ArrivalItem {
     var isFocusable: Bool {
         live && !tripId.isEmpty && (cancelled != true || vehicle != nil)
     }
-
-    var isCancelled: Bool { cancelled == true }
 }
 
 enum StopKind {

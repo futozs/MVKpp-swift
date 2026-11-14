@@ -5,59 +5,50 @@
 
 import SwiftUI
 
-/// Full arrival list for one stop, polled every 4s while visible
-/// (auto-cancelled on disappear via `.task`), plus an immediate refresh when
-/// the app returns to the foreground. Tapping an arrival "pins" it in
-/// TripFollowView (live map + progress + delay).
+/// One stop's full board, live. A tap follows the run on the map; a swipe
+/// says "Felszálltam". The star puts the stop on the Figyelő list.
 struct StopDetailView: View {
     let stopId: String
-    @StateObject private var viewModel = StopDetailViewModel()
-    @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var favorites: FavoritesStore
+    @EnvironmentObject private var catalog: StopsCatalog
+    @EnvironmentObject private var router: WatchRouter
+    @EnvironmentObject private var link: WatchLink
+    @StateObject private var feed = BoardFeed(limit: 12, pollInterval: .seconds(5))
 
-    private static let pollInterval: Duration = .seconds(4)
+    private var response: StopArrivalsResponse? { feed.results[stopId] }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(contextLabel)
-                .font(.footnote)
-                .fontWeight(.semibold)
-                .lineLimit(1)
-                .padding(.horizontal, 16)
-                .padding(.top, 2)
-                .padding(.bottom, 4)
-
-            list
-        }
-        .background(AppBackground())
-        .navigationDestination(for: ArrivalItem.self) { arrival in
-            TripFollowView(arrival: arrival)
-        }
-        .task(id: stopId) {
-            while !Task.isCancelled {
-                await viewModel.refresh(stopId: stopId)
-                try? await Task.sleep(for: Self.pollInterval)
-            }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await viewModel.refresh(stopId: stopId) }
-            }
-        }
-    }
-
-    private var list: some View {
         List {
-            if let response = viewModel.response {
+            header
+                .listRowBackground(Color.clear)
+
+            if let response {
                 if response.arrivals.isEmpty {
-                    Text("Nincs induló járat")
+                    Text("Innen ma már nem indul járat.")
+                        .font(.footnote)
                         .foregroundStyle(Theme.mutedForeground)
                         .listRowBackground(Color.clear)
-                } else {
-                    ForEach(response.arrivals) { arrival in
-                        NavigationLink(value: arrival) {
-                            ArrivalRowView(arrival: arrival)
+                }
+                ForEach(Array(response.arrivals.enumerated()), id: \.element.id) { index, arrival in
+                    Button {
+                        router.push(.trip(trip(arrival)))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            DepartureRow(arrival: arrival, showsVehicle: link.settings.predictedVehicle || arrival.vehicle != nil)
+                            if index == 0 { ApproachLine(arrival: arrival) }
                         }
-                        .listRowBackground(Color.clear)
+                    }
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Theme.card.opacity(0.75))
+                    )
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            router.push(.boardDestination(trip(arrival)))
+                        } label: {
+                            Label("Felszálltam", systemImage: "ticket")
+                        }
+                        .tint(Theme.primary)
                     }
                 }
                 if let rtError = response.rtError {
@@ -66,29 +57,59 @@ struct StopDetailView: View {
                         .foregroundStyle(Theme.late)
                         .listRowBackground(Color.clear)
                 }
-            } else if viewModel.isLoading {
-                ProgressView()
-                    .listRowBackground(Color.clear)
-            } else if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
+            } else if let error = feed.errorMessage {
+                Text(error)
                     .font(.caption2)
                     .foregroundStyle(Theme.late)
                     .listRowBackground(Color.clear)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
             }
         }
-        .scrollContentBackground(.hidden)
+        .navigationTitle(StopCode.short(stopId) ?? "Megálló")
+        .navigationBarTitleDisplayMode(.inline)
+        .containerBackground(Theme.primary.gradient.opacity(0.25), for: .navigation)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    favorites.toggle(stopId)
+                } label: {
+                    Image(systemName: favorites.contains(stopId) ? "star.fill" : "star")
+                        .foregroundStyle(Theme.primaryForeground)
+                }
+                .accessibilityLabel(favorites.contains(stopId) ? "Levétel a Figyelőről" : "Felvétel a Figyelőre")
+            }
+        }
+        .refreshable { await feed.refresh() }
+        .onAppear { feed.track([stopId], boardKey: link.settings.boardKey) }
+        .onDisappear { feed.stop() }
     }
 
-    private var contextLabel: String {
-        let name = viewModel.response?.stop.name ?? stopId
-        let code = stopId.hasPrefix("SP") ? String(stopId.dropFirst(2)) : stopId
-        return "\(name) · \(code)"
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(name)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .lineLimit(2)
+            if let updated = feed.updatedAt {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(RealtimeClient.shared.connected ? Theme.live : Theme.offline)
+                        .frame(width: 6, height: 6)
+                    Text(updated, style: .time)
+                }
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(Theme.mutedForeground)
+            }
+        }
     }
-}
 
-#Preview {
-    NavigationStack {
-        StopDetailView(stopId: "SP1")
+    private var name: String {
+        response?.stop.name ?? catalog.stops.first { $0.id == stopId }?.name ?? stopId
     }
-    .environmentObject(NavigationCoordinator())
+
+    private func trip(_ arrival: ArrivalItem) -> TripRef {
+        TripRef(arrival: arrival, stopId: stopId, stopName: response?.stop.name)
+    }
 }
