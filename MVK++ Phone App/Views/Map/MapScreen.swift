@@ -37,6 +37,7 @@ struct MapScreen: View {
     @State private var popupHistoryId: String?
     @State private var geoAsked = false
     @State private var coverTop: CGFloat = .infinity
+    @State private var timelineHeight: CGFloat = 0
     @State private var autoZoom: AutoZoomStage = .pending
     @State private var lastWatchKey = ""
 
@@ -65,11 +66,11 @@ struct MapScreen: View {
                 dock
                 if historyOn { timeline }
                 if isFilterOpen { filterDrawer }
-                if isSearchOpen { searchSheet }
+                if isSearchOpen { searchSheet(height: proxy.size.height) }
             }
             .onPreferenceChange(MapCoverKey.self) { coverTop = $0 }
         }
-        .toolbar(navigation.isFollowingTrip || historyOn ? .hidden : .visible, for: .tabBar)
+        .toolbar(navigation.isFollowingTrip || historyOn || isFilterOpen || isSearchOpen ? .hidden : .visible, for: .tabBar)
         .animation(Theme.Motion.normalAnimation, value: navigation.isFollowingTrip)
         .animation(Theme.Motion.normalAnimation, value: isFilterOpen)
         .animation(Theme.Motion.normalAnimation, value: isSearchOpen)
@@ -185,7 +186,7 @@ struct MapScreen: View {
     }
 
     private func bottomInset(cover: CGFloat) -> CGFloat {
-        if historyOn { return 150 }
+        if historyOn { return timelineHeight + 12 }
         return cover > 0 ? max(0, cover - 20) : 0
     }
 
@@ -352,6 +353,7 @@ struct MapScreen: View {
                 selectedHistoryId: $popupHistoryId,
                 onExit: { historyOn = false }
             )
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { timelineHeight = $0 }
             .padding(.horizontal, 12)
             .padding(.bottom, 12)
         }
@@ -389,7 +391,7 @@ struct MapScreen: View {
         .zIndex(10)
     }
 
-    private var searchSheet: some View {
+    private func searchSheet(height: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             Theme.background.opacity(0.6)
                 .ignoresSafeArea()
@@ -417,7 +419,7 @@ struct MapScreen: View {
                 },
                 onClose: { isSearchOpen = false }
             )
-            .frame(maxHeight: UIScreen.main.bounds.height * 0.72)
+            .frame(maxHeight: height * 0.72)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xl, topTrailingRadius: Theme.Radius.xl, style: .continuous))
             .overlay(UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xl, topTrailingRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
             .mvkShadow(Theme.Shadow.xl)

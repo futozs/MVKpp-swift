@@ -161,7 +161,7 @@ struct TripTimetable: View {
                     }
                     .padding(.vertical, 4)
                 }
-                .frame(maxHeight: expanded ? UIScreen.main.bounds.height * 0.34 : nil)
+                .frame(maxHeight: expanded ? 290 : nil)
                 .fixedSize(horizontal: false, vertical: !expanded)
                 .onChange(of: nextIdx) { _, _ in scroll(proxy) }
                 .onChange(of: expanded) { _, _ in scroll(proxy) }

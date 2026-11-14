@@ -195,7 +195,7 @@ struct MapSearchPanel: View {
                         section(term.isEmpty ? "A közeledben" : "Megállók") {
                             ForEach(groups) { g in
                                 let single = g.group.count == 1 ? g.group[0] : nil
-                                let sub = [single.map(Self.stopSub) ?? "\(g.group.count) kocsiállás", g.km.map(Geo.formatDistance)]
+                                let sub = [single.map { Self.stopSub($0) } ?? "\(g.group.count) kocsiállás", g.km.map(Geo.formatDistance)]
                                     .compactMap { $0 }.joined(separator: " · ")
                                 stopRow(name: g.name, sub: sub, multi: single == nil, watched: single.map { monitoredStopIds.contains($0.id) }) {
                                     pickGroup(g)
