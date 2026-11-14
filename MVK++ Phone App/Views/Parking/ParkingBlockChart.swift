@@ -143,7 +143,9 @@ struct ParkingBlockChart: View {
                 }
             }
             .onScrollGeometryChange(for: CGPoint.self) { $0.contentOffset } action: { _, new in offset = new }
-            .frame(height: 520)
+            .containerRelativeFrame(.vertical) { height, _ in
+                min(height * 0.7, headerH + bodyHeight + (rows.isEmpty ? 84 : 0))
+            }
             .task {
                 guard !centered else { return }
                 // First load: "now" in the middle, once the content has a size.
@@ -159,9 +161,9 @@ struct ParkingBlockChart: View {
     private var controls: some View {
         VStack(alignment: .leading, spacing: 10) {
             FlowLayout(spacing: 16, lineSpacing: 4) {
-                legend("lefutott / fut") { RoundedRectangle(cornerRadius: 2).fill(Theme.foreground.opacity(0.7)).frame(width: 20, height: 10) }
+                legend("lefutott / fut") { RoundedRectangle(cornerRadius: 5).fill(Theme.foreground.opacity(0.7)).frame(width: 20, height: 10) }
                 legend("tipp (forda-terv)") {
-                    RoundedRectangle(cornerRadius: 2)
+                    RoundedRectangle(cornerRadius: 5)
                         .strokeBorder(Theme.foreground.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                         .frame(width: 20, height: 10)
                 }
@@ -199,7 +201,10 @@ struct ParkingBlockChart: View {
                     .fixedSize()
                     .position(x: leftW + x(h), y: headerH / 2)
             }
-            Rectangle().fill(Theme.card).frame(width: leftW, height: headerH).offset(x: max(0, offset.x))
+            Rectangle().fill(Theme.card)
+                .frame(width: leftW, height: headerH)
+                .overlay(alignment: .trailing) { Rectangle().fill(Theme.border).frame(width: 1) }
+                .offset(x: max(0, offset.x))
         }
         .frame(width: width + leftW, height: headerH)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
@@ -219,6 +224,7 @@ struct ParkingBlockChart: View {
                     .padding(.horizontal, 8)
                     .frame(height: headerH, alignment: .leading)
                     .background(Theme.muted.opacity(0.9))
+                    .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
                 }
                 ForEach(g.rows) { v in
                     Button { onSelect(v.id) } label: {
@@ -230,6 +236,7 @@ struct ParkingBlockChart: View {
                             .frame(width: leftW, height: rowH, alignment: .leading)
                             .background(Theme.card)
                             .overlay(alignment: .trailing) { Rectangle().fill(Theme.border).frame(width: 1) }
+                            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border.opacity(0.4)).frame(height: 1) }
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

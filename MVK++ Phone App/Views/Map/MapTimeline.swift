@@ -157,6 +157,7 @@ struct MapTimelineBar: View {
     var onExit: () -> Void
 
     @StateObject private var days = MapHistoryDays()
+    @State private var narrow = false
 
     var body: some View {
         Group {
@@ -169,7 +170,7 @@ struct MapTimelineBar: View {
                 if list.isEmpty {
                     status("Még egyetlen napról sincs rögzített GPS-adat.") { EmptyView() }
                 } else {
-                    MapTimelinePlayer(days: list, routes: routes, filters: filters, camera: camera, selectedHistoryId: $selectedHistoryId, onExit: onExit)
+                    MapTimelinePlayer(days: list, routes: routes, filters: filters, camera: camera, selectedHistoryId: $selectedHistoryId, exitIcon: !narrow, onExit: onExit)
                 }
             } else {
                 status("Rögzített napok betöltése…") { EmptyView() }
@@ -177,9 +178,11 @@ struct MapTimelineBar: View {
         }
         .padding(12)
         .frame(maxWidth: 880)
+        // The bar sits 12 pt in from each screen edge; the web hides the exit icon below a 400 px viewport.
+        .onGeometryChange(for: Bool.self) { $0.size.width + 24 < 400 } action: { narrow = $0 }
         .background(Theme.card.opacity(0.95), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
-        .mvkShadow(Theme.Shadow.xl)
+        .mvkShadow(Theme.Shadow.xxl)
         .task { await days.load() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Idővonal")
@@ -199,21 +202,18 @@ struct MapTimelineBar: View {
 
 struct MapTimelineExitButton: View {
     let compact: Bool
+    var showIcon = true
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "dot.radiowaves.left.and.right")
+            if showIcon {
+                Label("Vissza élőbe", systemImage: "dot.radiowaves.left.and.right")
+            } else {
                 Text("Vissza élőbe")
             }
-            .font(Theme.sans(compact ? 12 : 13, weight: .semibold))
-            .foregroundStyle(Theme.secondaryForeground)
-            .padding(.horizontal, 12)
-            .frame(minHeight: compact ? 44 : 36)
-            .background(Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.mvk(.secondary, size: compact ? .small : .regular, height: compact ? 44 : nil))
     }
 }
 
@@ -223,6 +223,7 @@ private struct MapTimelinePlayer: View {
     let filters: FilterState
     @ObservedObject var camera: MapCameraController
     @Binding var selectedHistoryId: String?
+    let exitIcon: Bool
     var onExit: () -> Void
 
     @StateObject private var frames = MapHistoryFrames()
@@ -232,12 +233,13 @@ private struct MapTimelinePlayer: View {
     private static let prefetchLead: Double = 15 * 60
     private static let liveMargin: Double = 60
 
-    init(days: [String], routes: [String: Route], filters: FilterState, camera: MapCameraController, selectedHistoryId: Binding<String?>, onExit: @escaping () -> Void) {
+    init(days: [String], routes: [String: Route], filters: FilterState, camera: MapCameraController, selectedHistoryId: Binding<String?>, exitIcon: Bool, onExit: @escaping () -> Void) {
         self.days = days
         self.routes = routes
         self.filters = filters
         self.camera = camera
         _selectedHistoryId = selectedHistoryId
+        self.exitIcon = exitIcon
         self.onExit = onExit
         let first = days[0]
         _day = State(initialValue: first)
@@ -312,7 +314,7 @@ private struct MapTimelinePlayer: View {
             HStack(spacing: 10) {
                 playButton
                 clock
-                MapTimelineExitButton(compact: true, action: onExit)
+                MapTimelineExitButton(compact: true, showIcon: exitIcon, action: onExit)
             }
             MapTimelineSlider(
                 range: range,
@@ -455,8 +457,8 @@ private struct MapTimelinePlayer: View {
             }
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, minHeight: 44)
-            .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border))
+            .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
         }
         .accessibilityLabel("Nap: \(MapHistoryTime.dayLabel(day))")
     }
@@ -475,20 +477,28 @@ private struct MapTimelinePlayer: View {
                 Button {
                     playback.setSpeed(s)
                 } label: {
-                    Text("\(s.rawValue)×")
-                        .font(Theme.mono(12, weight: .semibold))
-                        .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
-                        .frame(minWidth: 38, maxHeight: .infinity)
-                        .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    // Every cell is as wide as the widest label (the web's `grid-cols-4`).
+                    ZStack {
+                        Text("\(MapPlaybackSpeed.x300.rawValue)×").hidden()
+                        Text("\(s.rawValue)×")
+                    }
+                    .font(Theme.mono(12, weight: .semibold))
+                    .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 38, maxHeight: .infinity)
+                    .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
+        .animation(Theme.Motion.fastAnimation, value: playback.speed)
         .padding(2)
         .frame(height: 44)
-        .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border))
+        .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Lejátszási sebesség")
     }
@@ -519,7 +529,7 @@ struct MapTimelineSlider: View {
                 Capsule().fill(Theme.muted)
                     .frame(width: width, height: 6)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(Theme.primary.opacity(0.75)).frame(width: width * pct, height: 6)
+                        Rectangle().fill(Theme.primary.opacity(0.75)).frame(width: width * pct, height: 6)
                     }
                     .overlay(alignment: .trailing) {
                         if available < 1 {
@@ -550,7 +560,10 @@ struct MapTimelineSlider: View {
                     .fill(Theme.primary)
                     .frame(width: 20, height: 20)
                     .overlay(Circle().strokeBorder(Theme.card, lineWidth: 2))
-                    .background(Circle().fill(Theme.primary.opacity(dragging ? 0.3 : 0)).padding(-4))
+                    .background(
+                        Circle().fill(Theme.primary.opacity(dragging ? 0.3 : 0)).padding(-4)
+                            .animation(Theme.Motion.fastAnimation, value: dragging)
+                    )
                     .mvkShadow(Theme.Shadow.md)
                     .offset(x: 16 + width * pct - 10, y: 6)
             }

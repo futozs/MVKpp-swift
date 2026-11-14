@@ -194,7 +194,7 @@ struct MapScreen: View {
     }
 
     private func bottomInset(cover: CGFloat) -> CGFloat {
-        if historyOn { return timelineHeight + 12 }
+        if historyOn { return timelineHeight + 8 }
         return cover > 0 ? max(0, cover - 20) : 0
     }
 
@@ -246,8 +246,8 @@ struct MapScreen: View {
                     .padding(.leading, 12)
                     .padding(.trailing, 4)
                     .frame(height: 44)
-                    .glassEffect(.regular.tint(Theme.primary.opacity(0.12)), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.primary.opacity(0.4)))
+                    .glassEffect(.regular.tint(Theme.primary.opacity(0.12)), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.primary.opacity(0.4)))
                 }
             }
         }
@@ -393,7 +393,7 @@ struct MapScreen: View {
                 )
                 .frame(width: min(360, proxy.size.width * 0.88))
                 .overlay(alignment: .trailing) { Rectangle().fill(Theme.border).frame(width: 1) }
-                .mvkShadow(Theme.Shadow.xl)
+                .mvkShadow(Theme.Shadow.xxl)
             }
             .transition(.move(edge: .leading).combined(with: .opacity))
         }
@@ -431,7 +431,7 @@ struct MapScreen: View {
             .frame(maxHeight: height * 0.72)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xl, topTrailingRadius: Theme.Radius.xl, style: .continuous))
             .overlay(UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xl, topTrailingRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
-            .mvkShadow(Theme.Shadow.xl)
+            .mvkShadow(Theme.Shadow.xxl)
             .transition(.move(edge: .bottom))
         }
         .zIndex(10)

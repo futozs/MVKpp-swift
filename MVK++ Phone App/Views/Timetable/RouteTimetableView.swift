@@ -85,7 +85,7 @@ struct RouteTimetableView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(route.long)
                         .font(Theme.sans(14, weight: .bold))
-                        .tracking(-0.2)
+                        .tracking(-0.35)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     countsLine
@@ -96,17 +96,9 @@ struct RouteTimetableView: View {
                     lineFavorites.toggle(routeId: route.id, dir: model.selectedDir)
                 } label: {
                     Image(systemName: isFavorite ? "star.fill" : "star")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(isFavorite ? Theme.primaryForeground : Theme.foreground)
-                        .frame(width: 36, height: 36)
-                        .background(isFavorite ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
-                                .strokeBorder(isFavorite ? Theme.primary : Theme.input, lineWidth: 1)
-                        )
-                        .contentShape(Rectangle())
+                        .font(.system(size: 14, weight: .medium))
                 }
-                .buttonStyle(TimetablePressStyle())
+                .buttonStyle(.mvk(isFavorite ? .primary : .outline, size: .icon))
                 .sensoryFeedback(.selection, trigger: isFavorite)
                 .accessibilityLabel(isFavorite ? "Levétel a kedvencekről" : "Hozzáadás a kedvencekhez")
             }
@@ -120,12 +112,12 @@ struct RouteTimetableView: View {
                         withAnimation(Theme.Motion.fastAnimation) { legendOpen.toggle() }
                     } label: {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 13))
+                            .font(.system(size: 12))
                             .foregroundStyle(legendOpen ? Theme.primary : Theme.mutedForeground)
                             .frame(width: 30, height: 30)
-                            .background(legendOpen ? Theme.primary.opacity(0.12) : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                            .background(legendOpen ? Theme.primary.opacity(0.12) : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                                     .strokeBorder(legendOpen ? Theme.primary.opacity(0.6) : Theme.border, lineWidth: 1)
                             )
                     }
@@ -205,9 +197,9 @@ struct RouteTimetableView: View {
             .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isOn ? Theme.primary : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+            .background(isOn ? Theme.primary : Theme.secondary, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                     .strokeBorder(isOn ? Theme.primary : Theme.border, lineWidth: 1)
             )
             .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.Level(radius: 0, y: 0, opacity: 0))
@@ -278,18 +270,10 @@ struct RouteTimetableView: View {
                 Text("A menetrend most nem tölthető be.")
                     .font(Theme.sans(14))
                     .foregroundStyle(Theme.mutedForeground)
-                Button {
+                Button("Újra") {
                     model.retryTable()
-                } label: {
-                    Text("Újra")
-                        .font(Theme.sans(12, weight: .semibold))
-                        .foregroundStyle(Theme.foreground)
-                        .padding(.horizontal, 12)
-                        .frame(height: 32)
-                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+                .buttonStyle(.mvk(.outline, size: .small))
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)

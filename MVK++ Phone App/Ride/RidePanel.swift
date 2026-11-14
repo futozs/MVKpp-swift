@@ -27,20 +27,17 @@ struct RidePanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(Theme.mutedForeground.opacity(0.4))
-                .frame(width: 36, height: 4)
-                .padding(.top, 6)
             header
             content
         }
         .frame(maxWidth: .infinity)
         .background {
-            UnevenRoundedRectangle(topLeadingRadius: Theme.Radius.xxl, topTrailingRadius: Theme.Radius.xxl, style: .continuous)
-                .fill(Theme.card)
-                .stroke(Theme.border, lineWidth: 1)
+            Theme.card
                 .mvkShadow(Theme.Shadow.xl)
                 .ignoresSafeArea(edges: .bottom)
+        }
+        .overlay(alignment: .top) {
+            Rectangle().fill(Theme.border).frame(height: 1)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Utazás")
@@ -59,7 +56,7 @@ struct RidePanel: View {
             RouteTile(short: trainNo.map { "\(ride.route) \($0)" } ?? ride.route, colorHex: ride.color, textHex: ride.text, size: .large)
             VStack(alignment: .leading, spacing: 0) {
                 if (ride.leg ?? 1) > 1 {
-                    RideEyebrow(text: "Körbeutazás · \(ride.leg ?? 1). menet", systemImage: "repeat", size: 10.5)
+                    RideEyebrow(text: "Körbeutazás · \(ride.leg ?? 1). menet", systemImage: "repeat", size: 10.5, iconSize: 10, spacing: 4)
                         .padding(.bottom, 2)
                 }
                 Text(ride.headsign)
@@ -92,13 +89,13 @@ struct RidePanel: View {
                         controller.step = .from
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: "mappin").font(.system(size: 11))
+                            Image(systemName: "mappin").font(.system(size: 10))
                             (Text("Felszállás: ") + Text(trip.stops[controller.fromIdx].name).fontWeight(.semibold).foregroundColor(Theme.foreground) + Text(" · \(BudapestClock.hm(ride.boardedAt))"))
                                 .lineLimit(1)
-                            Image(systemName: "pencil").font(.system(size: 11)).opacity(0.6)
+                            Image(systemName: "pencil").font(.system(size: 10)).opacity(0.6)
                                 .accessibilityLabel("Felszállás helyének módosítása")
                         }
-                        .font(.system(size: 11.5))
+                        .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .contentShape(Rectangle())
                     }
@@ -119,19 +116,15 @@ struct RidePanel: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .padding(.top, 14)
         .padding(.bottom, 12)
     }
 
     private func iconButton(_ systemImage: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.foreground)
-                .frame(width: 36, height: 36)
-                .contentShape(Rectangle())
+            Image(systemName: systemImage).font(.system(size: 14, weight: .medium))
         }
-        .buttonStyle(RowPressStyle())
+        .buttonStyle(.mvk(.ghost, size: .icon, height: 32))
         .accessibilityLabel(label)
     }
 
@@ -143,7 +136,6 @@ struct RidePanel: View {
             if let setup = controller.setup {
                 hairline
                 RideSetupView(step: setup, ride: ride, trip: trip, cur: controller.cur)
-                    .frame(maxHeight: 420)
                 footer { cancelButton }
             } else if controller.alightPicker {
                 hairline
@@ -166,13 +158,13 @@ struct RidePanel: View {
         Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1)
     }
 
-    private func footer<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func footer<Content: View>(vertical: CGFloat = 10, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(spacing: 0) {
             hairline
             HStack(spacing: 8) { content() }
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, vertical)
         }
     }
 
@@ -202,8 +194,8 @@ struct RidePanel: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Theme.late.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.late.opacity(0.4), lineWidth: 1))
+            .background(Theme.late.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.late.opacity(0.4), lineWidth: 1))
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
             .accessibilityAddTraits(.isHeader)
@@ -253,7 +245,7 @@ struct RidePanel: View {
             stopList(trip)
         }
 
-        footer {
+        footer(vertical: 12) {
             RideButton(title: turn.map { "Leszálltam (\($0.terminusName))" } ?? "Leszálltam", systemImage: "rectangle.portrait.and.arrow.right", fullWidth: true, action: controller.alightNow)
             if turn == nil {
                 RideButton(title: "Korábban", systemImage: "arrow.uturn.backward", variant: .ghost) { controller.alightPicker = true }
@@ -268,8 +260,8 @@ struct RidePanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.primary.opacity(0.35), lineWidth: 1))
+            .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.primary.opacity(0.35), lineWidth: 1))
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
     }
@@ -302,7 +294,7 @@ struct RidePanel: View {
     private func stopList(_ trip: TripLive) -> some View {
         let jams = Dictionary(controller.traffic.map { ($0.fromIdx, $0) }, uniquingKeysWith: { a, _ in a })
         return ScrollViewReader { proxy in
-            ScrollView {
+            HuggingScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(trip.stops, id: \.idx) { s in
                         RideStopRow(stop: s, trip: trip, ride: ride, jam: jams[s.idx - 1]) {
@@ -314,8 +306,6 @@ struct RidePanel: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
             }
-            .scrollIndicators(.hidden)
-            .frame(maxHeight: 320)
             .onAppear { proxy.scrollTo(trip.passed + 1, anchor: .center) }
             .onChange(of: trip.passed) { _, passed in
                 withAnimation(reduceMotion ? nil : .smooth) { proxy.scrollTo(passed + 1, anchor: .center) }
@@ -348,9 +338,9 @@ struct RidePanel: View {
                 selected: nil,
                 focusIdx: controller.cur,
                 focusLabel: "a busz most itt",
+                hugsContent: true,
                 onPick: controller.pickTo
             )
-            .frame(maxHeight: 360)
         }
     }
 }

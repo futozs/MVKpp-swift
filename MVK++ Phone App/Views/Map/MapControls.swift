@@ -38,12 +38,12 @@ struct MapControlButton: View {
             .foregroundStyle(active ? Theme.primary : Theme.foreground)
             .padding(.horizontal, showLabel ? 14 : 0)
             .frame(minWidth: 44, minHeight: 44)
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
         }
         .buttonStyle(MapControlPressStyle())
         .glassEffect(
             .regular.tint(active ? Theme.primary.opacity(0.18) : Theme.card.opacity(0.35)).interactive(),
-            in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+            in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         )
         .overlay(alignment: .topTrailing) {
             if let badge, badge > 0 {
@@ -84,7 +84,7 @@ struct MapNotice: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .frame(maxWidth: 220, alignment: .leading)
-            .glassEffect(.regular.tint(Theme.card.opacity(0.5)), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .glassEffect(.regular.tint(Theme.card.opacity(0.5)), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
             .accessibilityAddTraits(.updatesFrequently)
     }
 }

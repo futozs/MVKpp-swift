@@ -145,7 +145,7 @@ struct ParkingVehicleSheet: View {
 
     @ViewBuilder
     private func whereBox(_ hit: ParkingLocated, history: ParkingFleetHistory?) -> some View {
-        let box = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let box = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         VStack(spacing: 0) {
             switch hit {
             case .service(let v):
@@ -220,7 +220,7 @@ struct ParkingVehicleSheet: View {
 
     private func historyBox(_ h: ParkingFleetHistory) -> some View {
         let since = h.lastDate.map { ParkingFormat.daysBetween($0, snap.serviceDate) }
-        let box = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let box = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
             Text("AZ UTOLSÓ 14 NAP")
                 .font(Theme.sans(10.5, weight: .semibold))
@@ -239,7 +239,7 @@ struct ParkingVehicleSheet: View {
                      + (h.usualOutS.map { Text(", általában ") + Text(ParkingFormat.hm(daySec: $0)).font(Theme.mono(12.5, weight: .semibold)) + Text("-kor áll ki") } ?? Text("")))
                 }
                 if !h.topRoutes.isEmpty {
-                    HStack(spacing: 6) {
+                    FlowLayout(spacing: 6, lineSpacing: 6) {
                         Text("Legtöbbet:")
                         ForEach(h.topRoutes, id: \.self) { ParkingRouteChip(route: $0, lookup: lookup) }
                     }

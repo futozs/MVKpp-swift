@@ -19,6 +19,7 @@ struct ParkingScreen: View {
 
     @State private var kind: KindFilter = .all
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
     @State private var selected: ParkingSelection?
 
     private static let favoritesKey = "mvk_parking_favorites"
@@ -93,7 +94,7 @@ struct ParkingScreen: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Parkoló")
                         .font(Theme.sans(22, weight: .heavy))
-                        .tracking(-0.4)
+                        .tracking(-0.55)
                     HStack(spacing: 8) {
                         if realtime.connected {
                             Circle().fill(Theme.live).frame(width: 6, height: 6).livePulse()
@@ -127,19 +128,26 @@ struct ParkingScreen: View {
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 TextField("", text: $query, prompt: Text("Rendszám vagy vonal").foregroundStyle(Theme.mutedForeground))
                     .font(query.isEmpty ? Theme.sans(13) : Theme.mono(13, weight: .regular))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
+                    .focused($searchFocused)
                     .accessibilityLabel("Keresés rendszámra vagy vonalra")
             }
             .padding(.horizontal, 10)
             .frame(height: 38)
-            .background(Theme.background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+            .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+            .overlay {
+                if searchFocused {
+                    RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                        .strokeBorder(Theme.ring, lineWidth: 2)
+                }
+            }
         }
     }
 
@@ -167,8 +175,8 @@ struct ParkingScreen: View {
             .foregroundStyle(on ? Theme.foreground : Theme.mutedForeground)
             .padding(.horizontal, 12)
             .frame(height: 38)
-            .background(on ? Theme.primary.opacity(0.10) : Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? Theme.primary.opacity(0.5) : Theme.border, lineWidth: 1))
+            .background(on ? Theme.primary.opacity(0.10) : Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(on ? Theme.primary.opacity(0.5) : Theme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -201,7 +209,7 @@ struct ParkingScreen: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ParkingSectionTitle(title: "Végállomásokon", count: view.terminals.reduce(0) { $0 + $1.vehicles.count })
                     if view.terminals.isEmpty {
-                        ParkingEmptyBox(text: "Most egy végállomáson sem parkol senki.")
+                        ParkingEmptyBox(text: "Most egy végállomáson sem parkol senki.", horizontalPadding: 16)
                     } else {
                         ForEach(view.terminals) { t in
                             ParkingTerminalLotCard(lot: t, ctx: ctx, favorite: isFavorite("t:\(t.name)")) { toggleFavorite("t:\(t.name)") }
@@ -237,7 +245,7 @@ struct ParkingScreen: View {
         return VStack(alignment: .leading, spacing: 12) {
             ParkingSectionTitle(title: "Volán és vonat: végállomáson", count: lots.reduce(0) { $0 + $1.vehicles.count })
             if lots.isEmpty {
-                ParkingEmptyBox(text: "Most egy megyei autóbusz-állomáson vagy pályaudvaron sem áll Volán-busz vagy vonat.", verticalPadding: 24)
+                ParkingEmptyBox(text: "Most egy megyei autóbusz-állomáson vagy pályaudvaron sem áll Volán-busz vagy vonat.", horizontalPadding: 16, verticalPadding: 24)
             } else {
                 ForEach(lots) { t in
                     ParkingTerminalLotCard(lot: t, ctx: regionalCtx, favorite: isFavorite("t:\(t.name)")) { toggleFavorite("t:\(t.name)") }

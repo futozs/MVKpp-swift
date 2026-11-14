@@ -114,6 +114,7 @@ struct RideFixSheet: View {
                             )
                             .id(mode)
                             .padding(.top, 8)
+                            .padding(.horizontal, 4)
                         }
                     }
                 }
@@ -220,7 +221,7 @@ struct RideModeTabs: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(label.uppercased())
                     .font(Theme.sans(10.5, weight: .semibold))
-                    .tracking(0.5)
+                    .tracking(0.26)
                     .foregroundStyle(on ? Theme.primary : Theme.mutedForeground)
                 Text(name)
                     .font(Theme.sans(13, weight: .semibold))
@@ -230,8 +231,8 @@ struct RideModeTabs: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(on ? Theme.primary.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(on ? Theme.primary.opacity(0.6) : Theme.border, lineWidth: 1))
+            .background(on ? Theme.primary.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(on ? Theme.primary.opacity(0.6) : Theme.border, lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

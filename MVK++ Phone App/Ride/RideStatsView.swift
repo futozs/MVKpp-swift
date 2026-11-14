@@ -6,7 +6,6 @@
 //  records (web `RideStatsView`).
 //
 
-import Charts
 import SwiftUI
 
 struct RideStatsView: View {
@@ -94,7 +93,7 @@ struct RideStatsView: View {
                 RideStopChips(stops: s.stopsCollected)
             }
             RideChartFrame(title: "Begyűjtött rendszámok", hint: "Melyik buszon hányszor utaztál", icon: "trophy") {
-                FlowLayout(spacing: 6) {
+                FlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(s.vehicles, id: \.0) { id, n in
                         RideChip {
                             Text(TransitIds.displayVehicleId(id)).font(Theme.mono(13, weight: .bold)).monospacedDigit()
@@ -113,7 +112,7 @@ struct RideStatsView: View {
         let fmt = { (sec: Double) in RideFormat.minutes(Int((sec / 60).rounded())) }
         if total < 60 {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Eddig nem vett el tőled időt a késés").font(Theme.sans(18, weight: .semibold)).foregroundStyle(Theme.foreground)
+                Text("Eddig nem vett el tőled időt a késés").font(Theme.sans(18, weight: .semibold)).tracking(-0.45).foregroundStyle(Theme.foreground)
                 Text(measured).font(Theme.sans(12)).foregroundStyle(Theme.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,6 +122,7 @@ struct RideStatsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 (Text(fmt(total)).fontWeight(.bold).foregroundColor(Theme.late) + Text(" ment el a késések miatt"))
                     .font(Theme.sans(20, weight: .semibold))
+                    .tracking(-0.5)
                     .foregroundStyle(Theme.foreground)
                 GeometryReader { proxy in
                     HStack(spacing: 2) {
@@ -151,7 +151,7 @@ struct RideStatsView: View {
     private func delayPart(_ swatch: Color, _ label: String, _ value: String, _ note: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 2).fill(swatch).frame(width: 10, height: 10)
+                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).fill(swatch).frame(width: 10, height: 10)
                 Text(label).font(Theme.sans(13)).foregroundStyle(Theme.mutedForeground)
             }
             Text(value).font(Theme.sans(18, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.foreground).padding(.leading, 18)
@@ -160,27 +160,13 @@ struct RideStatsView: View {
     }
 
     private var hoursChart: some View {
-        Chart {
-            ForEach(Array(stats.hours.enumerated()), id: \.offset) { h, n in
-                BarMark(x: .value("Óra", h), y: .value("Utazás", n), width: .ratio(0.75))
-                    .foregroundStyle(Theme.primary.opacity(0.7))
-                    .cornerRadius(2)
-                    .accessibilityLabel("\(h):00–\(h + 1):00")
-                    .accessibilityValue("\(n) utazás")
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: Array(stride(from: 0, through: 21, by: 3))) { value in
-                AxisValueLabel { Text("\(value.as(Int.self) ?? 0)").font(Theme.sans(10)).foregroundStyle(Theme.mutedForeground) }
-            }
-        }
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
-                AxisGridLine().foregroundStyle(Theme.border.opacity(0.6))
-                AxisValueLabel().font(Theme.sans(10)).foregroundStyle(Theme.mutedForeground)
-            }
-        }
-        .frame(height: 150)
+        StatsBarChart(
+            data: stats.hours.enumerated().map { h, n in
+                StatsBarDatum(label: "\(h)", value: Double(n), tone: Theme.primary.opacity(0.7), title: "\(h):00–\(h + 1):00 · \(n) utazás")
+            },
+            height: 150,
+            labelEvery: 3
+        )
     }
 
     private var weekdayBars: some View {
@@ -189,8 +175,8 @@ struct RideStatsView: View {
             ForEach(0..<7, id: \.self) { i in
                 VStack(spacing: 4) {
                     ZStack(alignment: .bottom) {
-                        RoundedRectangle(cornerRadius: 6).fill(Theme.muted.opacity(0.6))
-                        RoundedRectangle(cornerRadius: 6).fill(Theme.primary.opacity(0.6))
+                        RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.muted.opacity(0.6))
+                        RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.primary.opacity(0.6))
                             .frame(height: 48 * CGFloat(stats.weekdays[i]) / CGFloat(max))
                     }
                     .frame(height: 48)
@@ -223,11 +209,11 @@ struct RideChartFrame<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(Theme.sans(14, weight: .semibold)).tracking(-0.2).foregroundStyle(Theme.foreground)
+                    Text(title).font(Theme.sans(14, weight: .semibold)).tracking(-0.35).foregroundStyle(Theme.foreground)
                     if let hint { Text(hint).font(Theme.sans(11.5)).foregroundStyle(Theme.mutedForeground) }
                 }
                 Spacer(minLength: 8)
-                if let icon { Image(systemName: icon).font(.system(size: 15)).foregroundStyle(Theme.mutedForeground) }
+                if let icon { Image(systemName: icon).font(.system(size: 14)).foregroundStyle(Theme.mutedForeground) }
             }
             .padding(.bottom, 16)
             content()
@@ -254,7 +240,7 @@ struct RideStatTile: View {
                 .minimumScaleFactor(0.8)
             Text(value)
                 .font(Theme.sans(20, weight: .bold))
-                .tracking(-0.3)
+                .tracking(-0.5)
                 .foregroundStyle(tone)
                 .padding(.top, 6)
                 .minimumScaleFactor(0.7)
@@ -267,8 +253,8 @@ struct RideStatTile: View {
         .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.border, lineWidth: 1))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.border, lineWidth: 1))
     }
 }
 
@@ -288,7 +274,7 @@ struct RideRankBars: View {
                 .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(maxWidth: .infinity, minHeight: 96)
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg).stroke(Theme.border.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.border.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
         } else {
             let max = Swift.max(1, rows.map { abs($0.value) }.max() ?? 1)
             VStack(spacing: 10) {
@@ -332,8 +318,8 @@ struct RideChip<Label: View>: View {
         .padding(.leading, 8)
         .padding(.trailing, 6)
         .padding(.vertical, 4)
-        .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(Theme.border, lineWidth: 1))
+        .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.border, lineWidth: 1))
     }
 }
 
@@ -344,7 +330,7 @@ private struct RideStopChips: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            FlowLayout(spacing: 6) {
+            FlowLayout(spacing: 6, lineSpacing: 6) {
                 ForEach(all ? stops : Array(stops.prefix(Self.folded))) { s in
                     RideChip { Text(s.name).font(Theme.sans(12.5, weight: .medium)) } count: { s.n }
                 }
@@ -371,7 +357,7 @@ private struct RideRecordCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: icon).font(.system(size: 12))
-                Text(label.uppercased()).font(Theme.sans(10.5, weight: .semibold)).tracking(0.5)
+                Text(label.uppercased()).font(Theme.sans(10.5, weight: .semibold)).tracking(0.26)
             }
             .foregroundStyle(Theme.mutedForeground)
             if let first = legs?.first, let last = legs?.last {
@@ -392,7 +378,7 @@ private struct RideRecordCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.border, lineWidth: 1))
+        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.border, lineWidth: 1))
     }
 }

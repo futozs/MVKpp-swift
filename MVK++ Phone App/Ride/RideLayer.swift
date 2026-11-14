@@ -47,23 +47,26 @@ struct RideLayer: View {
                 Spacer(minLength: 0)
             }
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-                if let ride = store.active {
-                    RidePanel(
-                        ride: ride,
-                        following: followingTripId == ride.tripId,
-                        onCancel: onStopFollow,
-                        onRefollow: { onFollow(ride.tripId, ride.vehicleId) }
-                    )
-                    .id(ride.id)
-                    .mapCover()
-                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-                } else if let saved = controller.saved {
-                    savedNote(saved.ride, atLoop: saved.atLoop)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+            GeometryReader { proxy in
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    if let ride = store.active {
+                        RidePanel(
+                            ride: ride,
+                            following: followingTripId == ride.tripId,
+                            onCancel: onStopFollow,
+                            onRefollow: { onFollow(ride.tripId, ride.vehicleId) }
+                        )
+                        .frame(maxHeight: Self.panelMaxHeight(proxy))
+                        .id(ride.id)
+                        .mapCover()
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                    } else if let saved = controller.saved {
+                        savedNote(saved.ride, atLoop: saved.atLoop)
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 12)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
             }
         }
@@ -92,6 +95,12 @@ struct RideLayer: View {
                     .padding(.top, 12)
             }
         }
+    }
+
+    /// Web `max-h-[75dvh]`: three quarters of the screen, never more than the map leaves.
+    private static func panelMaxHeight(_ proxy: GeometryProxy) -> CGFloat {
+        let screen = proxy.frame(in: .global).maxY + proxy.safeAreaInsets.bottom
+        return min(proxy.size.height, screen * 0.75)
     }
 
     private func savedNote(_ ride: Ride, atLoop: Bool) -> some View {
@@ -131,7 +140,7 @@ struct BoardingPrompt: View {
         let w = vehicle.rideMode.words
         let rail = vehicle.mode == .rail
         VStack(alignment: .leading, spacing: 0) {
-            RideEyebrow(text: "Együtt mozogsz egy \(w.val)", systemImage: "bus.fill")
+            RideEyebrow(text: "Együtt mozogsz egy \(w.val)", systemImage: "bus.fill", spacing: 8)
             HStack(spacing: 12) {
                 RouteTile(
                     short: rail && vehicle.trainNo != nil ? "\(vehicle.routeShort) \(vehicle.trainNo ?? "")" : vehicle.routeShort,

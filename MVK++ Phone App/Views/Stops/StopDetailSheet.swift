@@ -35,7 +35,7 @@ struct StopDetailSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(stop.name)
                     .font(Theme.sans(14, weight: .bold))
-                    .tracking(-0.2)
+                    .tracking(-0.35)
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
 
@@ -71,32 +71,18 @@ struct StopDetailSheet: View {
                     onToggleMonitor(stop.id)
                 } label: {
                     Image(systemName: isMonitored ? "checkmark" : "plus")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(isMonitored ? Theme.primaryForeground : Theme.foreground)
-                        .background(
-                            isMonitored ? Theme.primary : Theme.background,
-                            in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                                .strokeBorder(isMonitored ? Theme.primary : Theme.input, lineWidth: 1)
-                        )
-                        .contentShape(Rectangle())
+                        .font(.system(size: 14, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.mvk(isMonitored ? .primary : .outline, size: .icon, height: 32))
                 .accessibilityLabel(isMonitored ? "\(stop.name) levétele a figyelőről" : "\(stop.name) felvétele a figyelőre")
 
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.foreground)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 14, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.mvk(.ghost, size: .icon, height: 32))
                 .accessibilityLabel("Panel bezárása")
             }
         }

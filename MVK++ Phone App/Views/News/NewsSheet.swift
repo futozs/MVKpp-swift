@@ -156,6 +156,7 @@ struct NewsSheet: View {
                     .font(Theme.sans(14.5, weight: .semibold))
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(2)
+                    .lineSpacing(1.7)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 if !item.summary.isEmpty, item.summary != item.title {
@@ -163,7 +164,7 @@ struct NewsSheet: View {
                         .font(Theme.sans(12.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .lineLimit(2)
-                        .lineSpacing(2)
+                        .lineSpacing(4.5)
                         .padding(.top, 4)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -342,10 +343,10 @@ struct NewsBodyView: View {
                     .padding(.top, gap(index > 0 ? blocks[index - 1].kind : nil, block.kind))
             }
         }
-        .font(Theme.sans(14.5))
-        .lineSpacing(5)
+        .lineSpacing(5.5)
         .foregroundStyle(Theme.foreground.opacity(0.85))
         .tint(Theme.primary)
+        .textRenderer(NewsTextRenderer())
     }
 
     /// A heading separates, a label sticks to its content.
@@ -360,11 +361,11 @@ struct NewsBodyView: View {
     private func blockView(_ block: NewsBlock) -> some View {
         switch block {
         case .heading(let runs):
-            Text(attributed(runs)).font(Theme.sans(15, weight: .bold)).foregroundStyle(Theme.foreground)
+            text(runs, size: 15, weight: .bold).foregroundStyle(Theme.foreground).lineSpacing(1.7)
         case .label(let runs):
-            Text(attributed(runs)).font(Theme.sans(13.5, weight: .semibold)).foregroundStyle(Theme.foreground)
+            text(runs, size: 13.5, weight: .semibold).foregroundStyle(Theme.foreground).lineSpacing(1.7)
         case .paragraph(let runs):
-            Text(attributed(runs))
+            text(runs, size: 14.5)
         case .list(let items):
             listView(items)
         }
@@ -378,7 +379,7 @@ struct NewsBodyView: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     if index > 0 { Rectangle().fill(Theme.border.opacity(0.7)).frame(height: 1) }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(attributed(item.lead ?? [])).font(Theme.sans(12.5, weight: .semibold)).foregroundStyle(Theme.foreground)
+                        text(item.lead ?? [], size: 12.5, weight: .semibold).foregroundStyle(Theme.foreground).lineSpacing(1.4)
                         itemBody(item.runs)
                     }
                     .padding(.horizontal, 14)
@@ -393,7 +394,7 @@ struct NewsBodyView: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Circle().fill(Theme.mutedForeground.opacity(0.6)).frame(width: 5, height: 5).offset(y: -3)
-                        Text(listLine(item))
+                        listLine(item)
                     }
                 }
             }
@@ -403,54 +404,110 @@ struct NewsBodyView: View {
     /// Only times ("15:20, 16:20, 17:20") → a mono row.
     @ViewBuilder
     private func itemBody(_ runs: [NewsRun]) -> some View {
-        let text = runs.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.range(of: #"^\d{1,2}:\d{2}(?:,\s*\d{1,2}:\d{2})+$"#, options: .regularExpression) != nil {
+        let plain = runs.map(\.text).joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        if plain.range(of: #"^\d{1,2}:\d{2}(?:,\s*\d{1,2}:\d{2})+$"#, options: .regularExpression) != nil {
             FlowLayout(spacing: 12, lineSpacing: 2) {
-                ForEach(text.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }, id: \.self) { time in
+                ForEach(plain.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }, id: \.self) { time in
                     Text(time).font(Theme.mono(13, weight: .regular)).foregroundStyle(Theme.foreground)
                 }
             }
             .padding(.top, 2)
         } else {
-            Text(attributed(runs)).font(Theme.sans(14))
+            text(runs, size: 14).lineSpacing(5.1)
         }
     }
 
-    private func listLine(_ item: NewsListItem) -> AttributedString {
-        guard let lead = item.lead else { return attributed(item.runs) }
-        var head = attributed(lead)
-        head.font = Theme.sans(14.5, weight: .semibold)
-        head.foregroundColor = Theme.foreground
-        return head + AttributedString(": ") + attributed(item.runs)
+    private func listLine(_ item: NewsListItem) -> Text {
+        guard let lead = item.lead else { return text(item.runs, size: 14.5) }
+        return Text("\(text(lead, size: 14.5, weight: .semibold).foregroundStyle(Theme.foreground))\(Text(verbatim: ": "))\(text(item.runs, size: 14.5))")
     }
 
-    private func attributed(_ runs: [NewsRun]) -> AttributedString {
-        var out = AttributedString()
-        for run in runs {
-            var text = run.href != nil && run.text == run.href ? NewsTime.prettyURL(run.text) : run.text
-            if let routeId = run.route, let route = routes[routeId] {
-                text = "\u{2009}\(text)\u{2009}"
-                var piece = AttributedString(text)
-                piece.backgroundColor = Theme.hex(route.color)
-                piece.foregroundColor = Theme.hex(route.text, fallback: .white)
-                piece.font = Theme.sans(12, weight: .heavy).monospacedDigit()
-                out += piece
-                continue
-            }
-            var piece = AttributedString(text)
-            if run.bold == true {
-                piece.font = Theme.sans(14.5, weight: .semibold)
-                piece.foregroundColor = Theme.foreground
-            }
-            if run.italic == true { piece.font = Theme.sans(14.5).italic() }
-            if let href = run.href, let url = URL(string: href) {
-                piece.link = url
+    /// The runs as one `Text` at the block's size: bold and italic keep that
+    /// size, a link gets the web's arrow, a route mention becomes a pill.
+    private func text(_ runs: [NewsRun], size: CGFloat, weight: Font.Weight = .regular) -> Text {
+        runs.reduce(Text(verbatim: "")) { out, run in Text("\(out)\(piece(run, size: size, weight: weight))") }
+    }
+
+    private func piece(_ run: NewsRun, size: CGFloat, weight: Font.Weight) -> Text {
+        let link = run.href.flatMap { URL(string: $0) }
+        let route = run.route.flatMap { routes[$0] }
+        var piece: AttributedString
+        if let route, run.text != run.href {
+            // Non-breaking padding reserves the pill's room in the line.
+            let pad = String(repeating: "\u{00A0}", count: run.text.count == 1 ? 3 : 2)
+            let markSize = size * 0.8
+            piece = AttributedString(pad + run.text + pad)
+            piece.font = Theme.sans(markSize, weight: .heavy).monospacedDigit()
+            piece.tracking = -0.025 * markSize
+            piece.foregroundColor = Theme.hex(route.text, fallback: .white)
+        } else {
+            piece = AttributedString(link != nil && run.text == run.href ? NewsTime.prettyURL(run.text) : run.text)
+            piece.font = Theme.sans(size, weight: link != nil ? .medium : run.bold == true ? .semibold : weight)
+            if run.bold == true { piece.foregroundColor = Theme.foreground }
+        }
+        if let link {
+            piece.link = link
+            if route == nil {
                 piece.foregroundColor = Theme.primary
-                piece.underlineStyle = .single
-                piece += AttributedString(" ↗")
+                piece.underlineStyle = Text.LineStyle(pattern: .solid, color: Theme.primary.opacity(0.35))
             }
-            out += piece
+        }
+        var out = Text(piece)
+        if let route, run.text != run.href {
+            out = out.customAttribute(RouteMarkAttribute(fill: Theme.hex(route.color), size: size * 0.8))
+        }
+        if run.italic == true {
+            out = out.customAttribute(ObliqueAttribute())
+        }
+        if link != nil {
+            let arrow = Text(Image(systemName: "arrow.up.right")).font(.system(size: size * 0.75, weight: .semibold)).foregroundStyle(Theme.primary)
+            out = Text("\(out)\(Text(verbatim: "\u{2009}"))\(arrow)")
         }
         return out
+    }
+}
+
+private struct RouteMarkAttribute: TextAttribute {
+    let fill: Color
+    let size: CGFloat
+}
+
+private struct ObliqueAttribute: TextAttribute {}
+
+/// Draws a route mention as the web's `RouteMark` pill (0.32em corners,
+/// 1.42em tall, at least 1.7em wide, a black/20 inner ring), and slants
+/// italic runs: the bundled faces have no italic, so this stands in for the
+/// browser's synthetic oblique.
+private struct NewsTextRenderer: TextRenderer {
+    var displayPadding: EdgeInsets { EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4) }
+
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for line in layout {
+            for run in line {
+                let bounds = run.typographicBounds
+                if let mark = run[RouteMarkAttribute.self] {
+                    let width = max(bounds.width, mark.size * 1.7)
+                    let height = mark.size * 1.42
+                    let centerY = bounds.origin.y - mark.size * 0.36
+                    let rect = CGRect(x: bounds.rect.midX - width / 2, y: centerY - height / 2, width: width, height: height)
+                    let radius = mark.size * 0.32
+                    context.fill(Path(roundedRect: rect, cornerRadius: radius, style: .continuous), with: .color(mark.fill))
+                    context.stroke(
+                        Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: radius - 0.5, style: .continuous),
+                        with: .color(.black.opacity(0.2)),
+                        lineWidth: 1
+                    )
+                }
+                if run[ObliqueAttribute.self] != nil {
+                    var slanted = context
+                    slanted.translateBy(x: 0, y: bounds.origin.y)
+                    slanted.concatenate(CGAffineTransform(a: 1, b: 0, c: -0.2, d: 1, tx: 0, ty: 0))
+                    slanted.translateBy(x: 0, y: -bounds.origin.y)
+                    slanted.draw(run)
+                } else {
+                    context.draw(run)
+                }
+            }
+        }
     }
 }

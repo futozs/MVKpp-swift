@@ -46,13 +46,14 @@ struct StatsOverviewPanel: View {
                 StatsHeading("Adatraktár")
                 Spacer()
                 Button(action: query.reload) {
-                    HStack(spacing: 8) {
+                    Label {
+                        Text("Frissítés")
+                    } icon: {
                         Image(systemName: "arrow.clockwise")
                             .symbolEffect(.rotate, isActive: query.loading)
-                        Text("Frissítés")
                     }
                 }
-                .buttonStyle(StatsButtonStyle())
+                .buttonStyle(.mvk(.outline, size: .small))
                 .disabled(query.loading)
             }
 
@@ -71,9 +72,10 @@ struct StatsOverviewPanel: View {
                         HStack(spacing: 8) {
                             Text("Járművek")
                             Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .medium))
                         }
                     }
-                    .buttonStyle(StatsButtonStyle(variant: .ghost))
+                    .buttonStyle(.mvk(.ghost, size: .small))
                 } content: {
                     StatsTileGrid {
                         StatsStatTile(
@@ -177,22 +179,25 @@ struct StatsForecastModelCard: View {
             let weak = (rep.cells ?? [:]).filter { !$0.value.useMedian }.map(\.key).sorted()
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Circle().fill(active ? Theme.ontime : Theme.mutedForeground).frame(width: 6, height: 6)
-                        Text(active ? "Modell becsül" : "Képlet becsül")
-                            .font(Theme.sans(12, weight: .bold))
-                    }
-                    .foregroundStyle(active ? Theme.ontime : Theme.mutedForeground)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(active ? Theme.ontime.opacity(0.15) : Theme.muted, in: RoundedRectangle(cornerRadius: 10))
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Circle().fill(active ? Theme.ontime : Theme.mutedForeground).frame(width: 6, height: 6)
+                            Text(active ? "Modell becsül" : "Képlet becsül")
+                                .font(Theme.sans(12, weight: .bold))
+                        }
+                        .foregroundStyle(active ? Theme.ontime : Theme.mutedForeground)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(active ? Theme.ontime.opacity(0.15) : Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
 
-                    let before = Text("\(fmt(rep.overall.maeBaseline)) mp").font(Theme.mono(14, weight: .bold))
-                    let after = Text("\(fmt(rep.overall.maeModel)) mp").font(Theme.mono(14, weight: .bold)).foregroundStyle(Theme.ontime)
-                    let gain = Text("(\(fmt(rep.overall.improvement))% pontosabb)").foregroundStyle(Theme.mutedForeground)
-                    Text("átlagos hiba \(before) → \(after) \(gain)")
-                        .font(Theme.sans(14))
-                        .foregroundStyle(Theme.foreground)
+                        let before = Text("\(fmt(rep.overall.maeBaseline)) mp").font(Theme.mono(14, weight: .bold))
+                        let after = Text("\(fmt(rep.overall.maeModel)) mp").font(Theme.mono(14, weight: .bold)).foregroundStyle(Theme.ontime)
+                        let gain = Text("(\(fmt(rep.overall.improvement))% pontosabb)").foregroundStyle(Theme.mutedForeground)
+                        Text("átlagos hiba \(before) → \(after) \(gain)")
+                            .font(Theme.sans(14))
+                            .foregroundStyle(Theme.foreground)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     Text("tanítva \(d.inUse.trainedAt.map(trainedLabel) ?? "") · \(rep.days.train.count) nap, \(StatsFormat.number(rep.rows.train)) minta · teszt: \(rep.days.test.count) sosem látott nap")
                         .font(Theme.sans(12))

@@ -136,11 +136,12 @@ struct StatsScreen: View {
                 panel = .overview
             } label: {
                 Image(systemName: Panel.overview.icon)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(current == .overview ? Theme.primaryForeground : Theme.mutedForeground)
-                    .frame(width: 38, height: 32)
-                    .background(current == .overview ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(current == .overview ? Theme.primary : Theme.border.opacity(0.7), lineWidth: 1))
+                    .frame(width: 34, height: 30)
+                    .background(current == .overview ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(current == .overview ? Theme.primary : Theme.border.opacity(0.7), lineWidth: 1))
+                    .frame(height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -166,7 +167,7 @@ struct StatsScreen: View {
             .foregroundStyle(active ? Theme.primaryForeground : Theme.mutedForeground)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(active ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(active ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

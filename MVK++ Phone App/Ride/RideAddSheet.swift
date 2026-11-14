@@ -316,9 +316,9 @@ struct RideAddSheet: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .padding(.horizontal, 10)
-                        .frame(width: 176, height: 34)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md).stroke(Theme.input, lineWidth: 1))
+                        .frame(width: 176, height: 32)
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).stroke(Theme.input, lineWidth: 1))
                         .accessibilityLabel("A busz pályaszáma")
                     }
                 }
@@ -453,14 +453,14 @@ private struct RideDayRoutePicker: View {
     private func label(_ text: String) -> some View {
         Text(text.uppercased())
             .font(Theme.sans(10.5, weight: .semibold))
-            .tracking(0.5)
+            .tracking(0.26)
             .foregroundStyle(Theme.mutedForeground)
             .padding(.horizontal, 20)
             .padding(.bottom, 4)
     }
 
     private func tiles(_ list: [PastRoute], prefix: String) -> some View {
-        FlowLayout(spacing: 2) {
+        FlowLayout(spacing: 0, lineSpacing: 0) {
             ForEach(list) { r in
                 Button { onRoute(r) } label: {
                     RouteTile(short: r.short, colorHex: r.color, textHex: r.text, size: .large)

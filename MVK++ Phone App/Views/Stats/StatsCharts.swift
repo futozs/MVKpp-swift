@@ -22,27 +22,39 @@ struct StatsChartFrame<Content: View, Action: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(Theme.sans(14, weight: .semibold))
-                        .tracking(-0.2)
-                        .foregroundStyle(Theme.foreground)
-                    if let hint {
-                        Text(hint)
-                            .font(Theme.sans(11.5))
-                            .foregroundStyle(Theme.mutedForeground)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+            // `flex-wrap`: the action drops under the title when both do not fit on one line.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 8) {
+                    heading.frame(maxWidth: .infinity, alignment: .leading)
+                    action()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                action()
+                VStack(alignment: .leading, spacing: 8) {
+                    heading
+                    action()
+                }
             }
             content()
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .statsCard()
+    }
+}
+
+extension StatsChartFrame {
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(Theme.sans(14, weight: .semibold))
+                .tracking(-0.35)
+                .foregroundStyle(Theme.foreground)
+            if let hint {
+                Text(hint)
+                    .font(Theme.sans(11.5))
+                    .foregroundStyle(Theme.mutedForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
@@ -62,11 +74,11 @@ extension View {
         return background(fill, in: shape).overlay(shape.strokeBorder(stroke, lineWidth: 1))
     }
 
-    /// `rounded-xl border border-dashed`
-    func statsDashed(radius: CGFloat = 12, fill: Color = .clear) -> some View {
+    /// `rounded-xl border border-dashed border-border`
+    func statsDashed(radius: CGFloat = Theme.Radius.xl, fill: Color = .clear, stroke: Color = Theme.border) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return background(fill, in: shape)
-            .overlay(shape.strokeBorder(Theme.border.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            .overlay(shape.strokeBorder(stroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
     }
 }
 
@@ -81,7 +93,7 @@ struct StatsEmptyChart: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity, minHeight: 96)
-            .statsDashed()
+            .statsDashed(stroke: Theme.border.opacity(0.7))
     }
 }
 
@@ -164,8 +176,8 @@ struct StatsTip: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Theme.popover, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         .mvkShadow(Theme.Shadow.lg)
         .fixedSize()
     }
@@ -541,7 +553,7 @@ struct StatsDonut: View {
                         }
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(hover == i ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        .background(hover == i ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                         .contentShape(Rectangle())
                         .onTapGesture { hover = hover == i ? nil : i }
                     }
@@ -622,10 +634,6 @@ struct StatsHourHeat: View {
             let max = withData.max() ?? 0
             let min = withData.min() ?? 0
             VStack(alignment: .leading, spacing: 10) {
-                if let hover, let cell = cells[statsSafe: hover] {
-                    StatsTip(value: cell.title)
-                        .frame(maxWidth: .infinity)
-                }
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 12), spacing: 4) {
                     ForEach(Array(cells.enumerated()), id: \.element.id) { i, c in
                         let alpha = c.value.map { 0.14 + (max == min ? 0.5 : ($0 - min) / (max - min)) * 0.8 }
@@ -664,6 +672,13 @@ struct StatsHourHeat: View {
                 }
                 .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
+            }
+            .overlay(alignment: .top) {
+                if let hover, let cell = cells[statsSafe: hover] {
+                    StatsTip(value: cell.title)
+                        .alignmentGuide(.top) { $0[.bottom] + 8 }
+                        .allowsHitTesting(false)
+                }
             }
         }
     }

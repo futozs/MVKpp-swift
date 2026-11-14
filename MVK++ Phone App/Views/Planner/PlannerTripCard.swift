@@ -20,7 +20,7 @@ struct PlannerTripCard: View {
     }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(Theme.Motion.normalAnimation) { isOpen.toggle() }
@@ -69,7 +69,7 @@ struct PlannerTripCard: View {
                     Text(PlannerFormat.hm(trip.end))
                 }
                 .font(Theme.mono(18, weight: .bold))
-                .tracking(-0.3)
+                .tracking(-0.45)
                 .foregroundStyle(Theme.foreground)
                 .accessibilityElement(children: .combine)
                 Spacer(minLength: 8)
@@ -79,7 +79,7 @@ struct PlannerTripCard: View {
                         .monospacedDigit()
                         .foregroundStyle(Theme.foreground)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Theme.mutedForeground)
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
                 }
@@ -149,7 +149,7 @@ private struct PlannerRouteChain: View {
                 HStack(spacing: 4) {
                     if index > 0 {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Theme.mutedForeground)
                     }
                     RouteTile(short: PlannerFormat.legTileText(leg), colorHex: leg.routeColor ?? "1FB574", textHex: leg.routeTextColor, size: .small)

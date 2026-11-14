@@ -48,6 +48,7 @@ struct RideSetupView: View {
                 selected: ride.fromConfirmed == true ? ride.fromIdx : nil,
                 focusIdx: cur,
                 focusLabel: "a busz most itt",
+                hugsContent: true,
                 onPick: controller.pickFrom
             )
         }
@@ -64,7 +65,7 @@ struct RideSetupView: View {
                 controller.step = .from
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "mappin").font(.system(size: 11))
+                    Image(systemName: "mappin").font(.system(size: 10))
                     Text("Felszállás: ") + Text(trip.stops.indices.contains(fromIdx) ? trip.stops[fromIdx].name : "").fontWeight(.semibold).foregroundColor(Theme.foreground)
                 }
                 .font(Theme.sans(11.5))
@@ -82,6 +83,7 @@ struct RideSetupView: View {
                 timeOf: .arr,
                 selected: ride.destIdx,
                 marks: [lastIdx: "végállomás"],
+                hugsContent: true,
                 onPick: controller.pickDest
             )
             if trip.loopEnd {
@@ -155,6 +157,7 @@ struct RideLoopStep: View {
                         timeOf: .arr,
                         selected: selected,
                         marks: [stops.count - 1: "végállomás"],
+                        hugsContent: true,
                         onPick: { idx in onLoop(LoopPlan(stopId: stops[idx].id, stopName: stops[idx].name, tripId: next.tripId)) }
                     )
                 }
@@ -258,8 +261,8 @@ struct TurnCard: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(Theme.primary.opacity(0.4), lineWidth: 1))
+            .background(Theme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).stroke(Theme.primary.opacity(0.4), lineWidth: 1))
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }

@@ -92,7 +92,11 @@ struct TimetableTripPanel: View {
         HStack(alignment: .center, spacing: 12) {
             Text(trip.departure)
                 .font(Theme.mono(20))
-                .strikethrough(cancelled, pattern: .solid, color: Theme.destructive)
+                .overlay {
+                    if cancelled {
+                        Rectangle().fill(Theme.destructive).frame(height: 2)
+                    }
+                }
                 .foregroundStyle(cancelled ? Theme.destructive : Theme.foreground)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -133,12 +137,9 @@ struct TimetableTripPanel: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.foreground)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
+                    .font(.system(size: 14, weight: .medium))
             }
-            .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+            .buttonStyle(.mvk(.ghost, size: .icon, height: 32))
             .accessibilityLabel("Menet részleteinek bezárása")
         }
         .padding(.horizontal, 12)
@@ -156,39 +157,31 @@ struct TimetableTripPanel: View {
             .foregroundStyle(Theme.destructive)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.destructive.opacity(0.5), lineWidth: 1))
+            .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.destructive.opacity(0.5), lineWidth: 1))
         } else if let vehicle {
             Button {
                 onFocusTrip(trip.tripId, vehicle.id)
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "scope").font(.system(size: 13, weight: .semibold))
-                    Text(TransitIds.displayVehicleId(vehicle.id, plate: vehicle.plate)).font(Theme.mono(12, weight: .semibold))
+                Label {
+                    Text(TransitIds.displayVehicleId(vehicle.id, plate: vehicle.plate)).font(Theme.mono(12, weight: .medium))
+                } icon: {
+                    Image(systemName: "scope")
                 }
-                .foregroundStyle(Theme.primaryForeground)
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .background(Theme.primary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .contentShape(Rectangle())
             }
-            .buttonStyle(ChipPress())
+            .buttonStyle(.mvk(.primary, size: .small))
             .accessibilityLabel("\(TransitIds.displayVehicleId(vehicle.id, plate: vehicle.plate)) a térképen")
         } else if let pastVehicleId {
             Button {
                 onFocusTrip(trip.tripId, pastVehicleId)
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "bus").font(.system(size: 13, weight: .semibold))
-                    Text(TransitIds.displayVehicleId(pastVehicleId)).font(Theme.mono(12, weight: .semibold))
+                Label {
+                    Text(TransitIds.displayVehicleId(pastVehicleId)).font(Theme.mono(12, weight: .medium))
+                } icon: {
+                    Image(systemName: "bus")
                 }
-                .foregroundStyle(Theme.foreground)
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
-                .contentShape(Rectangle())
             }
-            .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+            .buttonStyle(.mvk(.outline, size: .small))
             .accessibilityLabel("\(TransitIds.vehicleIdTitle(pastVehicleId)) teljesítette ezt a menetet. Megnézem, hol jár most")
         } else if let statusLabel {
             Text(statusLabel)
@@ -247,12 +240,12 @@ struct TimetableTripPanel: View {
                         notifyTarget = NotifyTarget(stop: stop, isDeparture: index == 0)
                     } label: {
                         Image(systemName: watching ? "bell.and.waves.left.and.right" : "bell")
-                            .font(.system(size: 13))
+                            .font(.system(size: 12))
                             .foregroundStyle(watching ? Theme.primary : Theme.mutedForeground)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+                    .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
                     .accessibilityLabel("Értesítés beállítása \(stop.name)")
                 }
             }

@@ -77,7 +77,7 @@ struct RidesPanel: View {
     private var header: some View {
         HStack(alignment: .bottom, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Utazásaim").font(Theme.sans(18, weight: .bold)).tracking(-0.3).foregroundStyle(Theme.foreground)
+                Text("Utazásaim").font(Theme.sans(18, weight: .bold)).tracking(-0.45).foregroundStyle(Theme.foreground)
                 HStack(spacing: 6) {
                     Image(systemName: loggedIn ? "icloud" : "icloud.slash")
                         .font(.system(size: 12))
@@ -202,13 +202,13 @@ struct JourneyRow: View {
                 .frame(width: 48, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
                     if loop {
-                        RideEyebrow(text: "Körbeutazás · \(legs.count) menet", systemImage: "repeat", size: 10.5)
+                        RideEyebrow(text: "Körbeutazás · \(legs.count) menet", systemImage: "repeat", size: 10.5, iconSize: 10, spacing: 4)
                     }
                     pathText(first: first, last: last)
                         .font(Theme.sans(13, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(2)
-                    FlowLayout(spacing: 8) {
+                    FlowLayout(spacing: 8, lineSpacing: 2) {
                         Text("\(Self.day.string(from: Date(timeIntervalSince1970: first.boardedAt))) \(BudapestClock.hm(first.boardedAt))")
                         if !first.vehicleId.isEmpty {
                             Text(TransitIds.displayVehicleId(first.vehicleId)).font(Theme.mono(11.5, weight: .regular))
@@ -267,12 +267,12 @@ struct JourneyRow: View {
     private func action(_ systemImage: String, label: String, run: @escaping () -> Void) -> some View {
         Button(action: run) {
             Image(systemName: systemImage)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
-                .frame(width: 36, height: 36)
-                .contentShape(Rectangle())
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle().inset(by: -4))
         }
-        .buttonStyle(RowPressStyle())
+        .buttonStyle(RowPressStyle(radius: Theme.Radius.md))
         .accessibilityLabel(label)
     }
 }

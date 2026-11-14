@@ -47,7 +47,7 @@ struct KioskPicker: View {
     private var full: Bool { selected.count >= KioskStops.maxCount }
 
     var body: some View {
-        let card = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let card = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         ZStack {
             Theme.background.opacity(0.8)
                 .background(.ultraThinMaterial)
@@ -88,7 +88,7 @@ struct KioskPicker: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Kijelző: megállók")
                     .font(Theme.sans(18, weight: .bold))
-                    .tracking(-0.3)
+                    .tracking(-0.45)
                 Text("Legalább 1, legfeljebb \(KioskStops.maxCount) megálló, egymás mellett.")
                     .font(Theme.sans(12.5))
                     .foregroundStyle(Theme.mutedForeground)
@@ -97,7 +97,7 @@ struct KioskPicker: View {
             if let onClose {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(Theme.mutedForeground)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
@@ -116,7 +116,7 @@ struct KioskPicker: View {
         VStack(spacing: 6) {
             ForEach(Array(selected.enumerated()), id: \.element) { index, id in
                 let s = byId[id]
-                let row = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                let row = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                 HStack(spacing: 12) {
                     Text("\(index + 1).")
                         .font(Theme.mono(12, weight: .bold))
@@ -132,17 +132,16 @@ struct KioskPicker: View {
                         withAnimation(Theme.Motion.fastAnimation) { selected.removeAll { $0 == id } }
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Theme.mutedForeground)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle().inset(by: -10))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(RowPressStyle(radius: Theme.Radius.md))
                     .accessibilityLabel("\(s?.name ?? id) eltávolítása")
                 }
-                .padding(.leading, 12)
-                .padding(.trailing, 4)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .background(Theme.background.opacity(0.6), in: row)
                 .overlay(row.strokeBorder(Theme.border, lineWidth: 1))
             }
@@ -152,7 +151,7 @@ struct KioskPicker: View {
                     .foregroundStyle(Theme.mutedForeground)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
             }
         }
     }
@@ -160,7 +159,7 @@ struct KioskPicker: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $query, prompt: Text(full ? "Legfeljebb \(KioskStops.maxCount) megálló" : "Megálló neve vagy kódja").foregroundStyle(Theme.mutedForeground))
                 .font(Theme.sans(14))
@@ -171,8 +170,8 @@ struct KioskPicker: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
-        .background(Theme.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
         .opacity(full ? 0.5 : 1)
     }
 

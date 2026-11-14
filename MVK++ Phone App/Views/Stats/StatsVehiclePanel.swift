@@ -168,7 +168,7 @@ struct StatsVehiclePanel: View {
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-                .buttonStyle(StatsButtonStyle(icon: true))
+                .buttonStyle(.mvk(.outline, size: .icon))
                 .disabled(prevDay == nil)
                 .accessibilityLabel("Előző nap, amikor közlekedett")
 
@@ -181,9 +181,10 @@ struct StatsVehiclePanel: View {
                         .font(Theme.sans(14, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.foreground)
-                        .frame(minWidth: 140, minHeight: 36)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+                        .padding(.horizontal, 12)
+                        .frame(minWidth: 160, minHeight: 36)
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
                 }
                 .disabled(days.isEmpty)
                 .accessibilityLabel("Nap választása")
@@ -193,7 +194,7 @@ struct StatsVehiclePanel: View {
                 } label: {
                     Image(systemName: "chevron.right")
                 }
-                .buttonStyle(StatsButtonStyle(icon: true))
+                .buttonStyle(.mvk(.outline, size: .icon))
                 .disabled(nextDay == nil)
                 .accessibilityLabel("Következő nap, amikor közlekedett")
 
@@ -208,12 +209,9 @@ struct StatsVehiclePanel: View {
             Button {
                 navigation.focusVehicleOnMap(vehicleId, vehicle: store.vehicle(id: vehicleId))
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "scope")
-                    Text("Élőben a térképen")
-                }
+                Label("Élőben a térképen", systemImage: "scope")
             }
-            .buttonStyle(StatsButtonStyle(variant: .ghost))
+            .buttonStyle(.mvk(.ghost, size: .small))
         }
     }
 
@@ -305,6 +303,7 @@ struct StatsVehiclePanel: View {
             }
             .frame(minWidth: 544, alignment: .leading)
         }
+        .padding(.horizontal, -16)
     }
 
     private func th(_ text: String) -> some View {
@@ -470,13 +469,13 @@ struct StatsRunTimeline: View {
                 .frame(height: CGFloat(runs.count) * rowH + 18)
 
                 if let picked, let r = runs[statsSafe: picked] {
-                    Text("\(label(r.route_short)) · \(r.headsign ?? "")\nterv \(StatsFormat.schedTime(r.sched_start_s))–\(StatsFormat.schedTime(r.sched_end_s)) · megálló \(r.stops_seen)/\(r.stops_total) (\(r.quality)%) · indulási késés: \(StatsFormat.delay(r.start_delay_s))")
+                    Text("\(label(r.route_short)) · \(r.headsign ?? "")\nterv \(StatsFormat.schedTime(r.sched_start_s))–\(StatsFormat.schedTime(r.sched_end_s))\nmegálló \(r.stops_seen)/\(r.stops_total) (\(r.quality)%)\nindulási késés: \(StatsFormat.delay(r.start_delay_s))")
                         .font(Theme.sans(11.5))
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Theme.muted.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Theme.muted.opacity(0.4), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                 }
             }
         }

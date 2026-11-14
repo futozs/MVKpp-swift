@@ -74,7 +74,8 @@ final class StopAnnotationView: MKAnnotationView {
         let active = stop.isWatched || stop.isSelected
         let radius: CGFloat = active ? 7.5 : stop.isRail ? 6.5 : stop.isClose ? 5 : 3
         let border: CGFloat = stop.isRail ? 2 : (stop.isClose || active) ? 1.5 : 1
-        let diameter = radius * 2
+        // Leaflet centres the stroke on the radius; a CALayer border sits inside the edge.
+        let diameter = radius * 2 + border
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -107,17 +108,17 @@ final class UserDotAnnotationView: MKAnnotationView {
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        frame = CGRect(x: 0, y: 0, width: 20, height: 20)
+        frame = CGRect(x: 0, y: 0, width: 17, height: 17)
         let dot = UIView(frame: bounds)
         dot.backgroundColor = UIColor(Theme.early)
-        dot.layer.cornerRadius = 10
+        dot.layer.cornerRadius = 8.5
         dot.layer.borderWidth = 3
         dot.layer.borderColor = UIColor(Theme.background).cgColor
         dot.isUserInteractionEnabled = false
         addSubview(dot)
         collisionMode = .none
         displayPriority = .required
-        zPriority = MKAnnotationViewZPriority(rawValue: 950)
+        zPriority = MKAnnotationViewZPriority(rawValue: 800)
         isAccessibilityElement = true
         accessibilityLabel = "Itt vagy"
     }
@@ -202,9 +203,21 @@ final class VehicleAnnotationView: MKAnnotationView {
     static let vehicleZPriority = MKAnnotationViewZPriority(rawValue: 900)
 
     private let tile = UILabel()
+    private let highlight = CALayer()
     private let ring = UIView()
     private let dash = CAShapeLayer()
     private let plate = UILabel()
+    private let plateRing = UIView()
+
+    /// 11 px extrabold, tabular digits, `letter-spacing: -0.02em`.
+    private static let tileFont: UIFont = {
+        let base = Theme.uiSans(11, weight: .heavy)
+        let tabular = base.fontDescriptor.addingAttributes([
+            .featureSettings: [[UIFontDescriptor.FeatureKey.type: kNumberSpacingType, UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector]],
+        ])
+        return UIFont(descriptor: tabular, size: 11)
+    }()
+    private static let tileKern: CGFloat = 11 * -0.02
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -224,14 +237,15 @@ final class VehicleAnnotationView: MKAnnotationView {
         ring.layer.cornerCurve = .continuous
         ring.layer.borderWidth = 2
         ring.layer.borderColor = UIColor(Theme.primary).cgColor
-        ring.backgroundColor = .clear
+        ring.backgroundColor = UIColor(Theme.background)
         addSubview(ring)
 
         tile.textAlignment = .center
-        tile.font = Theme.uiSans(11, weight: .heavy)
         tile.layer.cornerCurve = .continuous
         tile.layer.borderColor = UIColor.black.withAlphaComponent(0.55).cgColor
         tile.clipsToBounds = true
+        highlight.backgroundColor = UIColor.white.withAlphaComponent(0.22).cgColor
+        tile.layer.addSublayer(highlight)
         addSubview(tile)
 
         dash.fillColor = UIColor.clear.cgColor
@@ -247,6 +261,12 @@ final class VehicleAnnotationView: MKAnnotationView {
         plate.layer.cornerCurve = .continuous
         plate.layer.borderWidth = 1
         plate.clipsToBounds = true
+        plateRing.isUserInteractionEnabled = false
+        plateRing.layer.cornerRadius = 6
+        plateRing.layer.cornerCurve = .continuous
+        plateRing.layer.borderWidth = 1
+        plateRing.layer.borderColor = UIColor(Theme.primary).withAlphaComponent(0.25).cgColor
+        addSubview(plateRing)
         addSubview(plate)
 
         layer.shadowColor = UIColor(Theme.Shadow.color).cgColor
@@ -264,10 +284,13 @@ final class VehicleAnnotationView: MKAnnotationView {
         let rail = vehicle.mode == .rail
         let coach = vehicle.mode == .coach
 
-        tile.text = vehicle.routeShort
+        tile.attributedText = NSAttributedString(string: vehicle.routeShort, attributes: [
+            .font: Self.tileFont,
+            .kern: Self.tileKern,
+            .foregroundColor: UIColor(Theme.hex(vehicle.routeText, fallback: .white)),
+        ])
         tile.backgroundColor = UIColor(Theme.hex(vehicle.routeColor))
-        tile.textColor = UIColor(Theme.hex(vehicle.routeText, fallback: .white))
-        let padding: CGFloat = rail ? 14 : 10
+        let padding: CGFloat = rail ? 16 : 12
         let tileWidth = max(27, tile.intrinsicContentSize.width + padding)
         let radius: CGFloat = rail ? 9.5 : coach ? 3 : 6
         tile.layer.cornerRadius = radius
@@ -281,27 +304,26 @@ final class VehicleAnnotationView: MKAnnotationView {
             plate.layer.borderColor = vehicle.tracked
                 ? UIColor(Theme.primary).withAlphaComponent(0.6).cgColor
                 : UIColor(Theme.border).cgColor
-            plate.frame.size = CGSize(width: plate.intrinsicContentSize.width + 8, height: 14)
+            plate.frame.size = CGSize(width: plate.intrinsicContentSize.width + 10, height: 16)
         } else {
             plate.isHidden = true
         }
+        plateRing.isHidden = plate.isHidden || !vehicle.tracked
 
         let ringPad: CGFloat = 4
-        let width = max(tileWidth + ringPad * 2, plate.isHidden ? 0 : plate.frame.width)
-        let height: CGFloat = plate.isHidden ? 19 + ringPad * 2 : 19 + ringPad + 4 + 14
+        let width = max(tileWidth + ringPad * 2, plate.isHidden ? 0 : plate.frame.width + 2)
+        let height: CGFloat = plate.isHidden ? 19 + ringPad * 2 : 19 + ringPad + 4 + 16 + 1
         bounds = CGRect(x: 0, y: 0, width: width, height: height)
 
         let tileFrame = CGRect(x: (width - tileWidth) / 2, y: ringPad, width: tileWidth, height: 19)
         tile.frame = tileFrame
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        highlight.frame = CGRect(x: 0, y: 1, width: tileWidth, height: 1)
+        CATransaction.commit()
         ring.isHidden = !vehicle.tracked
         ring.frame = tileFrame.insetBy(dx: -4, dy: -4)
         ring.layer.cornerRadius = radius + 4
-        ring.layer.borderWidth = 2
-        ring.layer.borderColor = UIColor(Theme.primary).cgColor
-        ring.layer.shadowColor = UIColor(Theme.background).cgColor
-        ring.layer.shadowOpacity = vehicle.tracked ? 1 : 0
-        ring.layer.shadowRadius = 0
-        ring.layer.shadowOffset = .zero
 
         dash.isHidden = !vehicle.estimated
         dash.frame = tileFrame
@@ -309,6 +331,7 @@ final class VehicleAnnotationView: MKAnnotationView {
 
         if !plate.isHidden {
             plate.frame.origin = CGPoint(x: (width - plate.frame.width) / 2, y: tileFrame.maxY + 4)
+            plateRing.frame = plate.frame.insetBy(dx: -1, dy: -1)
         }
 
         centerOffset = CGPoint(x: 0, y: height / 2 - tileFrame.midY)
@@ -318,6 +341,9 @@ final class VehicleAnnotationView: MKAnnotationView {
         layer.shadowColor = vehicle.tracked
             ? UIColor(Theme.primary).withAlphaComponent(0.45).cgColor
             : UIColor(Theme.Shadow.color).cgColor
+        layer.shadowOpacity = vehicle.tracked ? 1 : 0.75
+        layer.shadowRadius = vehicle.tracked ? 9 : 4.5
+        layer.shadowOffset = CGSize(width: 0, height: vehicle.tracked ? 6 : 3)
 
         let label = vehicle.labelText.map { ", \($0)" } ?? ""
         accessibilityLabel = "\(vehicle.routeShort), \(vehicle.headsign)\(label)"

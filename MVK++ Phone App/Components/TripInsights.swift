@@ -101,8 +101,7 @@ struct CatchLine: View {
                         }
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .frame(minHeight: 28)
-                        .contentShape(Rectangle())
+                        .contentShape(Rectangle().inset(by: -8))
                     }
                     .buttonStyle(.plain)
                     .disabled(alertBusy)

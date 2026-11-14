@@ -106,34 +106,32 @@ struct StatsHeatPanel: View {
         let data = routeQ.data.flatMap { $0.route == route ? $0 : nil }
         let title = data.map { d in "\(d.route) \(d.directions.first { $0.dir == d.dir }?.headsign ?? "")" } ?? "Vonal-hőtérkép"
         return StatsChartFrame(title: title, hint: "megállók menetirányban × a nap órái") {
-            EmptyView()
-        } content: {
-            VStack(alignment: .leading, spacing: 12) {
-                if let data, data.directions.count > 1 {
-                    FlowLayout(spacing: 4, lineSpacing: 4) {
-                        ForEach(data.directions, id: \.dir) { d in
-                            let on = d.dir == data.dir
-                            Button {
-                                dir = d.dir
-                            } label: {
-                                Text(d.headsign)
-                                    .font(Theme.sans(11.5, weight: .semibold))
-                                    .lineLimit(1)
-                                    .frame(maxWidth: 200)
-                                    .fixedSize()
-                                    .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(on ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 12))
-                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(on ? Theme.primary : Theme.border, lineWidth: 1))
-                            }
-                            .buttonStyle(.plain)
+            if let data, data.directions.count > 1 {
+                FlowLayout(spacing: 4, lineSpacing: 4) {
+                    ForEach(data.directions, id: \.dir) { d in
+                        let on = d.dir == data.dir
+                        Button {
+                            dir = d.dir
+                        } label: {
+                            Text(d.headsign)
+                                .font(Theme.sans(11.5, weight: .semibold))
+                                .lineLimit(1)
+                                .frame(maxWidth: 200)
+                                .fixedSize()
+                                .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(on ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(on ? Theme.primary : Theme.border, lineWidth: 1))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
-                StatsQueryBoundary(routeQ, empty: { $0.cells.isEmpty }) { _ in
-                    if let data { StatsRouteHeatView(data: data) }
-                }
+            }
+        } content: {
+            StatsQueryBoundary(routeQ, empty: { $0.cells.isEmpty }) { _ in
+                if let data { StatsRouteHeatView(data: data) }
             }
         }
     }
@@ -316,9 +314,16 @@ struct StatsRouteHeatView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                StatsSegmented(options: [(Metric.delay, "Késés a megállóban"), (.gain, "Hol szedi fel")], selection: $metric)
-                StatsHeatLegend(metric: metric == .delay ? .delay : .gain)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    metricToggle
+                    Spacer(minLength: 0)
+                    StatsHeatLegend(metric: metric == .delay ? .delay : .gain)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    metricToggle
+                    StatsHeatLegend(metric: metric == .delay ? .delay : .gain)
+                }
             }
 
             gridView(grid: grid, hours: hours)
@@ -344,8 +349,12 @@ struct StatsRouteHeatView: View {
             .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Theme.muted.opacity(0.4), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Theme.muted.opacity(0.4), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         }
+    }
+
+    private var metricToggle: some View {
+        StatsSegmented(options: [(Metric.delay, "Késés a megállóban"), (.gain, "Hol szedi fel")], selection: $metric)
     }
 
     private func stopName(_ i: Int) -> String {
@@ -415,8 +424,8 @@ struct StatsRouteHeatView: View {
                 }
             }
             .background(Theme.border)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         }
         .frame(height: CGFloat(data.stops.count) * 19 + 17)
         .accessibilityLabel("\(data.route) vonal hőtérképe")
@@ -507,16 +516,19 @@ struct StatsCityHeatMap: View {
                         picked = nearest(to: coord, among: live.map(\.0), proxy: proxy, tap: point)
                     }
                 }
-                .frame(height: 440)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+                .containerRelativeFrame(.vertical) { height, _ in min(height * 0.62, 520) }
+                .background(Theme.muted)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
 
                 Text("\(StatsHeatScale.hourLabel(currentHour)) óra")
                     .font(Theme.mono(14, weight: .bold))
                     .foregroundStyle(Theme.foreground)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
-                    .glassEffect(.regular, in: Capsule())
+                    .background(Theme.card.opacity(0.9), in: Capsule())
+                    .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 1))
+                    .mvkShadow(Theme.Shadow.md)
                     .padding(.top, 8)
                     .allowsHitTesting(false)
 
@@ -531,16 +543,10 @@ struct StatsCityHeatMap: View {
                 Button {
                     playing.toggle()
                 } label: {
-                    Image(systemName: playing ? "pause.fill" : "play.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(playing ? Theme.primaryForeground : Theme.foreground)
-                        .frame(width: 36, height: 36)
-                        .background(playing ? Theme.primary : Theme.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay {
-                            if !playing { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.input, lineWidth: 1) }
-                        }
+                    Image(systemName: playing ? "pause" : "play")
+                        .font(.system(size: 14, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.mvk(playing ? .primary : .outline, size: .icon))
                 .accessibilityLabel(playing ? "Megállítás" : "A nap lejátszása")
 
                 Slider(

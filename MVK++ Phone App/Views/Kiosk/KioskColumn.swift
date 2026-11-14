@@ -40,7 +40,7 @@ struct KioskColumn: View {
             HStack(alignment: .firstTextBaseline, spacing: 0.6 * em) {
                 Text(name)
                     .font(Theme.sans(1.35 * em, weight: .heavy))
-                    .tracking(-0.02 * em)
+                    .tracking(-0.034 * em)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if let code {
@@ -139,7 +139,7 @@ private struct KioskDelay: View {
         if a.isCancelled {
             Text("TÖRÖLVE")
                 .font(Theme.sans(size, weight: .bold))
-                .tracking(0.04 * size)
+                .tracking(0.025 * size)
                 .foregroundStyle(Theme.late)
         } else {
             let delay = (a.measuredDelaySec ?? a.delaySec).map { Int($0) }
@@ -213,7 +213,7 @@ private struct KioskEta: View {
                     .livePulse(scales: false)
             } else {
                 let size = (big ? 2.6 : 1.35) * em
-                HStack(alignment: .firstTextBaseline, spacing: 0.1 * size) {
+                HStack(alignment: .firstTextBaseline, spacing: 0.042 * size) {
                     Text("\(mins)")
                         .font(Theme.mono(size, weight: .heavy))
                         .contentTransition(.numericText())

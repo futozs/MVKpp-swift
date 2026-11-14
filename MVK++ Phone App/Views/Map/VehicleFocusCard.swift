@@ -64,7 +64,7 @@ struct VehicleFocusCard: View {
                 HStack(spacing: 6) {
                     Text(title ?? "Menet betöltése…")
                         .font(Theme.sans(14, weight: .bold))
-                        .tracking(-0.2)
+                        .tracking(-0.35)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     if model.path?.vehicle != nil { LiveDot() }
@@ -88,7 +88,7 @@ struct VehicleFocusCard: View {
                         .foregroundStyle(speedKmh > 2 ? Theme.foreground : Theme.mutedForeground)
                     }
                     HStack(spacing: 4) {
-                        Image(systemName: "location.north.fill")
+                        Image(systemName: "location")
                             .font(.system(size: 10))
                             .foregroundStyle(Theme.primary)
                         Text(status)

@@ -13,30 +13,29 @@ struct AppHeader: View {
     @EnvironmentObject private var store: TransitStore
     @EnvironmentObject private var navigation: AppNavigation
     @ObservedObject var weather: WeatherModel
+    @Binding var isLiveStatusOpen: Bool
+    @State private var width: CGFloat = 402
 
     var body: some View {
         GlassEffectContainer(spacing: 8) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 BrandMark { navigation.tab = .map }
 
                 LiveStatusPill(
                     vehicleCount: store.liveVehicles.count,
                     lastUpdated: store.lastUpdated,
-                    isRefreshing: store.isRefreshing,
-                    weather: weather.weather,
-                    onRefresh: { Task { await store.refreshLive() } }
+                    width: width,
+                    isOpen: $isLiveStatusOpen
                 )
                 .layoutPriority(1)
 
                 Spacer(minLength: 0)
 
-                if let temp = weather.weather?.tempC {
+                if width >= 390, let temp = weather.weather?.tempC {
                     Text("\(Int(temp.rounded()))°")
                         .font(Theme.mono(12, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
-                        .padding(.horizontal, 8)
-                        .frame(height: 32)
-                        .glassEffect(.regular.tint(Theme.glassTint), in: Capsule())
+                        .padding(.trailing, 4)
                         .accessibilityLabel("Miskolc most \(WeatherResponse.format(temp)), \(weather.weather?.text ?? "")")
                 }
 
@@ -47,9 +46,10 @@ struct AppHeader: View {
                     navigation.isSettingsOpen = true
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 8)
             .frame(height: 48)
         }
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width = $0 }
         .overlay(alignment: .bottom) { RefreshSweep(isRefreshing: store.isRefreshing) }
     }
 }
@@ -107,8 +107,8 @@ struct HeaderIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(Theme.foreground)
-                .frame(width: 40, height: 40)
+                .foregroundStyle(Theme.mutedForeground)
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -117,7 +117,8 @@ struct HeaderIconButton: View {
     }
 }
 
-/// A sweep along the header's bottom edge, only while data is loading.
+/// A sweep along the header's bottom edge, only while data is loading. With
+/// Reduce Motion the segment stays still at the leading edge, as on the web.
 struct RefreshSweep: View {
     let isRefreshing: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -125,13 +126,14 @@ struct RefreshSweep: View {
 
     var body: some View {
         GeometryReader { proxy in
-            if isRefreshing && !reduceMotion {
+            if isRefreshing {
                 Capsule()
                     .fill(LinearGradient(colors: [.clear, Theme.primary, .clear], startPoint: .leading, endPoint: .trailing))
                     .frame(width: proxy.size.width / 4, height: 2)
-                    .offset(x: phase ? proxy.size.width * 1.05 : -proxy.size.width * 0.3)
+                    .offset(x: reduceMotion ? 0 : (phase ? proxy.size.width * 1.05 : -proxy.size.width * 0.3))
                     .onAppear {
                         phase = false
+                        guard !reduceMotion else { return }
                         withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 1.2).repeatForever(autoreverses: false)) { phase = true }
                     }
             }
@@ -235,29 +237,30 @@ final class LiveStatusTracker: ObservableObject {
     }
 }
 
-/// The mobile status chip; a tap opens the explanation and the manual refresh.
+/// The mobile status chip; a tap opens `LiveStatusPanel` under the header.
+/// Like the web, a narrow screen drops the clock (it stays in the panel).
 struct LiveStatusPill: View {
     let vehicleCount: Int
     let lastUpdated: Date?
-    let isRefreshing: Bool
-    let weather: WeatherResponse?
-    let onRefresh: () -> Void
+    let width: CGFloat
+    @Binding var isOpen: Bool
 
     @ObservedObject private var realtime = RealtimeClient.shared
     @ObservedObject private var tracker = LiveStatusTracker.shared
-    @State private var isOpen = false
 
     var body: some View {
         let status = tracker.model(connected: realtime.connected, lastUpdated: lastUpdated)
-        Button { isOpen = true } label: {
+        let isLive = status.state == .live
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+        Button { isOpen.toggle() } label: {
             HStack(spacing: 8) {
                 StatusDot(state: status.state)
                 Text(status.label)
                     .font(Theme.sans(12, weight: .semibold))
                     .foregroundStyle(status.textColor)
                     .lineLimit(1)
-                if status.state == .live {
-                    Divider().frame(height: 14).overlay(Theme.border)
+                if isLive {
+                    separator
                     HStack(spacing: 4) {
                         Image(systemName: "bus")
                             .font(.system(size: 10))
@@ -268,41 +271,27 @@ struct LiveStatusPill: View {
                     }
                     .fixedSize()
                 }
-                if let lastUpdated {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 8) {
-                            Divider().frame(height: 14).overlay(Theme.border)
-                            Text(LiveStatusModel.clock(lastUpdated, seconds: false))
-                                .font(Theme.mono(12, weight: .regular))
-                                .foregroundStyle(status.isStale ? Theme.amber300 : Theme.mutedForeground)
-                                .fixedSize()
-                        }
-                        EmptyView()
-                    }
+                if let lastUpdated, width >= (isLive ? 375 : 400) {
+                    separator
+                    Text(LiveStatusModel.clock(lastUpdated, seconds: false))
+                        .font(Theme.mono(12, weight: .regular))
+                        .foregroundStyle(status.isStale ? Theme.amber300 : Theme.mutedForeground)
+                        .fixedSize()
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, width >= 375 ? 10 : 8)
             .frame(height: 32)
-            .contentShape(Capsule())
+            .glassEffect(glass(status.state), in: shape)
+            .frame(height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .glassEffect(glass(status.state), in: Capsule())
         .accessibilityLabel("\(summary(status)). Részletek")
-        .popover(isPresented: $isOpen, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 14) {
-                LiveStatusDetails(status: status, vehicleCount: vehicleCount, lastUpdated: lastUpdated, weather: weather)
-                Button(action: onRefresh) {
-                    Label(isRefreshing ? "Frissítés…" : "Frissítés most", systemImage: "arrow.clockwise")
-                        .symbolEffect(.rotate, isActive: isRefreshing)
-                }
-                .buttonStyle(.mvk(.outline, size: .large, fullWidth: true))
-                .disabled(isRefreshing)
-            }
-            .padding(14)
-            .frame(width: 300)
-            .presentationCompactAdaptation(.popover)
-            .presentationBackground(Theme.popover)
-        }
+        .accessibilityAddTraits(isOpen ? .isSelected : [])
+    }
+
+    private var separator: some View {
+        Rectangle().fill(Theme.border).frame(width: 1, height: 14)
     }
 
     private func glass(_ state: LiveStatusModel.LinkState) -> Glass {
@@ -313,6 +302,41 @@ struct LiveStatusPill: View {
     private func summary(_ status: LiveStatusModel) -> String {
         let time = lastUpdated.map { ", utolsó adat \(LiveStatusModel.clock($0, seconds: true))" } ?? ""
         return "\(status.title.replacingOccurrences(of: "…", with: "")). \(vehicleCount) jármű\(time)"
+    }
+}
+
+/// The pill's panel (web `HeaderPopover` with `inset-x-2 top-[calc(100%+2px)]`):
+/// the explanation and the manual refresh, full width under the header.
+struct LiveStatusPanel: View {
+    let vehicleCount: Int
+    let lastUpdated: Date?
+    let isRefreshing: Bool
+    let weather: WeatherResponse?
+    let onRefresh: () -> Void
+
+    @ObservedObject private var realtime = RealtimeClient.shared
+    @ObservedObject private var tracker = LiveStatusTracker.shared
+
+    var body: some View {
+        let status = tracker.model(connected: realtime.connected, lastUpdated: lastUpdated)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+        VStack(alignment: .leading, spacing: 14) {
+            LiveStatusDetails(status: status, vehicleCount: vehicleCount, lastUpdated: lastUpdated, weather: weather)
+            Button(action: onRefresh) {
+                Label(isRefreshing ? "Frissítés…" : "Frissítés most", systemImage: "arrow.clockwise")
+                    .symbolEffect(.rotate, isActive: isRefreshing)
+            }
+            .buttonStyle(.mvk(.outline, fullWidth: true, height: 44))
+            .disabled(isRefreshing)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.popover, in: shape)
+        .overlay(shape.strokeBorder(Theme.border, lineWidth: 1))
+        .mvkShadow(Theme.Shadow.xl)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Kapcsolat állapota")
+        .accessibilityAddTraits(.isModal)
     }
 }
 
@@ -353,7 +377,7 @@ struct LiveStatusDetails: View {
             Text(status.body)
                 .font(Theme.sans(12))
                 .foregroundStyle(Theme.mutedForeground)
-                .lineSpacing(3)
+                .lineSpacing(4.4)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(spacing: 6) {

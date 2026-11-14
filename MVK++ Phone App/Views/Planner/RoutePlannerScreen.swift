@@ -24,7 +24,7 @@ struct RoutePlannerScreen: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Útvonaltervező")
                             .font(Theme.sans(18, weight: .bold))
-                            .tracking(-0.3)
+                            .tracking(-0.45)
                             .foregroundStyle(Theme.foreground)
                             .padding(.horizontal, 4)
                             .accessibilityAddTraits(.isHeader)
@@ -71,8 +71,8 @@ struct RoutePlannerScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.destructive.opacity(0.30), lineWidth: 1))
+                .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.destructive.opacity(0.30), lineWidth: 1))
         case .done(let plan):
             PlannerResults(plan: plan, emptyHint: model.travel.emptyHint)
                 .transition(.opacity)
@@ -101,7 +101,7 @@ private struct PlannerResults: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(plan.from.name) → \(plan.to.name)")
                         .font(Theme.sans(14, weight: .semibold))
-                        .tracking(-0.2)
+                        .tracking(-0.35)
                         .foregroundStyle(Theme.foreground)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -133,8 +133,8 @@ private struct PlannerResults: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(PlannerAmber.a400.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(PlannerAmber.a400.opacity(0.35), lineWidth: 1))
+                .background(PlannerAmber.a400.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(PlannerAmber.a400.opacity(0.35), lineWidth: 1))
             }
 
             if plan.trips.isEmpty {
@@ -152,7 +152,7 @@ private struct PlannerResults: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 32)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                         .strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 )
             } else {
@@ -217,8 +217,8 @@ private struct PlannerResultsSkeleton: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
             }
         }
         .opacity(dim ? 0.5 : 1)
@@ -230,7 +230,7 @@ private struct PlannerResultsSkeleton: View {
     }
 
     private func bar(width: CGFloat, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: height > 16 ? Theme.Radius.md : 4, style: .continuous)
+        RoundedRectangle(cornerRadius: height > 14 ? Theme.Radius.md : 4, style: .continuous)
             .fill(Theme.muted)
             .frame(width: width, height: height)
     }

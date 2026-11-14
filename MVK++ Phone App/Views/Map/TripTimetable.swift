@@ -52,6 +52,7 @@ struct TripTimetable: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.card)
             .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+            .mvkShadow(Theme.Shadow.xl)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(rail ? "A követett vonat menetrendje" : "A követett járat menetrendje")
     }
@@ -75,6 +76,7 @@ struct TripTimetable: View {
                 .foregroundStyle(Theme.primary)
             Text("Menetrend")
                 .font(Theme.sans(14, weight: .bold))
+                .tracking(-0.35)
                 .foregroundStyle(Theme.foreground)
             if !stops.isEmpty {
                 Text("\(passedCount)/\(stops.count) \(unit)")
@@ -86,12 +88,12 @@ struct TripTimetable: View {
             if model.data?.cancelled == true {
                 Text("TÖRÖLVE")
                     .font(Theme.sans(10, weight: .bold))
-                    .tracking(0.5)
+                    .tracking(0.25)
                     .foregroundStyle(Theme.destructive)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.destructive.opacity(0.5)))
+                    .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.destructive.opacity(0.5)))
             }
             if hiddenCount > 0 {
                 Button {
@@ -99,10 +101,11 @@ struct TripTimetable: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(expanded ? "Kevesebb" : "Mind")
+                            .font(Theme.sans(11.5, weight: .semibold))
                         Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
                             .rotationEffect(.degrees(expanded ? 180 : 0))
                     }
-                    .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .padding(.horizontal, 6)
                     .frame(minHeight: 28)
@@ -134,6 +137,7 @@ struct TripTimetable: View {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.late)
+                    .symbolEffect(.rotate.clockwise, options: .repeat(.continuous), isActive: !reduceMotion)
                 Text("\(Text("Hiba, újrapróbálom…").fontWeight(.semibold).foregroundStyle(Theme.foreground)) \(error.reason)")
                     .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
@@ -143,6 +147,7 @@ struct TripTimetable: View {
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.late.opacity(0.10))
+            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
         }
 
         if let notices = model.data?.notices?.map(\.text), !notices.isEmpty {

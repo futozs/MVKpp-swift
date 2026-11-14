@@ -24,7 +24,7 @@ struct AccountSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SheetHeader(icon: "person.crop.circle", title: "Fiók és felhős mentés")
+            SheetHeader(icon: "person", title: "Fiók és felhős mentés")
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let session {
@@ -100,7 +100,7 @@ struct AccountSheet: View {
                 .font(Theme.sans(12, weight: .semibold))
                 .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
                 .frame(maxWidth: .infinity)
-                .frame(height: 30)
+                .frame(height: 28)
                 .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                 .contentShape(Rectangle())
         }
@@ -133,7 +133,7 @@ struct AccountSheet: View {
                     Text(session.email)
                         .font(Theme.sans(14, weight: .semibold))
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(.tail)
                 }
                 Text(statusBusy ? "Állapot lekérdezése…" : "Utolsó szinkron: \(Self.when(status?.lastBackupAt)) · \(status?.credentialCount ?? 1) passkey")
                     .font(Theme.sans(11))
@@ -163,7 +163,7 @@ struct AccountSheet: View {
             Text("Minden beállításod (figyelt megállók, kedvencek, értesítések, térkép- és szűrőbeállítások) automatikusan szinkronban van az összes bejelentkezett eszközöddel: ami itt változik, másodpercek alatt megjelenik a többin is. Ütközésnél a később módosított érték nyer.")
                 .font(Theme.sans(11))
                 .foregroundStyle(Theme.mutedForeground)
-                .lineSpacing(3)
+                .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button { Task { await addDevice() } } label: {
@@ -205,7 +205,7 @@ struct AccountSheet: View {
         if sync.state == .error {
             actionNote = sync.error ?? "A szinkron nem sikerült."
         } else {
-            actionNote = changed.isEmpty ? "Szinkronizálva." : "Szinkronizálva \(changed.count) beállítás érkezett a felhőből."
+            actionNote = changed.isEmpty ? "Szinkronizálva." : "Szinkronizálva: \(changed.count) beállítás érkezett a felhőből."
         }
         if case .success(let value) = await AccountService.status() { status = value }
         statusBusy = false

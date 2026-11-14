@@ -24,18 +24,19 @@ struct RouteChipsView: View {
         VStack(alignment: .leading, spacing: 10) {
             quickActions
 
-            HStack(spacing: 6) {
+            HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 TextField("Járatszám vagy útvonal", text: $query)
-                    .font(Theme.sans(13))
+                    .font(Theme.sans(12))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(Theme.input, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .padding(.leading, 10)
+            .padding(.trailing, 12)
+            .frame(height: 36)
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input))
 
             if visibleRoutes.isEmpty {
                 Text("Nincs „\(query)” jelzésű járat.")
@@ -78,7 +79,7 @@ struct RouteChipsView: View {
         return Button {
             toggle(route.id)
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 if !isOn {
                     // A colour tick, so an unselected chip still identifies
                     // its route without shouting.
@@ -90,11 +91,12 @@ struct RouteChipsView: View {
                 Text(route.short)
                     .font(Theme.sans(12, weight: .bold))
                     .monospacedDigit()
+                    .tracking(-0.3)
 
                 if liveCount > 0 {
                     Text("\(liveCount)")
                         .font(Theme.mono(10))
-                        .foregroundStyle(isOn ? Theme.foreground : Theme.primary)
+                        .foregroundStyle(isOn ? Theme.hex(route.text, fallback: .white) : Theme.primary)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(
@@ -103,21 +105,26 @@ struct RouteChipsView: View {
                         )
                 }
             }
-            .foregroundStyle(isOn ? Theme.hex(route.text, fallback: .white) : Theme.foreground)
+            .foregroundStyle(isOn ? Theme.hex(route.text, fallback: .white) : idle ? Theme.mutedForeground : Theme.foreground)
             .padding(.horizontal, 8)
-            .frame(height: 30)
+            .frame(height: 28)
             .frame(maxWidth: .infinity)
             .background(
-                isOn ? Theme.hex(route.color) : Theme.secondary,
-                in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                isOn ? Theme.hex(route.color) : idle ? Color.clear : Theme.secondary,
+                in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
-                    .strokeBorder(
-                        isOn ? Color.black.opacity(0.2) : Theme.border,
-                        lineWidth: 1
-                    )
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                    .strokeBorder(isOn ? Theme.hex(route.color) : idle ? Theme.border.opacity(0.5) : Theme.border, lineWidth: 1)
             )
+            .overlay {
+                if isOn {
+                    RoundedRectangle(cornerRadius: Theme.Radius.md - 1, style: .continuous)
+                        .strokeBorder(Color.black.opacity(0.2), lineWidth: 1)
+                        .padding(1)
+                }
+            }
+            .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.none)
             .opacity(!isOn && idle ? 0.55 : 1)
         }
         .buttonStyle(.plain)

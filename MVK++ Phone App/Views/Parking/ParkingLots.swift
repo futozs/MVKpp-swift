@@ -123,7 +123,7 @@ struct ParkingTerminalLotCard: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.park)
                     .frame(width: 28, height: 28)
-                    .background(Theme.park.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(Theme.park.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                     .padding(.top, 2)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lot.name)
@@ -142,7 +142,7 @@ struct ParkingTerminalLotCard: View {
                         .foregroundStyle(Theme.park)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Theme.park.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .background(Theme.park.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                     ParkingFavoriteButton(active: favorite, name: lot.name, onToggle: onToggleFavorite)
                 }
             }
@@ -156,15 +156,18 @@ struct ParkingTerminalLotCard: View {
                     Text("Most senki sem parkol itt")
                         .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
+                        .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 12)
                         .padding(.vertical, 16)
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                         .padding(4)
                 } else {
                     ParkingAdaptiveGrid(minWidth: 138) {
                         ForEach(lot.vehicles) { v in
                             ParkingTile(v: v, ctx: ctx)
                                 .padding(4)
+                                .frame(maxHeight: .infinity, alignment: .top)
                                 .overlay(alignment: .trailing) {
                                     Rectangle()
                                         .fill(.clear)
@@ -217,7 +220,7 @@ struct ParkingTile: View {
         let parked = v.since.map { max(0, ctx.now - $0) }
         let silent = (!v.online ? v.lastSeen : nil).map { max(0, ctx.now - $0) }
         let toLimit = silent.flatMap { ctx.regional ? nil : min(1, $0 / ctx.limitS) }
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
 
         Button { ctx.onSelect(v.id) } label: {
             VStack(alignment: .leading, spacing: 6) {
@@ -246,7 +249,7 @@ struct ParkingTile: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(Theme.card, in: shape)
             .overlay(shape.strokeBorder(v.next?.certain == true ? Theme.primary.opacity(0.4) : Theme.border, lineWidth: 1))
             .mvkShadow(Theme.Shadow.xs)
@@ -303,7 +306,7 @@ struct ParkingDepotLotCard: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Theme.depot)
                     .frame(width: 32, height: 32)
-                    .background(Theme.depot.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(Theme.depot.opacity(0.15), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lot.name)
                         .font(Theme.sans(15, weight: .bold))
@@ -362,7 +365,7 @@ private struct ParkingDepotStall: View {
             guard v.next == nil, let h, let share = h.outShare, v.reason == .notToday else { return nil }
             return "\(h.usualOutS.map { "ált. \(ParkingFormat.hm(daySec: $0)) · " } ?? "")\(ParkingFormat.pct(share))"
         }()
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
         Button { ctx.onSelect(v.id) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
@@ -428,7 +431,7 @@ struct ParkingNoSignalList: View {
                 ParkingAdaptiveGrid(minWidth: 160, spacing: 8) {
                     ForEach(vehicles) { v in
                         let silent = v.lastSeen.map { max(0, now - $0) } ?? 0
-                        let tile = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        let tile = RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                         Button { onSelect(v.id) } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
@@ -484,7 +487,7 @@ struct ParkingServiceList: View {
                             .foregroundStyle(Theme.mutedForeground)
                             .rotationEffect(.degrees(open ? 180 : 0))
                     }
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Theme.sans(14, weight: .bold))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
@@ -494,7 +497,7 @@ struct ParkingServiceList: View {
                 if open {
                     FlowLayout(spacing: 6, lineSpacing: 6) {
                         ForEach(vehicles) { v in
-                            let chip = RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            let chip = RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                             Button { onSelect(v.id) } label: {
                                 HStack(spacing: 6) {
                                     Text(TransitModes.displayVehicleId(v.id)).font(Theme.mono(12.5, weight: .bold))

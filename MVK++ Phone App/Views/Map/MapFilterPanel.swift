@@ -79,6 +79,7 @@ struct MapFilterPanel: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Szűrés")
                     .font(Theme.sans(16, weight: .bold))
+                    .tracking(-0.4)
                     .foregroundStyle(Theme.foreground)
                 Text("\(Text("\(visibleVehicles.count)").fontWeight(.semibold).foregroundStyle(Theme.foreground)) jármű látszik\(filters.activeCount > 0 ? " · \(filters.activeCount) szűrő" : "")")
                     .font(Theme.sans(12))
@@ -138,7 +139,9 @@ struct MapFilterPanel: View {
             .font(Theme.sans(12, weight: .semibold))
             .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
             .frame(maxWidth: .infinity, minHeight: 36)
-            .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+            .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -183,19 +186,15 @@ struct MapFilterPanel: View {
                         }
                         .padding(.horizontal, 12)
                         .frame(height: 40)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.input))
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.input))
                         .accessibilityLabel("Kiemelendő jármű rendszáma")
                     Button(action: addWatch) {
                         Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.primaryForeground)
-                            .frame(width: 40, height: 40)
-                            .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                            .font(.system(size: 14, weight: .medium))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.mvk(size: .icon, height: 40))
                     .disabled(typedId.isEmpty || filters.watch.count >= FilterState.maxWatched)
-                    .opacity(typedId.isEmpty || filters.watch.count >= FilterState.maxWatched ? 0.5 : 1)
                     .accessibilityLabel("Kiemelés")
                 }
                 if !filters.watch.isEmpty {
@@ -206,22 +205,27 @@ struct MapFilterPanel: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Text(id).font(Theme.mono(12))
-                                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
                                 }
                                 .foregroundStyle(Theme.primary)
                                 .padding(.horizontal, 10)
                                 .frame(height: 32)
-                                .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.primary.opacity(0.35)))
+                                .background(Theme.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.primary.opacity(0.35)))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(id) kiemelésének levétele")
                         }
                     }
-                    SwiftUI.Toggle("A térkép kövesse őket", isOn: $filters.follow)
-                        .font(Theme.sans(13, weight: .medium))
-                        .tint(Theme.primary)
-                        .padding(.horizontal, 4)
+                    HStack(spacing: 12) {
+                        Text("A térkép kövesse őket")
+                            .font(Theme.sans(13, weight: .medium))
+                            .foregroundStyle(Theme.foreground)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        MVKSwitch(isOn: $filters.follow, label: "A térkép kövesse őket")
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 6)
                 }
             }
 
@@ -284,7 +288,9 @@ struct MapFilterPanel: View {
                                 .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                                 .frame(maxWidth: .infinity, minHeight: 30)
-                                .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                                .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .disabled(!hasPosition && value != nil)
@@ -293,8 +299,8 @@ struct MapFilterPanel: View {
                     }
                 }
                 .padding(4)
-                .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border))
+                .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
             }
         }
     }
@@ -362,8 +368,9 @@ struct MapFilterPanel: View {
                     .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                     .padding(.horizontal, 10)
                     .frame(height: 32)
-                    .background(on ? Theme.primary : Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(on ? Theme.primary.opacity(0.4) : Theme.border))
+                    .background(on ? Theme.primary : Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(on ? Theme.primary.opacity(0.4) : Theme.border))
+                    .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
@@ -387,15 +394,17 @@ struct MapFilterPanel: View {
                             .font(Theme.sans(12, weight: .semibold))
                             .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                             .frame(maxWidth: .infinity, minHeight: 30)
-                            .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                            .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
             .padding(4)
-            .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border))
+            .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
         }
     }
 
@@ -415,7 +424,7 @@ struct MapFilterPanel: View {
                         .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                         .padding(.horizontal, 8)
                         .frame(minHeight: 28)
-                        .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                         .buttonStyle(.plain)
                 }
                 Spacer(minLength: 0)

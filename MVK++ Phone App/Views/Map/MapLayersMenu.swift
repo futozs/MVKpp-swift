@@ -44,13 +44,14 @@ struct MapLayersMenu: View {
                         tileLayerId = layer.id
                     } label: {
                         VStack(spacing: 4) {
-                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                                 .fill(Theme.hex(layer.swatch, fallback: Theme.muted))
                                 .aspectRatio(1, contentMode: .fit)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                    RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                                         .strokeBorder(on ? Theme.primary : Theme.border, lineWidth: 2)
                                 )
+                                .mvkShadow(Theme.Shadow.sm)
                                 .overlay {
                                     if on {
                                         Image(systemName: "checkmark")
@@ -76,7 +77,7 @@ struct MapLayersMenu: View {
             heading("Rétegek").padding(.top, 12)
             VStack(spacing: 0) {
                 ForEach(toggles) { t in
-                    SwiftUI.Toggle(isOn: Binding(get: { filters[keyPath: t.key] }, set: { filters[keyPath: t.key] = $0 })) {
+                    HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(t.label)
                                 .font(Theme.sans(13, weight: .medium))
@@ -100,8 +101,9 @@ struct MapLayersMenu: View {
                                 .accessibilityHidden(true)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        MVKSwitch(isOn: Binding(get: { filters[keyPath: t.key] }, set: { filters[keyPath: t.key] = $0 }), label: t.label)
                     }
-                    .tint(Theme.primary)
                     .disabled(t.disabled)
                     .opacity(t.disabled ? 0.5 : 1)
                     .padding(.horizontal, 4)

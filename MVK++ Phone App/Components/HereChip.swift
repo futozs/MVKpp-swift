@@ -33,19 +33,20 @@ struct HereChip: View {
             location.start()
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 10))
+                Image(systemName: "scope")
+                    .font(.system(size: 10, weight: .semibold))
                     .symbolEffect(.pulse, isActive: location.status == .requesting)
                 Text(location.status == .requesting ? "Helyzet keresése…" : "Hol vagyok?")
                     .font(Theme.sans(11, weight: .semibold))
             }
             .foregroundStyle(Theme.early)
             .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
         .background(Theme.early.opacity(0.10), in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.early.opacity(0.40), lineWidth: 1))
+        .opacity(location.status == .requesting ? 0.6 : 1)
         .disabled(location.status == .requesting)
     }
 
@@ -81,5 +82,6 @@ struct HereChip: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityHint(location.isStale ? "Utolsó ismert helyzet" : "Pontosság: ±\(Int(position.accuracyM.rounded())) m")
     }
 }

@@ -119,19 +119,19 @@ struct StatsLiveIncidentsCard: View {
                         .foregroundStyle(Theme.mutedForeground)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Theme.muted, in: RoundedRectangle(cornerRadius: 10))
+                        .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                     Button(action: onOpenDisruptions) {
                         HStack(spacing: 6) {
                             Text("Mi marad ki, mi jön helyette")
                             Image(systemName: "arrow.right")
                                 .font(.system(size: 11, weight: .semibold))
                         }
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .font(Theme.sans(11.5, weight: .semibold))
                         .foregroundStyle(Theme.primary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.primary.opacity(0.4), lineWidth: 1))
+                        .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.primary.opacity(0.4), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }

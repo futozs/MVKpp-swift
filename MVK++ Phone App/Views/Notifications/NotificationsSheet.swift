@@ -34,10 +34,10 @@ struct NotificationsSheet: View {
                     dndBox
                     AlertList()
                     watchList
+                    DeliveryLog(rows: deliveries)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                DeliveryLog(rows: deliveries)
             }
         }
         .presentationDetents([.large])
@@ -111,20 +111,18 @@ struct NotificationsSheet: View {
     private var dndBox: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.stars").font(.system(size: 12)).foregroundStyle(Theme.primary)
                     Text("Ne zavarj").font(Theme.sans(14, weight: .semibold))
-                } icon: {
-                    Image(systemName: "moon.stars").font(.system(size: 13)).foregroundStyle(Theme.primary)
                 }
-                .labelStyle(.titleAndIcon)
                 Spacer()
                 MVKSwitch(isOn: Binding(get: { center.settings.dndEnabled }, set: { value in applyDnd { $0.dndEnabled = value } }), label: "Ne zavarj időszak")
                     .disabled(!center.settings.enabled)
             }
             if center.settings.dndEnabled {
                 HStack(spacing: 8) {
-                    timeField("Ettől", minutes: center.settings.dndStartMin) { value in applyDnd { $0.dndStartMin = value } }
-                    timeField("Eddig", minutes: center.settings.dndEndMin) { value in applyDnd { $0.dndEndMin = value } }
+                    timeField("Ettől", accessibility: "Ne zavarj kezdete", minutes: center.settings.dndStartMin) { value in applyDnd { $0.dndStartMin = value } }
+                    timeField("Eddig", accessibility: "Ne zavarj vége", minutes: center.settings.dndEndMin) { value in applyDnd { $0.dndEndMin = value } }
                 }
             } else {
                 Text("Ilyenkor egyetlen értesítés sem érkezik: sem a nyitott appban, sem lezárt telefonra.")
@@ -144,19 +142,10 @@ struct NotificationsSheet: View {
         .opacity(center.settings.enabled ? 1 : 0.5)
     }
 
-    private func timeField(_ label: String, minutes: Int, onChange: @escaping (Int) -> Void) -> some View {
+    private func timeField(_ label: String, accessibility: String, minutes: Int, onChange: @escaping (Int) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label).font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground)
-            DatePicker(label, selection: Binding(
-                get: { Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date() },
-                set: { date in
-                    let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-                    onChange(((parts.hour ?? 0) * 60 + (parts.minute ?? 0)) % 1440)
-                }
-            ), displayedComponents: .hourAndMinute)
-            .labelsHidden()
-            .environment(\.locale, Locale(identifier: "hu_HU"))
-            .frame(maxWidth: .infinity, alignment: .leading)
+            TimeField(label: accessibility, minutes: minutes, onChange: onChange)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -201,7 +190,7 @@ struct NotificationsSheet: View {
             CapsLabel("Aktív figyelések (\(watches.count))")
             if watches.isEmpty {
                 HStack(spacing: 8) {
-                    Image(systemName: "bell.slash").font(.system(size: 13))
+                    Image(systemName: "bell.slash").font(.system(size: 12))
                     Text("Egyetlen megállóra vagy indulásra sincs beállítva figyelés. A menetrend vagy egy megálló kártyáján a csengő ikonnal adhatsz hozzá.")
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -240,7 +229,7 @@ struct NotificationsSheet: View {
                 editThreshold = watch.thresholdMin
                 editRoutes = (watch.routeShorts ?? []).joined(separator: ", ")
             }
-            iconButton("trash", label: "Figyelés törlése \(watch.stopName)", destructive: true) {
+            iconButton("trash", label: "Figyelés törlése \(watch.stopName)") {
                 center.removeWatch(stopId: watch.stopId)
                 center.cancelAlarm(stopId: watch.stopId)
                 if editingId == watch.stopId { editingId = nil }
@@ -250,11 +239,11 @@ struct NotificationsSheet: View {
         .padding(.vertical, 8)
     }
 
-    private func iconButton(_ icon: String, label: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {
+    private func iconButton(_ icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundStyle(destructive ? Theme.destructive.opacity(0.85) : Theme.mutedForeground)
+                .foregroundStyle(Theme.mutedForeground)
                 .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
@@ -291,7 +280,7 @@ struct NotificationsSheet: View {
             .disabled(editBusy)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 
     /// The edited watch is saved; the push mirror re-registers it on the server.
@@ -316,7 +305,7 @@ struct AlertList: View {
     private static func describe(_ alert: AlertWatch) -> (icon: String, title: String, sub: String) {
         if alert.kind == "traffic" {
             let routes = alert.routeShorts ?? []
-            return ("exclamationmark.triangle", "Dugóriasztás \(alert.stopName)", routes.isEmpty ? "bármelyik ide tartó busz" : "csak: \(routes.joined(separator: ", "))")
+            return ("cone", "Dugóriasztás \(alert.stopName)", routes.isEmpty ? "bármelyik ide tartó busz" : "csak: \(routes.joined(separator: ", "))")
         }
         if alert.kind == "transfer" {
             let from = alert.params?["fromRoute"]?.string ?? "?"
@@ -421,15 +410,65 @@ struct DeliveryLog: View {
                                 Text(body).font(Theme.sans(11)).foregroundStyle(Theme.mutedForeground).lineLimit(1)
                             }
                             Text("\(Self.when(row.created_at)) · \(m.label)\(row.attempts > 1 ? " · \(row.attempts). próbálkozásra" : "")\(row.status == "failed" ? row.last_error.map { " · \($0)" } ?? "" : "")")
-                                .font(Theme.mono(10, weight: .regular))
+                                .font(Theme.sans(10).monospacedDigit())
                                 .foregroundStyle(Theme.mutedForeground)
                         }
                     }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+        }
+    }
+}
+
+/// The web's `TimeField`: a full-width bordered field with a clock and
+/// „HH:MM”; a tap opens the hour and minute wheels.
+private struct TimeField: View {
+    let label: String
+    let minutes: Int
+    let onChange: (Int) -> Void
+
+    @State private var isOpen = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+        let time = String(format: "%02d:%02d", (minutes / 60) % 24, minutes % 60)
+        Button { isOpen = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.mutedForeground)
+                Text(time)
+                    .font(Theme.sans(14, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Theme.foreground)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .leading)
+            .background(Theme.card, in: shape)
+            .overlay(shape.strokeBorder(isOpen ? Theme.ring : Theme.input, lineWidth: 1))
+            .mvkShadow(Theme.Shadow.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(time)
+        .popover(isPresented: $isOpen) {
+            DatePicker(label, selection: Binding(
+                get: { Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date() },
+                set: { date in
+                    let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                    onChange(((parts.hour ?? 0) * 60 + (parts.minute ?? 0)) % 1440)
+                }
+            ), displayedComponents: .hourAndMinute)
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .environment(\.locale, Locale(identifier: "hu_HU"))
+            .frame(width: 220)
+            .padding(8)
+            .presentationCompactAdaptation(.popover)
+            .presentationBackground(Theme.card)
         }
     }
 }

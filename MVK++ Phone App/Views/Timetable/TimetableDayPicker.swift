@@ -24,8 +24,8 @@ struct TimetableDayPicker: View {
             shiftButton(systemImage: "chevron.right", label: "Következő nap", days: 1, enabled: maxIso.map { value < $0 } ?? true)
         }
         .padding(2)
-        .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.muted.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 
     private func shiftButton(systemImage: String, label: String, days: Int, enabled: Bool) -> some View {
@@ -38,7 +38,7 @@ struct TimetableDayPicker: View {
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+        .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.5)
         .accessibilityLabel(label)
@@ -75,7 +75,7 @@ struct TimetableDateField: View {
             .padding(.horizontal, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+        .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
         .accessibilityLabel("Menetrend napja")
         .popover(isPresented: $isOpen, arrowEdge: .top) {
             TimetableCalendar(value: value, minIso: minIso, maxIso: maxIso, todayIso: todayIso) { iso in
@@ -83,6 +83,7 @@ struct TimetableDateField: View {
                 isOpen = false
             }
             .presentationCompactAdaptation(.popover)
+            .presentationBackground(Theme.card)
         }
     }
 }
@@ -154,7 +155,7 @@ private struct TimetableCalendar: View {
                     .frame(maxWidth: .infinity, minHeight: 24)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+            .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
             .padding(.top, 8)
         }
         .padding(10)
@@ -172,12 +173,12 @@ private struct TimetableCalendar: View {
             viewYear = year
         } label: {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+        .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
         .accessibilityLabel(label)
     }
 
@@ -190,14 +191,14 @@ private struct TimetableCalendar: View {
             onPick(iso)
         } label: {
             Text("\(day)")
-                .font(.system(size: 12, weight: selected || isToday ? .bold : .regular))
+                .font(Theme.sans(12, weight: selected || isToday ? .bold : .regular))
                 .monospacedDigit()
                 .foregroundStyle(selected ? Theme.primaryForeground : isToday ? Theme.primary : Theme.foreground)
                 .frame(maxWidth: .infinity, minHeight: 28)
-                .background(selected ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .background(selected ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(TimetablePressStyle(cornerRadius: 6))
+        .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.md))
         .disabled(disabled)
         .opacity(disabled ? 0.3 : 1)
     }
@@ -219,7 +220,7 @@ private struct TimetableCalendar: View {
 
 /// The web's hover/active feedback on a touch screen: the accent fill while pressed.
 struct TimetablePressStyle: ButtonStyle {
-    var cornerRadius: CGFloat = Theme.Radius.sm
+    var cornerRadius: CGFloat = Theme.Radius.md
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

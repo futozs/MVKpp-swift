@@ -52,7 +52,7 @@ private struct CommuteCardBody: View {
                 Text("Szokásos utad · ~\(BudapestClock.hm(minute: commute.minute))")
                     .font(Theme.sans(11, weight: .semibold))
                     .textCase(.uppercase)
-                    .tracking(0.5)
+                    .tracking(0.275)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 dailyButton(daily: daily, departure: departure, walkS: catchFor.walkS)
@@ -147,11 +147,10 @@ private struct CommuteCardBody: View {
             }
             .foregroundStyle(on ? Theme.primaryForeground : Theme.primary)
             .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .padding(.vertical, 2)
             .background(on ? Theme.primary : Color.clear, in: shape)
             .overlay(shape.strokeBorder(on ? Theme.primary : Theme.primary.opacity(0.4), lineWidth: 1))
-            .frame(minHeight: 32)
-            .contentShape(Rectangle())
+            .contentShape(Rectangle().inset(by: -8))
         }
         .buttonStyle(.plain)
         .disabled(busy)

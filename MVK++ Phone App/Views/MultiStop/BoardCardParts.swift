@@ -73,23 +73,11 @@ struct OutlineIconButton: View {
     var size: CGFloat = 32
     var action: () -> Void
 
-    @Environment(\.isEnabled) private var isEnabled
-
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.foreground)
-                .frame(width: size, height: size)
-                .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                        .strokeBorder(Theme.input, lineWidth: 1)
-                )
-                .contentShape(Rectangle())
+            Image(systemName: systemName).font(.system(size: 14, weight: .medium))
         }
-        .buttonStyle(.plain)
-        .opacity(isEnabled ? 1 : 0.5)
+        .buttonStyle(.mvk(.outline, size: .icon, height: size))
         .accessibilityLabel(label)
     }
 }
@@ -102,7 +90,7 @@ struct BoardEyebrow: View {
         Text(text)
             .font(Theme.sans(11, weight: .semibold))
             .textCase(.uppercase)
-            .tracking(0.5)
+            .tracking(0.275)
             .foregroundStyle(Theme.mutedForeground)
     }
 }

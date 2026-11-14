@@ -125,7 +125,7 @@ struct KioskScreen: View {
                     .foregroundStyle(Theme.primaryForeground)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                 if width >= 640 {
                     Text(Self.dateFormatter.string(from: now))
                         .font(Theme.sans(14))
@@ -180,7 +180,7 @@ struct KioskScreen: View {
         .buttonStyle(.plain)
         .foregroundStyle(Theme.foreground)
         .padding(6)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
         .padding(16)
         .opacity(idle && !picking ? 0 : 1)
         .allowsHitTesting(!(idle && !picking))

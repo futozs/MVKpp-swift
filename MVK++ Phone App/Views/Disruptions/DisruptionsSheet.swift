@@ -120,7 +120,7 @@ struct DisruptionsSheet: View {
                         } else {
                             Circle().fill(Theme.ontime).frame(width: 8, height: 8)
                         }
-                        Text("Mai zavarok").font(Theme.sans(16, weight: .bold))
+                        Text("Mai zavarok").font(Theme.sans(16, weight: .bold)).tracking(-0.4)
                     }
                     Group {
                         if let data = model.data {
@@ -144,7 +144,7 @@ struct DisruptionsSheet: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 18)
+        .padding(.top, 16)
         .padding(.bottom, 12)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
@@ -158,6 +158,7 @@ struct DisruptionsSheet: View {
                     Text(kind.short.uppercased()).lineLimit(1)
                 }
                 .font(Theme.sans(10.5, weight: .semibold))
+                .tracking(0.26)
                 .foregroundStyle(kind.tone)
                 Text("\(data.count(kind))")
                     .font(Theme.mono(20, weight: .bold))
@@ -228,7 +229,7 @@ struct DisruptionsSheet: View {
                                 .font(Theme.sans(12, weight: .semibold))
                                 .foregroundStyle(route == nil ? Theme.primaryForeground : Theme.mutedForeground)
                                 .padding(.horizontal, 10)
-                                .frame(height: 28)
+                                .frame(height: 26)
                                 .background(route == nil ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(route == nil ? Theme.primary : Theme.border, lineWidth: 1))
                         }
@@ -241,7 +242,7 @@ struct DisruptionsSheet: View {
                                     Text("\(chip.n)").font(Theme.mono(11, weight: .bold)).foregroundStyle(Theme.mutedForeground).padding(.trailing, 4)
                                 }
                                 .padding(.horizontal, 4)
-                                .frame(height: 28)
+                                .frame(height: 26)
                                 .background(isOn ? Theme.primary.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(isOn ? Theme.primary : Theme.border, lineWidth: 1))
                             }
@@ -297,16 +298,18 @@ struct DisruptionsSheet: View {
         let nearName = model.data?.nearStops.first?.name
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "mappin.and.ellipse").font(.system(size: 12))
+                Image(systemName: "mappin").font(.system(size: 12))
                 Text((nearName.map { "Itt, a(z) \($0) megállónál" } ?? "A közeled").uppercased())
             }
             .font(Theme.sans(11, weight: .semibold))
+            .tracking(0.28)
             .foregroundStyle(Theme.early)
             if nearName != nil {
                 if here.isEmpty {
                     Text("Ma egyetlen itt megálló menet sem esett ki. Ha nem jön a busz, az késés, nem kimaradás.")
                         .font(Theme.sans(12))
                         .foregroundStyle(Theme.mutedForeground)
+                        .padding(.top, -2)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(here.enumerated()), id: \.element.id) { index, trip in
@@ -352,7 +355,12 @@ struct DisruptionsSheet: View {
                 RouteTile(short: trip.route, colorHex: trip.color, textHex: trip.text)
                 Text(near?.time ?? trip.depTime)
                     .font(Theme.mono(14, weight: .bold))
-                    .strikethrough(kind == .cancelled, color: Theme.destructive.opacity(0.7))
+                    .overlay {
+                        // `decoration-2`: SwiftUI's strikethrough is a hairline.
+                        if kind == .cancelled {
+                            Rectangle().fill(Theme.destructive.opacity(0.7)).frame(height: 2).offset(y: 1)
+                        }
+                    }
                     .frame(width: 48, alignment: .leading)
                     .padding(.top, 2)
                 VStack(alignment: .leading, spacing: 3) {
@@ -386,8 +394,8 @@ struct DisruptionsSheet: View {
                         .foregroundStyle(Theme.ontime)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Theme.ontime.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.md - 4, style: .continuous))
-                        .padding(.top, 2)
+                        .background(Theme.ontime.opacity(0.1), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                        .padding(.top, 1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -432,12 +440,14 @@ struct DisruptionsSheet: View {
     }
 
     private var legend: some View {
-        (Text("Törölve").bold().foregroundStyle(Theme.foreground) + Text(": az MVK hivatalos törlési listája. ")
-         + Text("Kimarad").bold().foregroundStyle(Theme.foreground) + Text(": 15–90 perce esedékes, egyetlen busz sem kezdte el, és késő busz sem tart felé. ")
-         + Text("Nem indult").bold().foregroundStyle(Theme.foreground) + Text(": korábban ma esedékes volt, nincs kihúzva, mégsem láttuk, miközben a vonal szomszédos meneteit igen. Nem számoljuk az „igény esetén” járatokat, a garázsból kiálló meneteket, és azt sem, amelyiket a busz adat nélkül vitte le (pontosan érkezésre feltűnt a végállomáson, a következő menetén)."))
+        Text("\(term("Törölve")): az MVK hivatalos törlési listája. \(term("Kimarad")): 15–90 perce esedékes, egyetlen busz sem kezdte el, és késő busz sem tart felé. \(term("Nem indult")): korábban ma esedékes volt, nincs kihúzva, mégsem láttuk, miközben a vonal szomszédos meneteit igen. Nem számoljuk az „igény esetén” járatokat, a garázsból kiálló meneteket, és azt sem, amelyiket a busz adat nélkül vitte le (pontosan érkezésre feltűnt a végállomáson, a következő menetén).")
             .font(Theme.sans(11))
             .foregroundStyle(Theme.mutedForeground)
-            .lineSpacing(3)
+            .lineSpacing(4)
+    }
+
+    private func term(_ text: String) -> Text {
+        Text(verbatim: text).font(Theme.sans(11, weight: .semibold)).foregroundStyle(Theme.foreground)
     }
 }
 
@@ -456,7 +466,7 @@ struct StartRiskText: View {
         let end = formatter.string(from: Date(timeIntervalSince1970: risk.prevEndUnix))
         let lead = missed ? "Valószínűleg kimarad vagy nagyon késve indul" : "Várhatóan kb. \(minutes) késéssel indul"
         return HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "hourglass").font(.system(size: 11)).padding(.top, 1)
+            Image(systemName: "hourglass").font(.system(size: 12)).padding(.top, 1)
             Text("\(lead): a busza (\(risk.predicted ? "~" : "")\(risk.vehicleId)) \(whereText), \(end) körül ér be.")
                 .fixedSize(horizontal: false, vertical: true)
         }

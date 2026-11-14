@@ -75,8 +75,8 @@ struct PlannerForm: View {
                 .padding(.top, 12)
         }
         .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 
     private func submitButton(mode: JourneyMode) -> some View {
@@ -195,7 +195,7 @@ struct PlannerPlaceSelect: View {
                 .accessibilityHint("módosít")
             } else {
                 TextField("", text: $text, prompt: Text("Megálló neve…").foregroundStyle(Theme.mutedForeground))
-                    .font(Theme.sans(14))
+                    .font(Theme.sans(16))
                     .foregroundStyle(Theme.foreground)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -206,11 +206,12 @@ struct PlannerPlaceSelect: View {
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 40)
-                    .background(Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                             .strokeBorder(focused ? Theme.ring : Theme.input, lineWidth: 1)
                     )
+                    .mvkShadow(Theme.Shadow.sm)
                     .accessibilityLabel(label)
 
                 if !matches.isEmpty {
@@ -358,7 +359,7 @@ private struct PlannerDateField: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 Text(PlannerFormat.shortDate(value))
                     .font(Theme.sans(14, weight: .semibold))
@@ -367,7 +368,9 @@ private struct PlannerDateField: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+            .mvkShadow(Theme.Shadow.sm)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -458,7 +461,7 @@ private struct PlannerCalendar: View {
             viewYear = year
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.mutedForeground)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
@@ -492,7 +495,7 @@ private struct PlannerCalendar: View {
             open = false
         } label: {
             Text("\(day)")
-                .font(.system(size: 12, weight: selected || today ? .bold : .regular))
+                .font(Theme.sans(12, weight: selected || today ? .bold : .regular))
                 .monospacedDigit()
                 .foregroundStyle(selected ? Theme.primaryForeground : today ? Theme.primary : Theme.foreground)
                 .frame(maxWidth: .infinity)
@@ -517,7 +520,7 @@ private struct PlannerTimeField: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "clock")
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(Theme.mutedForeground)
                 Text(value)
                     .font(Theme.sans(14, weight: .semibold))
@@ -529,7 +532,9 @@ private struct PlannerTimeField: View {
             .padding(.horizontal, 12)
             .frame(minWidth: 88, alignment: .leading)
             .frame(height: 36)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+            .mvkShadow(Theme.Shadow.sm)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -571,7 +576,7 @@ private struct PlannerTimeColumns: View {
                             pick(n)
                         } label: {
                             Text(String(format: "%02d", n))
-                                .font(.system(size: 14, weight: n == selected ? .bold : .regular))
+                                .font(Theme.sans(14, weight: n == selected ? .bold : .regular))
                                 .monospacedDigit()
                                 .foregroundStyle(n == selected ? Theme.primary : Theme.foreground)
                                 .frame(width: 56)

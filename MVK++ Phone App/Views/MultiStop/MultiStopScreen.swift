@@ -146,10 +146,12 @@ struct MultiStopScreen: View {
             }
         } label: {
             Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(Theme.foreground)
                 .frame(width: 40, height: 40)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+                .mvkShadow(Theme.Shadow.sm)
         }
         .accessibilityLabel("További lehetőségek")
     }
@@ -158,8 +160,8 @@ struct MultiStopScreen: View {
         Button {
             isPickerOpen = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
+            HStack(spacing: 8) {
+                Image(systemName: "plus").font(.system(size: 14, weight: .medium))
                 if totalCount > 0 {
                     Text("\(totalCount)")
                         .font(Theme.mono(10, weight: .bold))
@@ -168,12 +170,8 @@ struct MultiStopScreen: View {
                         .background(Theme.primaryForeground.opacity(0.2), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                 }
             }
-            .foregroundStyle(Theme.primaryForeground)
-            .padding(.horizontal, 12)
-            .frame(minWidth: 40, minHeight: 40)
-            .glassEffect(.regular.tint(Theme.primary).interactive(), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.mvk(height: 40))
         .accessibilityLabel("Megálló felvétele")
     }
 
@@ -330,7 +328,7 @@ struct MultiStopScreen: View {
 
             Text("A figyelő üres")
                 .font(Theme.sans(18, weight: .bold))
-                .tracking(-0.2)
+                .tracking(-0.45)
                 .foregroundStyle(Theme.foreground)
                 .padding(.top, 16)
 
@@ -348,7 +346,7 @@ struct MultiStopScreen: View {
             Text("Gyakori csomópontok")
                 .font(Theme.sans(11, weight: .semibold))
                 .textCase(.uppercase)
-                .tracking(0.5)
+                .tracking(0.275)
                 .foregroundStyle(Theme.mutedForeground)
                 .padding(.top, 20)
 

@@ -46,9 +46,10 @@ struct StatsPredictionOverview: View {
                         StatsPillPicker(items: Self.ranges, value: range, onChange: { range = $0 })
                         Button(action: query.reload) {
                             Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .medium))
                                 .symbolEffect(.rotate, isActive: query.loading)
                         }
-                        .buttonStyle(StatsButtonStyle(icon: true))
+                        .buttonStyle(.mvk(.outline, size: .small))
                         .disabled(query.loading)
                         .accessibilityLabel("Frissítés")
                     }
@@ -377,7 +378,7 @@ struct StatsPredictionTripList: View {
                         row(t)
                     }
                 }
-                .statsCard(radius: 12, fill: .clear)
+                .statsCard(radius: Theme.Radius.xl, fill: .clear)
             }
 
             if rows.count > shown {
@@ -386,7 +387,7 @@ struct StatsPredictionTripList: View {
                 } label: {
                     Text("További \(min(Self.page, rows.count - shown)) menet (\(rows.count - shown) van még)")
                 }
-                .buttonStyle(StatsButtonStyle())
+                .buttonStyle(.mvk(.outline, size: .small))
                 .frame(maxWidth: .infinity)
             }
         }

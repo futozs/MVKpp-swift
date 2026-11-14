@@ -84,7 +84,7 @@ struct ParkingTipChip: View {
             case .tile: return until < 60 ? "most" : ParkingFormat.duration(until)
             }
         }()
-        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
         HStack(spacing: variant == .full ? 6 : 4) {
             if variant == .full {
                 Text("→").foregroundStyle(Theme.mutedForeground)
@@ -101,6 +101,7 @@ struct ParkingTipChip: View {
         }
         .font(Theme.sans(11))
         .foregroundStyle(Theme.foreground.opacity(tip.certain ? 1 : 0.9))
+        .frame(maxWidth: variant == .stall ? .infinity : nil, alignment: .leading)
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(tip.certain ? Theme.primary.opacity(0.10) : .clear, in: shape)
@@ -125,12 +126,13 @@ struct ParkingFavoriteButton: View {
     var body: some View {
         Button(action: onToggle) {
             Image(systemName: active ? "star.fill" : "star")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(active ? Theme.primary : Theme.mutedForeground.opacity(0.6))
-                .frame(width: 32, height: 32)
-                .contentShape(Rectangle())
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle().inset(by: -8))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(active ? .isSelected : [])
         .accessibilityLabel(active ? "\(name): levétel a kedvencekről" : "\(name): kedvenc parkoló")
     }
 }
@@ -163,7 +165,7 @@ struct ParkingSegmented<ID: Hashable>: View {
     var compact = false
 
     var body: some View {
-        HStack(spacing: compact ? 2 : 4) {
+        HStack(spacing: 4) {
             ForEach(options, id: \.id) { option in
                 let on = option.id == selection
                 Button {
@@ -176,7 +178,8 @@ struct ParkingSegmented<ID: Hashable>: View {
                         .padding(.vertical, compact ? 4 : 6)
                         .frame(maxWidth: fill ? .infinity : nil)
                         .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
-                        .background(on ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .background(on ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                        .mvkShadow(on && !compact ? Theme.Shadow.sm : Theme.Shadow.none)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -184,8 +187,8 @@ struct ParkingSegmented<ID: Hashable>: View {
             }
         }
         .padding(compact ? 2 : 4)
-        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
     }
 }
 
@@ -213,6 +216,7 @@ struct ParkingSectionTitle: View {
 /// The dashed empty-state box.
 struct ParkingEmptyBox: View {
     let text: String
+    var horizontalPadding: CGFloat = 24
     var verticalPadding: CGFloat = 32
 
     var body: some View {
@@ -221,7 +225,7 @@ struct ParkingEmptyBox: View {
             .foregroundStyle(Theme.mutedForeground)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)

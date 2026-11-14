@@ -144,8 +144,8 @@ struct MapSearchPanel: View {
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 44)
-                .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.input))
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.input))
 
                 Button(action: close) {
                     Image(systemName: "xmark")
@@ -169,7 +169,7 @@ struct MapSearchPanel: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                            .background(Theme.destructive.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }
@@ -301,7 +301,7 @@ struct MapSearchPanel: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Theme.mutedForeground)
                         .frame(width: 32, height: 32)
-                        .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                        .background(Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(name)
                             .font(Theme.sans(13.5, weight: .semibold))

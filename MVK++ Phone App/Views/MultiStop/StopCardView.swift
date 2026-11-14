@@ -66,7 +66,7 @@ struct StopCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(stop.name)
                     .font(Theme.sans(16, weight: .bold))
-                    .tracking(-0.2)
+                    .tracking(-0.4)
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
 

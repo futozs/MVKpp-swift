@@ -37,7 +37,7 @@ struct AddStopSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Felvétel a figyelőre")
                     .font(Theme.sans(18, weight: .semibold))
-                    .tracking(-0.2)
+                    .tracking(-0.45)
                     .foregroundStyle(Theme.foreground)
                 Text(description)
                     .font(Theme.sans(14))
@@ -127,6 +127,7 @@ struct AddStopSheet: View {
                     .foregroundStyle(on ? Theme.primaryForeground : Theme.mutedForeground)
                     .frame(maxWidth: .infinity, minHeight: 36)
                     .background(on ? Theme.primary : Color.clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                    .mvkShadow(on ? Theme.Shadow.sm : Theme.Shadow.none)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -227,6 +228,7 @@ struct AddStopSheet: View {
                     .foregroundStyle(selected ? Theme.primaryForeground : Theme.mutedForeground)
                     .frame(width: 32, height: 32)
                     .background(selected ? Theme.primary : Theme.muted, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                    .mvkShadow(selected ? Theme.Shadow.sm : Theme.Shadow.none)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(stop.name)
                         .font(Theme.sans(14, weight: selected ? .semibold : .medium))
@@ -367,16 +369,13 @@ struct AddStopSheet: View {
                                 .foregroundStyle(Theme.primaryForeground)
                                 .frame(width: 32, height: 32)
                                 .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                                .mvkShadow(Theme.Shadow.sm)
                             Text("\(HungarianText.withSuffix(train)) vonat")
                                 .font(Theme.sans(14, weight: .semibold))
                                 .foregroundStyle(Theme.foreground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Button("Levétel") { watches.toggleTrain(train) }
-                                .font(Theme.sans(13, weight: .medium))
-                                .buttonStyle(.plain)
-                                .foregroundStyle(Theme.foreground)
-                                .padding(.horizontal, 10)
-                                .frame(minHeight: 32)
+                                .buttonStyle(.mvk(.ghost, size: .small))
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
@@ -446,7 +445,7 @@ struct SearchField: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.mutedForeground))
-                .font(mono ? Theme.mono(14, weight: .regular) : Theme.sans(14))
+                .font(mono ? Theme.mono(16, weight: .regular) : Theme.sans(16))
                 .foregroundStyle(Theme.foreground)
                 .keyboardType(keyboard)
                 .autocorrectionDisabled()
@@ -465,11 +464,12 @@ struct SearchField: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(height: 36)
         .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                 .strokeBorder(focused.wrappedValue ? Theme.ring : Theme.input, lineWidth: 1)
         )
+        .mvkShadow(Theme.Shadow.sm)
     }
 }

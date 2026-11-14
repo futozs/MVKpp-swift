@@ -70,7 +70,7 @@ struct TimetableGridView: View {
         return HStack(alignment: .center, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "clock")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .opacity(0.8)
                 Text(String(format: "%02d", row.hour % 24))
                     .font(Theme.mono(16))
@@ -81,7 +81,7 @@ struct TimetableGridView: View {
             .frame(maxHeight: .infinity)
             .background(
                 isCurrentHour ? Theme.primary : Theme.primary.opacity(0.85),
-                in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
             )
             .mvkShadow(Theme.Shadow.sm)
 
@@ -116,17 +116,21 @@ struct TimetableGridView: View {
         let isPast = day == .today && trip.departureSec < nowSec && !isLive
         let minute = (trip.departureSec % 3600) / 60
         let style = ChipStyle(isCancelled: isCancelled, isWaiting: isWaiting, isLive: isLive, isSelected: isSelected, isNext: isNext, isPast: isPast)
-        let shape = RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
 
         return Button {
             onSelectTrip(trip)
         } label: {
             Text(String(format: "%02d", minute))
                 .font(Theme.mono(14, weight: .semibold))
-                .strikethrough(isCancelled, pattern: .solid, color: Theme.destructive)
+                .overlay {
+                    if isCancelled {
+                        Rectangle().fill(Theme.destructive).frame(height: 2)
+                    }
+                }
                 .foregroundStyle(style.foreground)
+                .padding(.horizontal, 10)
                 .frame(minWidth: 46, minHeight: 36)
-                .padding(.horizontal, 6)
                 .background(style.background, in: shape)
                 .overlay(shape.strokeBorder(style.border, lineWidth: 1))
                 .overlay(shape.strokeBorder(isCancelled && isSelected ? Theme.destructive : .clear, lineWidth: 2))

@@ -862,8 +862,9 @@ struct TransitMapRepresentable: UIViewRepresentable {
         private func setHistoryStale(_ stale: Bool, in map: MKMapView) {
             guard historyStale != stale else { return }
             historyStale = stale
-            for state in history.values where state.shown {
-                map.view(for: state.annotation)?.alpha = stale ? 0.35 : 1
+            let views = history.values.filter(\.shown).compactMap { map.view(for: $0.annotation) }
+            UIView.animate(withDuration: Theme.Motion.fast, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) {
+                for view in views { view.alpha = stale ? 0.35 : 1 }
             }
         }
 

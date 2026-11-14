@@ -76,7 +76,7 @@ struct TrainCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(Theme.sans(16, weight: .bold))
-                        .tracking(-0.2)
+                        .tracking(-0.4)
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
                     HStack(spacing: 6) {

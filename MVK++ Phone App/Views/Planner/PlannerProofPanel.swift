@@ -84,8 +84,8 @@ struct PlannerProofPanel: View {
             }
         }
         .padding(12)
-        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Igazolás")
     }
@@ -135,22 +135,15 @@ private struct PlannerCopyButton: View {
                 state = .idle
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: state == .copied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(state == .copied ? Theme.ontime : Theme.foreground)
+            Label {
                 Text(state == .copied ? "Másolva" : "Másolás")
-                    .font(Theme.sans(12, weight: .medium))
-                    .foregroundStyle(Theme.foreground)
                     .contentTransition(.opacity)
+            } icon: {
+                Image(systemName: state == .copied ? "checkmark" : "doc.on.doc")
+                    .foregroundStyle(state == .copied ? Theme.ontime : Theme.foreground)
             }
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
-            .contentShape(Rectangle())
         }
-        .buttonStyle(PlannerPressStyle())
+        .buttonStyle(.mvk(.outline, size: .small))
         .sensoryFeedback(.success, trigger: state == .copied) { _, copied in copied }
         .animation(Theme.Motion.fastAnimation, value: state == .copied)
         .accessibilityLabel(state == .copied ? "Másolva" : "Másolás")

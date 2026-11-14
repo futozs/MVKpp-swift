@@ -43,7 +43,7 @@ struct CountdownView: View {
             Text("Most")
                 .font(Theme.sans(size == .large ? 14 : 12, weight: .heavy))
                 .textCase(.uppercase)
-                .tracking(0.4)
+                .tracking((size == .large ? 14 : 12) * 0.025)
                 .foregroundStyle(Theme.primaryForeground)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)

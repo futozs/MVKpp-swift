@@ -163,9 +163,9 @@ struct MapTrafficPopup: View {
         }
         .padding(14)
         .frame(maxWidth: 320, alignment: .leading)
-        .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
-        .mvkShadow(Theme.Shadow.lg)
+        .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
+        .mvkShadow(Theme.Shadow.xl)
     }
 
     private var levelText: String {

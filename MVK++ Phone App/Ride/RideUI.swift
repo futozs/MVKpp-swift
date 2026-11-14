@@ -54,13 +54,15 @@ struct RideEyebrow: View {
     var systemImage: String?
     var color: Color = Theme.primary
     var size: CGFloat = 11
+    var iconSize: CGFloat = 12
+    var spacing: CGFloat = 6
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let systemImage { Image(systemName: systemImage).font(.system(size: size, weight: .semibold)) }
+        HStack(spacing: spacing) {
+            if let systemImage { Image(systemName: systemImage).font(.system(size: iconSize, weight: .semibold)) }
             Text(text.uppercased())
                 .font(Theme.sans(size, weight: .semibold))
-                .tracking(0.5)
+                .tracking(size * 0.025)
                 .lineLimit(1)
         }
         .foregroundStyle(color)
@@ -83,6 +85,8 @@ struct StopChoiceList: View {
     /// Kept in view without a selection (e.g. where the bus is now) — not a suggestion.
     var focusIdx: Int?
     var focusLabel: String?
+    /// Shrinks to its rows inside a height-capped panel instead of filling it.
+    var hugsContent = false
     let onPick: (Int) -> Void
 
     private var rows: ArraySlice<TripStop> {
@@ -94,14 +98,13 @@ struct StopChoiceList: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
+            HuggingScrollView(hugs: hugsContent) {
                 LazyVStack(spacing: 0) {
                     ForEach(rows, id: \.idx) { s in row(s).id(s.idx) }
                 }
                 .padding(.horizontal, 8)
                 .padding(.bottom, 12)
             }
-            .scrollIndicators(.hidden)
             .onAppear {
                 if let target = selected ?? focusIdx { proxy.scrollTo(target, anchor: .center) }
             }
@@ -153,10 +156,29 @@ struct StopChoiceList: View {
     }
 }
 
+/// A scroll view that is only as tall as its content, so a height-capped
+/// panel (web `max-h-[75dvh]` with a `min-h-0 flex-1` list) can shrink to fit.
+struct HuggingScrollView<Content: View>: View {
+    var hugs = true
+    @ViewBuilder let content: Content
+    @State private var height: CGFloat?
+
+    var body: some View {
+        ScrollView {
+            content.onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height = $0 }
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(hugs ? .basedOnSize : .automatic)
+        .frame(maxHeight: hugs ? height : nil)
+    }
+}
+
 struct RowPressStyle: ButtonStyle {
+    var radius = Theme.Radius.lg
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .background(configuration.isPressed ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }
 
@@ -240,14 +262,15 @@ struct RideStepHead: View {
             if let onBack {
                 Button(action: onBack) {
                     Image(systemName: "arrow.left")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Theme.mutedForeground)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle().inset(by: -10))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(RowPressStyle(radius: Theme.Radius.md))
                 .accessibilityLabel("Vissza")
                 .padding(.leading, -6)
+                .padding(.top, 2)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(Theme.sans(14, weight: .bold)).foregroundStyle(Theme.foreground)

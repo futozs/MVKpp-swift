@@ -21,7 +21,7 @@ struct RouteTile: View {
         Text(short)
             .font(Theme.sans(fontSize, weight: .heavy))
             .monospacedDigit()
-            .tracking(-0.3)
+            .tracking(fontSize * -0.025)
             .lineLimit(1)
             .foregroundStyle(Theme.hex(textHex, fallback: .white))
             .padding(.horizontal, horizontalPadding)

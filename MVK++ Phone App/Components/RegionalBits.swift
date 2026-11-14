@@ -207,7 +207,7 @@ struct CancelledTag: View {
             Text("Törölve")
                 .font(Theme.sans(10, weight: .bold))
                 .textCase(.uppercase)
-                .tracking(0.5)
+                .tracking(0.25)
                 .foregroundStyle(Theme.destructive)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)

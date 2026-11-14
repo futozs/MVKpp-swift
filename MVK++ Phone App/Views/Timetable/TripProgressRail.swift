@@ -107,8 +107,8 @@ struct TripProgressRail: View {
                 }
 
                 if let busTop, data.live {
-                    Image(systemName: "bus.fill")
-                        .font(.system(size: 13, weight: .semibold))
+                    Image(systemName: "bus")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Theme.primaryForeground)
                         .frame(width: 28, height: 28)
                         .background(Theme.primary, in: Circle())

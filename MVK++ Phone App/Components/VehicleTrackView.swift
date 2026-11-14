@@ -70,12 +70,10 @@ struct VehicleTrackView: View {
                     .foregroundStyle(Theme.mutedForeground)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Spacer(minLength: 0)
             }
 
             if trackable {
-                Image(systemName: "location.north.fill")
+                Image(systemName: "location.fill")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .padding(6)
@@ -83,6 +81,7 @@ struct VehicleTrackView: View {
             }
         }
         .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.primary.opacity(0.07), in: shape)
         .overlay(shape.strokeBorder(Theme.primary.opacity(0.25), lineWidth: 1))
         .mvkShadow(Theme.Shadow.xs)

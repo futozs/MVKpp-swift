@@ -58,7 +58,7 @@ struct RelationCard: View {
                     Text(toName).lineLimit(1)
                 }
                 .font(Theme.sans(16, weight: .bold))
-                .tracking(-0.2)
+                .tracking(-0.4)
                 .foregroundStyle(Theme.foreground)
 
                 HStack(spacing: 6) {
@@ -113,7 +113,7 @@ struct RelationCard: View {
                         .font(Theme.sans(14, weight: .semibold))
                         .foregroundStyle(Theme.foreground)
                         .lineLimit(1)
-                    HStack(spacing: 8) {
+                    FlowLayout(spacing: 8, lineSpacing: 8) {
                         Text("\(next.depTime) → \(next.arrTime)")
                             .font(Theme.mono(12, weight: .regular))
                             .foregroundStyle(Theme.mutedForeground)

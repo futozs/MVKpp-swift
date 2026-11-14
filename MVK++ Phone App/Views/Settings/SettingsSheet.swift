@@ -18,21 +18,25 @@ struct SettingsSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    header
-                    modesGroup
-                    separator
-                    group("Megállófigyelő", items: Preferences.watchFeatures)
-                    separator
-                    group("Fejléc", items: Preferences.headerPrefs)
-                    locationRow
-                    separator
-                    accountRow
-                    separator
-                    deviceRow
+            // Like the web panel, the header and the account row stay put
+            // while the long list scrolls between them.
+            VStack(spacing: 0) {
+                header
+                ScrollView {
+                    VStack(spacing: 0) {
+                        modesGroup
+                        separator
+                        group("Megállófigyelő", items: Preferences.watchFeatures)
+                        separator
+                        group("Fejléc", items: Preferences.headerPrefs)
+                        locationRow
+                        separator
+                        deviceRow
+                    }
+                    .padding(.bottom, 8)
                 }
-                .padding(.bottom, 24)
+                accountRow
+                    .overlay(alignment: .top) { separator }
             }
             .background(Theme.popover)
             .toolbar(.hidden, for: .navigationBar)
@@ -91,10 +95,12 @@ struct SettingsSheet: View {
                 Text(hint)
                     .font(Theme.sans(11))
                     .foregroundStyle(Theme.mutedForeground)
+                    .lineSpacing(1.3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             MVKSwitch(isOn: isOn, label: label)
+                .padding(.top, 2)
                 .disabled(disabled)
                 .opacity(disabled ? 0.5 : 1)
         }
@@ -151,6 +157,7 @@ struct SettingsSheet: View {
                             .frame(maxWidth: .infinity, minHeight: 28)
                             .padding(.horizontal, 4)
                             .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                            .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.none)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -187,7 +194,7 @@ struct SettingsSheet: View {
             toggleRow(
                 label: "Helymeghatározás",
                 hint: location.status == .denied
-                    ? "Az iOS letiltotta ehhez az apphoz a Beállítások appban engedélyezheted."
+                    ? "Az iOS letiltotta ehhez az apphoz. A Beállítások appban engedélyezheted."
                     : "Ebből számoljuk a sétát, az „Elérem?”-et és a felszállás felismerését. Csak ezen az eszközön marad.",
                 isOn: Binding(get: { isOn }, set: { $0 ? location.start() : location.stop() }),
                 disabled: location.status == .denied || location.status == .unavailable
@@ -197,7 +204,7 @@ struct SettingsSheet: View {
     }
 
     private var accountRow: some View {
-        navRow(icon: "person.crop.circle", title: "Fiók és felhős mentés", subtitle: "Kedvencek és beállítások szinkronizálása") {
+        navRow(icon: "person", title: "Fiók és felhős mentés", subtitle: "Kedvencek és beállítások szinkronizálása") {
             dismiss()
             navigation.isAccountOpen = true
         }
@@ -224,9 +231,9 @@ struct SettingsSheet: View {
     private func rowLabel(icon: String, title: String, subtitle: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
-                .frame(width: 18)
+                .frame(width: 16)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(Theme.sans(14, weight: .semibold))

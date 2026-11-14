@@ -57,7 +57,7 @@ struct AppTabBar: View {
             }
         }
         .padding(.horizontal, 6)
-        .frame(height: 60)
+        .frame(height: 56)
         .glassEffect(.regular.tint(Theme.glassTint), in: Capsule())
         .padding(.horizontal, 12)
         .padding(.bottom, 2)
@@ -67,7 +67,7 @@ struct AppTabBar: View {
         let isActive = selection == tab.id
         let badge = showBadges ? counts.badge(for: tab.id) : nil
         return Button {
-            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.82)) { selection = tab.id }
+            withAnimation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 1)) { selection = tab.id }
         } label: {
             VStack(spacing: 4) {
                 ZStack {
@@ -75,9 +75,11 @@ struct AppTabBar: View {
                         Capsule()
                             .fill(Theme.primary.opacity(0.2))
                             .matchedGeometryEffect(id: "indicator", in: indicator)
+                    } else {
+                        TabPressPill()
                     }
                     Image(systemName: tab.icon)
-                        .font(.system(size: 17, weight: isActive ? .semibold : .regular))
+                        .font(.system(size: 18, weight: isActive ? .semibold : .regular))
                         .foregroundStyle(isActive ? Theme.primary : Theme.mutedForeground)
                         .overlay(alignment: .topTrailing) {
                             if let badge { TabBadge(kind: badge.kind, value: badge.value).offset(x: 10, y: -6) }
@@ -94,13 +96,38 @@ struct AppTabBar: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TabPressStyle(isActive: isActive))
         .accessibilityLabel(tab.label + (badge.map { badgeText($0.kind, $0.value) } ?? ""))
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     private func badgeText(_ kind: TabCounts.Kind, _ value: Int) -> String {
         kind == .incident ? ", \(value) élő üzemzavar-jelzés" : ", \(value) figyelt megálló"
+    }
+}
+
+/// The web's `group-active:bg-accent`: a pill behind an inactive tab's icon
+/// while it is pressed.
+private struct TabPressStyle: ButtonStyle {
+    let isActive: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.environment(\.isTabPressed, configuration.isPressed && !isActive)
+    }
+}
+
+private extension EnvironmentValues {
+    @Entry var isTabPressed = false
+}
+
+private struct TabPressPill: View {
+    @Environment(\.isTabPressed) private var isPressed
+
+    var body: some View {
+        Capsule()
+            .fill(Theme.accent)
+            .opacity(isPressed ? 1 : 0)
+            .animation(Theme.Motion.fastAnimation, value: isPressed)
     }
 }
 
@@ -117,7 +144,7 @@ struct TabBadge: View {
             .padding(.horizontal, 3)
             .frame(minWidth: 16, minHeight: 16)
             .background(kind == .incident ? Theme.late : Theme.primary, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.background, lineWidth: 2).padding(-2))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.background, lineWidth: 2).padding(-2))
             .fixedSize()
             .accessibilityHidden(true)
     }

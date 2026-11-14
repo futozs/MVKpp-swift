@@ -28,8 +28,11 @@ struct RootTabView: View {
     @StateObject private var weather = WeatherModel()
     @StateObject private var incidents = LiveIncidentsModel()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var visited: Set<AppTab> = []
+    @State private var isLiveStatusOpen = false
+    @State private var headerBottom: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -47,7 +50,8 @@ struct RootTabView: View {
         }
         .safeAreaBar(edge: .top, spacing: 0) {
             VStack(spacing: 8) {
-                AppHeader(weather: weather)
+                AppHeader(weather: weather, isLiveStatusOpen: $isLiveStatusOpen)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).maxY }) { headerBottom = $0 }
                 SyncBanner()
                 RegionalIntroBanner()
             }
@@ -60,6 +64,7 @@ struct RootTabView: View {
                 showBadges: local.showsTabBadges
             )
         }
+        .overlay(alignment: .top) { liveStatusPanel }
         .background(Theme.background.ignoresSafeArea())
         .sheet(isPresented: $navigation.isSettingsOpen) { SettingsSheet().mvkDialog(cornerRadius: Theme.Radius.xl) }
         .sheet(isPresented: $navigation.isNotificationsOpen) { NotificationsSheet().mvkDialog(cornerRadius: Theme.Radius.xl) }
@@ -114,6 +119,31 @@ struct RootTabView: View {
         case .planner: RoutePlannerScreen()
         case .stats: StatsScreen()
         }
+    }
+
+    /// The live pill's panel: 2 pt under the header, 8 pt from the edges; a
+    /// tap anywhere else closes it.
+    private var liveStatusPanel: some View {
+        ZStack(alignment: .top) {
+            if isLiveStatusOpen {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { isLiveStatusOpen = false }
+                    .accessibilityHidden(true)
+                LiveStatusPanel(
+                    vehicleCount: store.liveVehicles.count,
+                    lastUpdated: store.lastUpdated,
+                    isRefreshing: store.isRefreshing,
+                    weather: weather.weather,
+                    onRefresh: { Task { await store.refreshLive() } }
+                )
+                .padding(.horizontal, 8)
+                .padding(.top, headerBottom + 2)
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98, anchor: .topLeading)).combined(with: .offset(y: -4)))
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.14), value: isLiveStatusOpen)
     }
 
     private var kioskBinding: Binding<Bool> {

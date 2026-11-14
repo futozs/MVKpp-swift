@@ -16,8 +16,8 @@ struct MapPopupCard<Content: View>: View {
             .padding(14)
             .padding(.trailing, 18)
             .frame(maxWidth: 340, alignment: .leading)
-            .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.border))
+            .background(Theme.popover, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border))
             .overlay(alignment: .topTrailing) {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
@@ -62,7 +62,7 @@ struct MapVehiclePopup: View {
                 if let delayLine {
                     Text(delayLine.text)
                         .font(Theme.sans(17, weight: .bold))
-                        .tracking(-0.2)
+                        .tracking(-0.17)
                         .foregroundStyle(delayLine.tone)
                         .padding(.top, 12)
                 }

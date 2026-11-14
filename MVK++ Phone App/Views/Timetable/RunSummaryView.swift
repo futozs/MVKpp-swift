@@ -74,7 +74,7 @@ struct RunSummaryView: View {
         case .early: Theme.early.opacity(0.10)
         case .ontime, .unknown: Theme.card
         }
-        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
 
         return HStack(spacing: 4) {
             Image(systemName: icon).font(.system(size: 10, weight: .semibold))

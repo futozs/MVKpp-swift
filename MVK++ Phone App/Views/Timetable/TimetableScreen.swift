@@ -101,7 +101,7 @@ struct TimetableScreen: View {
                 .font(.system(size: 14))
                 .foregroundStyle(Theme.mutedForeground)
             TextField("", text: $query, prompt: Text("Járat vagy végállomás").foregroundStyle(Theme.mutedForeground))
-                .font(Theme.sans(14))
+                .font(Theme.sans(16))
                 .foregroundStyle(Theme.foreground)
                 .focused($searchFocused)
                 .submitLabel(.search)
@@ -122,10 +122,12 @@ struct TimetableScreen: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 36)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
                 .strokeBorder(searchFocused ? Theme.ring : Theme.input, lineWidth: 1)
         )
+        .mvkShadow(Theme.Shadow.sm)
         .contentShape(Rectangle())
         .onTapGesture { searchFocused = true }
     }
@@ -141,7 +143,7 @@ struct TimetableScreen: View {
                         .font(Theme.sans(11, weight: .semibold))
                         .foregroundStyle(isOn ? Theme.primaryForeground : Theme.mutedForeground)
                         .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .background(isOn ? Theme.primary : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                         .mvkShadow(isOn ? Theme.Shadow.sm : Theme.Shadow.Level(radius: 0, y: 0, opacity: 0))
                         .contentShape(Rectangle())
                 }
@@ -150,8 +152,8 @@ struct TimetableScreen: View {
             }
         }
         .padding(4)
-        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
+        .background(Theme.muted.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.border, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Melyik járatok")
     }
@@ -181,14 +183,14 @@ struct TimetableScreen: View {
             }
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity, minHeight: 34)
-            .background(count > 0 ? Theme.destructive.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+            .background(count > 0 ? Theme.destructive.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                     .strokeBorder(count > 0 ? Theme.destructive.opacity(0.4) : Theme.border, lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
-        .buttonStyle(TimetablePressStyle())
+        .buttonStyle(TimetablePressStyle(cornerRadius: Theme.Radius.lg))
         .accessibilityHint("Mai zavarok: mi marad ki, mi jön helyette")
     }
 
@@ -250,7 +252,7 @@ struct TimetableScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(Theme.primary)
                 Text("KEDVENCEK")
                     .font(Theme.sans(11, weight: .semibold))
@@ -327,14 +329,14 @@ struct TimetableScreen: View {
 
             if cancelledCount > 0 {
                 HStack(spacing: 4) {
-                    Image(systemName: "nosign").font(.system(size: 8, weight: .bold))
+                    Image(systemName: "nosign").font(.system(size: 9, weight: .bold))
                     Text("\(cancelledCount)").font(Theme.mono(10))
                 }
                 .foregroundStyle(Theme.destructive)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.destructive.opacity(0.4), lineWidth: 1))
+                .background(Theme.destructive.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.destructive.opacity(0.4), lineWidth: 1))
                 .accessibilityLabel("\(cancelledCount) kihúzott menet \(model.isToday ? "ma" : "ezen a napon") ezen a járaton")
             }
         }

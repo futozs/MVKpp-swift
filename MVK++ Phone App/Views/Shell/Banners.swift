@@ -21,20 +21,23 @@ struct SyncBanner: View {
                     sync.pendingRemote = false
                     AppReloader.shared.reload()
                 } label: {
-                    Label("Betöltés", systemImage: "arrow.clockwise")
-                        .font(Theme.sans(12, weight: .semibold))
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(Theme.primaryForeground)
-                        .padding(.horizontal, 10)
-                        .frame(height: 26)
-                        .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .semibold))
+                        Text("Betöltés").font(Theme.sans(12, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.primaryForeground)
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .background(Theme.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
             .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).strokeBorder(Theme.primary.opacity(0.30), lineWidth: 1))
             .glassEffect(.regular.tint(Theme.glassTint), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .padding(.horizontal, 12)
             .accessibilityElement(children: .contain)
@@ -51,8 +54,8 @@ struct RegionalIntroBanner: View {
     var body: some View {
         if local.string(Preferences.regionalIntroKey) == nil {
             HStack(spacing: 12) {
-                Image(systemName: "tram.fill")
-                    .font(.system(size: 15))
+                Image(systemName: "train.side.front.car")
+                    .font(.system(size: 14))
                     .foregroundStyle(Theme.primary)
                     .frame(width: 36, height: 36)
                     .background(Theme.primary.opacity(0.2), in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
@@ -81,6 +84,7 @@ struct RegionalIntroBanner: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Theme.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous).strokeBorder(Theme.primary.opacity(0.25), lineWidth: 1))
             .glassEffect(.regular.tint(Theme.glassTint), in: RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous))
             .padding(.horizontal, 12)
             .accessibilityElement(children: .contain)

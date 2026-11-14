@@ -82,7 +82,7 @@ struct StatsHeading: View {
     var body: some View {
         Text(text)
             .font(Theme.sans(18, weight: .bold))
-            .tracking(-0.4)
+            .tracking(-0.45)
             .foregroundStyle(Theme.foreground)
     }
 }
@@ -117,7 +117,7 @@ struct StatsPillPicker<ID: Hashable>: View {
     private func pill(_ item: StatsPillItem<ID>) -> some View {
         let active = item.id == value
         let favorite = isFavorite?(item.id) ?? false
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
         return HStack(spacing: 4) {
             Button {
                 onChange(item.id)
@@ -171,6 +171,8 @@ struct StatsSearchField: View {
     let placeholder: String
     var clearable = true
 
+    @FocusState private var focused: Bool
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
@@ -179,6 +181,7 @@ struct StatsSearchField: View {
             TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Theme.mutedForeground))
                 .font(Theme.sans(16))
                 .foregroundStyle(Theme.foreground)
+                .focused($focused)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .submitLabel(.search)
@@ -197,9 +200,10 @@ struct StatsSearchField: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(Color.clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.input, lineWidth: 1))
+        .frame(height: 36)
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(focused ? Theme.ring : Theme.input, lineWidth: 1))
+        .mvkShadow(Theme.Shadow.sm)
     }
 }
 
@@ -245,33 +249,6 @@ struct StatsSearchablePicker<ID: Hashable>: View {
                 || ($0.sub ?? "").normalizedForSearch.contains(t)
                 || ($0.search ?? "").normalizedForSearch.contains(t)
         }.prefix(limit))
-    }
-}
-
-/// shadcn `Button` look-alikes used on the panels.
-struct StatsButtonStyle: ButtonStyle {
-    enum Variant { case outline, ghost }
-    var variant: Variant = .outline
-    var icon = false
-
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        return configuration.label
-            .font(Theme.sans(12, weight: .medium))
-            .foregroundStyle(Theme.foreground)
-            .padding(.horizontal, icon ? 0 : 12)
-            .frame(minWidth: icon ? 36 : nil, minHeight: icon ? 36 : 32)
-            .background(
-                configuration.isPressed ? Theme.accent : (variant == .outline ? Theme.background : .clear),
-                in: shape
-            )
-            .overlay {
-                if variant == .outline { shape.strokeBorder(Theme.input, lineWidth: 1) }
-            }
-            .opacity(isEnabled ? 1 : 0.5)
-            .contentShape(shape)
     }
 }
 
