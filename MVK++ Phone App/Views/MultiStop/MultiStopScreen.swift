@@ -38,41 +38,38 @@ struct MultiStopScreen: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                headerRow
-                HairlineDivider()
-                switch view {
-                case .rides:
-                    ScrollView {
-                        RidesPanelHost()
-                            .padding(12)
-                    }
-                case .stops:
-                    stopsView
+        VStack(spacing: 0) {
+            headerRow
+            HairlineDivider()
+            switch view {
+            case .rides:
+                ScrollView {
+                    RidesPanelHost()
+                        .padding(12)
                 }
+            case .stops:
+                stopsView
             }
-            .background(AppBackground())
-            .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $isPickerOpen) {
-                AddStopSheet(stops: store.stops)
-                    .presentationDetents([.large])
-                    .presentationBackground(Theme.background)
+        }
+        .background(AppBackground())
+        .sheet(isPresented: $isPickerOpen) {
+            AddStopSheet(stops: store.stops)
+                .presentationDetents([.large])
+                .presentationBackground(Theme.background)
+        }
+        .onChange(of: nearestId) { _, id in
+            guard id != nil, !isReordering else { return }
+            guard !holdsDeepLinkPage else {
+                holdsDeepLinkPage = false
+                return
             }
-            .onChange(of: nearestId) { _, id in
-                guard id != nil, !isReordering else { return }
-                guard !holdsDeepLinkPage else {
-                    holdsDeepLinkPage = false
-                    return
-                }
-                withAnimation(Theme.Motion.normalAnimation) { page = cardKeys.first }
-            }
-            .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
-            .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
-            .onAppear {
-                AlertsStore.shared.refresh()
-                applyDeepLinkFocus()
-            }
+            withAnimation(Theme.Motion.normalAnimation) { page = cardKeys.first }
+        }
+        .onChange(of: navigation.watchlistFocusStopId) { _, _ in applyDeepLinkFocus() }
+        .onChange(of: watchedStops.map(\.id)) { _, _ in applyDeepLinkFocus() }
+        .onAppear {
+            AlertsStore.shared.refresh()
+            applyDeepLinkFocus()
         }
     }
 
