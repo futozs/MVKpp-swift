@@ -237,8 +237,10 @@ private struct RideBody: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 RouteTile(short: PlannerFormat.legTileText(leg), colorHex: leg.routeColor ?? "1FB574", textHex: leg.routeTextColor, size: .small)
-                (Text(leg.trainName ?? PlannerFormat.modeNoun(leg.mode)).fontWeight(.semibold).foregroundColor(Theme.foreground)
-                    + Text(leg.headsign.map { " · \($0)" } ?? "").foregroundColor(Theme.mutedForeground))
+                Text.joined(
+                    Text(leg.trainName ?? PlannerFormat.modeNoun(leg.mode)).fontWeight(.semibold).foregroundColor(Theme.foreground),
+                    Text(leg.headsign.map { " · \($0)" } ?? "").foregroundColor(Theme.mutedForeground)
+                )
                     .font(.system(size: 12))
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -255,7 +257,7 @@ private struct RideBody: View {
                 Button {
                     withAnimation(Theme.Motion.fastAnimation) { showStops.toggle() }
                 } label: {
-                    (Text("\(meta) ") + Text("útközben").underline(true, pattern: .dot))
+                    Text.joined(Text("\(meta) "), Text("útközben").underline(true, pattern: .dot))
                         .font(.system(size: 11))
                         .monospacedDigit()
                         .foregroundStyle(showStops ? Theme.foreground : Theme.mutedForeground)
@@ -375,7 +377,7 @@ struct PlannerLegInsight: View {
                             if leg.isRail {
                                 Text("· a vonat úton")
                             } else {
-                                Text("· ") + Text(TransitIds.displayVehicleId(vehicleId)).font(Theme.mono(10.5, weight: .regular)) + Text(" úton")
+                                Text.joined(Text("· "), Text(TransitIds.displayVehicleId(vehicleId)).font(Theme.mono(10.5, weight: .regular)), Text(" úton"))
                             }
                         }
                         .fontWeight(.regular)
@@ -396,11 +398,14 @@ struct PlannerLegInsight: View {
     @ViewBuilder
     private func delayLine(_ sec: Double?, worst: Double?) -> some View {
         if let sec {
-            let base = Text("várhatóan ").foregroundColor(Theme.foreground) + delayText(sec, PlannerFormat.delayForecast(sec))
+            let base = Text.joined(Text("várhatóan ").foregroundColor(Theme.foreground), delayText(sec, PlannerFormat.delayForecast(sec)))
             if let worst {
-                (base + Text(" · rossz esetben ").foregroundColor(Theme.mutedForeground)
-                    + Text(PlannerFormat.delayShort(worst)).fontWeight(.semibold).monospacedDigit().foregroundColor(Theme.late))
-                    .fixedSize(horizontal: false, vertical: true)
+                Text.joined(
+                    base,
+                    Text(" · rossz esetben ").foregroundColor(Theme.mutedForeground),
+                    Text(PlannerFormat.delayShort(worst)).fontWeight(.semibold).monospacedDigit().foregroundColor(Theme.late)
+                )
+                .fixedSize(horizontal: false, vertical: true)
             } else {
                 base
             }
@@ -414,9 +419,15 @@ struct PlannerLegInsight: View {
         if let a = leg.actual, a.tracked {
             VStack(alignment: .leading, spacing: 2) {
                 if let ts = a.depTs, let d = a.depDelayS {
-                    (Text("Valójában ") + Text(PlannerFormat.hms(ts)).fontWeight(.semibold).monospacedDigit() + Text("-kor indult (")
-                        + delayText(d, PlannerFormat.delayShort(d)) + Text(")")
-                        + Text(a.vehicleId.map { ", \(PlannerFormat.vehiclePhrase($0, mode: leg.mode))" } ?? "") + Text("."))
+                    Text.joined(
+                        Text("Valójában "),
+                        Text(PlannerFormat.hms(ts)).fontWeight(.semibold).monospacedDigit(),
+                        Text("-kor indult ("),
+                        delayText(d, PlannerFormat.delayShort(d)),
+                        Text(")"),
+                        Text(a.vehicleId.map { ", \(PlannerFormat.vehiclePhrase($0, mode: leg.mode))" } ?? ""),
+                        Text(".")
+                    )
                         .foregroundStyle(Theme.foreground)
                 } else {
                     Text("Az indulásról nincs mérés\(a.vehicleId.map { " (jármű: \(TransitIds.displayVehicleId($0)))" } ?? "").")
@@ -424,8 +435,13 @@ struct PlannerLegInsight: View {
                 }
                 if let ts = a.arrTs, let d = a.arrDelayS {
                     FlowLayout(spacing: 6, lineSpacing: 2) {
-                        (Text("Valójában ") + Text(PlannerFormat.hms(ts)).fontWeight(.semibold).monospacedDigit() + Text("-kor érkezett (")
-                            + delayText(d, PlannerFormat.delayShort(d)) + Text(")."))
+                        Text.joined(
+                            Text("Valójában "),
+                            Text(PlannerFormat.hms(ts)).fontWeight(.semibold).monospacedDigit(),
+                            Text("-kor érkezett ("),
+                            delayText(d, PlannerFormat.delayShort(d)),
+                            Text(").")
+                        )
                             .foregroundStyle(Theme.foreground)
                         if a.estimated {
                             HStack(spacing: 4) {

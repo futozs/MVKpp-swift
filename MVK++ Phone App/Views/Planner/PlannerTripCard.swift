@@ -61,12 +61,17 @@ struct PlannerTripCard: View {
         let walk = PlannerFormat.walkTotalSec(trip)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                (Text(PlannerFormat.hm(trip.start))
-                    + Text(" → ").font(.system(size: 18, weight: .regular)).foregroundColor(Theme.mutedForeground)
-                    + Text(PlannerFormat.hm(trip.end)))
-                    .font(Theme.mono(18, weight: .bold))
-                    .tracking(-0.3)
-                    .foregroundStyle(Theme.foreground)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(PlannerFormat.hm(trip.start))
+                    Text("→")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(Theme.mutedForeground)
+                    Text(PlannerFormat.hm(trip.end))
+                }
+                .font(Theme.mono(18, weight: .bold))
+                .tracking(-0.3)
+                .foregroundStyle(Theme.foreground)
+                .accessibilityElement(children: .combine)
                 Spacer(minLength: 8)
                 HStack(spacing: 4) {
                     Text(PlannerFormat.minutes(trip.durationSec))
@@ -204,16 +209,20 @@ private struct PlannerForecastStatus: View {
                     Image(systemName: "clock")
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.mutedForeground)
-                    (Text("Várható érkezés ")
-                        + Text(PlannerFormat.hm(expected)).fontWeight(.semibold).monospacedDigit()
-                        + Text(" (\(PlannerFormat.delayForecast(delay)))").fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color)
-                        + Text(f.worstArrival != nil ? "," : "").foregroundColor(Theme.mutedForeground))
+                    Text.joined(
+                        Text("Várható érkezés "),
+                        Text(PlannerFormat.hm(expected)).fontWeight(.semibold).monospacedDigit(),
+                        Text(" (\(PlannerFormat.delayForecast(delay)))").fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color),
+                        Text(f.worstArrival != nil ? "," : "").foregroundColor(Theme.mutedForeground)
+                    )
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.foreground)
                 }
                 if let worst = f.worstArrival {
-                    (Text("rossz esetben ").foregroundColor(Theme.mutedForeground)
-                        + Text(PlannerFormat.hm(worst)).fontWeight(.semibold).monospacedDigit().foregroundColor(Theme.foreground))
+                    Text.joined(
+                        Text("rossz esetben ").foregroundColor(Theme.mutedForeground),
+                        Text(PlannerFormat.hm(worst)).fontWeight(.semibold).monospacedDigit().foregroundColor(Theme.foreground)
+                    )
                         .font(.system(size: 12))
                 }
             }

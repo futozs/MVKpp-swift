@@ -41,9 +41,11 @@ struct PlannerProofPanel: View {
                 }
                 row("Valójában") {
                     if let arrival = o.actualArrival, let delay = o.arrivalDelayS {
-                        (Text("érkezés \(PlannerFormat.hms(arrival))\(o.arrivalEstimated ? " (becsült)" : "") · ")
-                            + Text(PlannerFormat.delayExact(delay)).fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color))
-                            .monospacedDigit()
+                        Text.joined(
+                            Text("érkezés \(PlannerFormat.hms(arrival))\(o.arrivalEstimated ? " (becsült)" : "") · "),
+                            Text(PlannerFormat.delayExact(delay)).fontWeight(.semibold).foregroundColor(PlannerFormat.tone(delay).color)
+                        )
+                        .monospacedDigit()
                     } else {
                         Text("az érkezésről nincs mérés").foregroundStyle(Theme.mutedForeground)
                     }
@@ -99,18 +101,18 @@ struct PlannerProofPanel: View {
 
     private var vehicles: some View {
         let rides = PlannerFormat.transitLegs(trip)
-        var text = Text("")
+        var parts: [Text] = []
         for (index, leg) in rides.enumerated() {
-            if index > 0 { text = text + Text(", ") }
+            if index > 0 { parts.append(Text(", ")) }
             if let id = leg.actual?.vehicleId {
-                text = text + Text(TransitIds.displayVehicleId(id)).font(Theme.mono(12, weight: .semibold))
+                parts.append(Text(TransitIds.displayVehicleId(id)).font(Theme.mono(12, weight: .semibold)))
             } else {
-                text = text + Text("nincs mérés").foregroundColor(Theme.mutedForeground)
+                parts.append(Text("nincs mérés").foregroundColor(Theme.mutedForeground))
             }
             let route = "\(PlannerFormat.legTileText(leg)) \(leg.trainName ?? PlannerFormat.modeNoun(leg.mode))"
-            text = text + Text(" (\(route))").foregroundColor(Theme.mutedForeground)
+            parts.append(Text(" (\(route))").foregroundColor(Theme.mutedForeground))
         }
-        return text
+        return parts.dropFirst().reduce(parts.first ?? Text(verbatim: "")) { Text.joined($0, $1) }
     }
 }
 

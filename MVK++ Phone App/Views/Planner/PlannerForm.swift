@@ -384,8 +384,16 @@ private struct PlannerCalendar: View {
     @Binding var value: String
     @Binding var open: Bool
 
-    @State private var viewYear = 0
-    @State private var viewMonth = 0
+    @State private var viewYear: Int
+    @State private var viewMonth: Int
+
+    init(value: Binding<String>, open: Binding<Bool>) {
+        _value = value
+        _open = open
+        let parts = value.wrappedValue.split(separator: "-").compactMap { Int($0) }
+        _viewYear = State(initialValue: parts.first ?? 2026)
+        _viewMonth = State(initialValue: parts.count > 1 ? max(0, min(11, parts[1] - 1)) : 0)
+    }
 
     private static let weekdays = ["H", "K", "Sze", "Cs", "P", "Szo", "V"]
 
@@ -400,18 +408,25 @@ private struct PlannerCalendar: View {
                 Spacer()
                 monthButton("chevron.right", "Következő hónap", 1)
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 2) {
-                ForEach(Self.weekdays, id: \.self) { day in
-                    Text(day.uppercased())
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.mutedForeground)
-                        .padding(.vertical, 4)
+            Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+                GridRow {
+                    ForEach(Self.weekdays, id: \.self) { day in
+                        Text(day.uppercased())
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.mutedForeground)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
                 }
-                ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
-                    if let day {
-                        dayButton(day)
-                    } else {
-                        Color.clear.frame(height: 28)
+                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                    GridRow {
+                        ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                            if let day {
+                                dayButton(day)
+                            } else {
+                                Color.clear.frame(maxWidth: .infinity).frame(height: 28)
+                            }
+                        }
                     }
                 }
             }
@@ -430,12 +445,8 @@ private struct PlannerCalendar: View {
         }
         .padding(10)
         .frame(width: 256)
+        .fixedSize(horizontal: false, vertical: true)
         .presentationBackground(Theme.card)
-        .onAppear {
-            let parts = value.split(separator: "-").compactMap { Int($0) }
-            viewYear = parts.first ?? 2026
-            viewMonth = parts.count > 1 ? max(0, min(11, parts[1] - 1)) : 0
-        }
     }
 
     private func monthButton(_ icon: String, _ label: String, _ delta: Int) -> some View {
@@ -454,6 +465,10 @@ private struct PlannerCalendar: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    private var weeks: [[Int?]] {
+        stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<min($0 + 7, cells.count)]) }
     }
 
     private var cells: [Int?] {

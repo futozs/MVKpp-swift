@@ -297,3 +297,10 @@ enum PlannerFormat {
         Theme.hex(hex?.isEmpty == false ? hex : "1FB574")
     }
 }
+
+extension Text {
+    /// Styled runs as one wrapping text (`+` on `Text` is deprecated on iOS 26).
+    static func joined(_ parts: Text...) -> Text {
+        parts.dropFirst().reduce(parts.first ?? Text(verbatim: "")) { Text("\($0)\($1)") }
+    }
+}
