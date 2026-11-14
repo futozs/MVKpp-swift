@@ -26,7 +26,7 @@ struct ArrivalVehicle: Decodable, Hashable {
 /// The bus that should run this trip is still on its previous one.
 struct ArrivalStartRisk: Decodable, Hashable {
     let vehicleId: String
-    let expectedDelayS: Int
+    let expectedDelayS: Double
     /// `late` or `likely-missed`.
     let level: String
     let prevRoute: String?
@@ -36,8 +36,8 @@ struct ArrivalStartRisk: Decodable, Hashable {
 
 /// Congestion between the bus and the stop.
 struct ArrivalTrafficAhead: Decodable, Hashable {
-    let excessS: Int
-    let level: Int
+    let excessS: Double
+    let level: Double
     let fromName: String
     let toName: String
 }
