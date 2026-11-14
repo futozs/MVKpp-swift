@@ -85,13 +85,12 @@ final class PhoneAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
     @MainActor static var pendingLink: DeepLink?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Set before returning: the tap that cold-started the app is delivered
+        // right after launch and is lost without a delegate in place.
+        UNUserNotificationCenter.current().delegate = self
         MainActor.assumeIsolated {
             BackgroundRefresh.register()
-            Task {
-                await NotificationCenterStore.shared.configure()
-                // Set after `configure()`, which installs the shared presenter.
-                UNUserNotificationCenter.current().delegate = self
-            }
+            Task { await NotificationCenterStore.shared.configure() }
         }
         return true
     }
@@ -102,6 +101,8 @@ final class PhoneAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
 
+    /// Without this, iOS delivers a notification silently while the app is in
+    /// the foreground, exactly when someone tests an arrival alarm.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
     }

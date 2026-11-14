@@ -42,18 +42,6 @@ struct NotificationSettings: Codable, Equatable {
     static let `default` = NotificationSettings()
 }
 
-/// Without a delegate, iOS delivers a notification *silently* while the app is
-/// in the foreground — which is exactly when someone tests an arrival alarm,
-/// and exactly why they conclude it is broken.
-final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .list]
-    }
-}
-
 @MainActor
 final class NotificationCenterStore: ObservableObject {
 
@@ -78,18 +66,15 @@ final class NotificationCenterStore: ObservableObject {
     }
     @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
 
-    private let presenter = NotificationPresenter()
-
     private init() {
         watches = Self.load([String: NotifyWatch].self, key: Self.watchesKey) ?? [:]
         settings = Self.load(NotificationSettings.self, key: Self.settingsKey) ?? .default
     }
 
-    /// Call once at launch. Registers the foreground presenter and reads the
-    /// real authorisation state — without this, `authorization` stays
-    /// `.notDetermined` after a relaunch and every alarm is skipped.
+    /// Call once at launch. Reads the real authorisation state — without
+    /// this, `authorization` stays `.notDetermined` after a relaunch and every
+    /// alarm is skipped.
     func configure() async {
-        UNUserNotificationCenter.current().delegate = presenter
         await refreshAuthorization()
     }
 
