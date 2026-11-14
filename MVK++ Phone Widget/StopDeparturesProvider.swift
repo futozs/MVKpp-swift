@@ -7,33 +7,6 @@ import AppIntents
 import Foundation
 import WidgetKit
 
-/// One departure, frozen at fetch time.
-///
-/// The ETA is stored as an absolute `due` date rather than a minute count, so
-/// every timeline entry between two network refreshes can recompute an honest
-/// countdown instead of showing the same stale number for five minutes.
-struct DepartureSnapshot: Identifiable, Hashable {
-    let id: String
-    let route: String
-    let color: String
-    let textColor: String
-    let headsign: String
-    let due: Date
-    let delaySec: Int?
-    let isLive: Bool
-    let vehicleId: String?
-    let tripId: String
-
-    func minutes(at date: Date) -> Int {
-        max(0, Int(due.timeIntervalSince(date) / 60))
-    }
-
-    /// Once a bus is a minute past due it is gone, not "0 perc".
-    func hasDeparted(at date: Date) -> Bool {
-        due.timeIntervalSince(date) < -60
-    }
-}
-
 struct StopDeparturesEntry: TimelineEntry {
     let date: Date
     let stopId: String?
